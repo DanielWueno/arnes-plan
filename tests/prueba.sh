@@ -168,6 +168,49 @@ check "un comando colgado se corta"      "1"  "$CODE"
 check "y dice que fue el límite"         "si" "$(grep -q 'no terminó en 1s' <<<"$SALIDA" && echo si || echo no)"
 git checkout -q docs/plan/ejecucion-plan.estado.json
 
+
+echo "7. El mismo diagrama en dos sitios no puede divergir"
+D="python3 $ARNES/scripts/validar-diagramas.py"
+$D "$ARNES" >/dev/null 2>&1
+check "el repo tal cual: coinciden"      "0" "$?"
+
+# Una copia del repo donde tocar sólo uno de los dos sitios, que es el descuido
+# real: se corrige el flujo en el README y la página se queda con el viejo.
+COPIA="$TMP/copia"; mkdir -p "$COPIA/docs"
+cp "$ARNES/README.md" "$COPIA/README.md"
+cp "$ARNES/docs/como-funciona.html" "$COPIA/docs/como-funciona.html"
+# La sintaxis de flecha sólo puede aparecer dentro del diagrama: mutar por la
+# etiqueta a secas tocaría la prosa de la página, que es otra cosa.
+mutar() { # mutar <de> <a>
+  python3 - "$COPIA/docs/como-funciona.html" "$1" "$2" <<'PY' || echo "  FALLO no se pudo mutar la página"
+import io, sys
+p, viejo, nuevo = sys.argv[1], sys.argv[2], sys.argv[3]
+s = io.open(p, encoding='utf-8').read()
+assert viejo in s, f'la página no contiene {viejo!r}'
+io.open(p, 'w', encoding='utf-8').write(s.replace(viejo, nuevo, 1))
+PY
+}
+
+mutar 'C->>C: hace el trabajo' 'C->>C: hace otra cosa'
+SALIDA="$($D "$COPIA" 2>&1)"; CODE=$?
+check "una etiqueta cambiada: falla"     "1"  "$CODE"
+check "dice qué línea no coincide"       "si" "$(grep -q 'hace otra cosa' <<<"$SALIDA" && echo si || echo no)"
+
+# La propiedad complementaria, y es la que hace usable la comprobación: la
+# página tiene prosa propia que NO está en el README, y reescribirla no puede
+# poner el CI en rojo. Se compara el diagrama, no el documento.
+cp "$ARNES/docs/como-funciona.html" "$COPIA/docs/como-funciona.html"
+mutar 'El agente que hace el trabajo' 'Quien hace el trabajo'
+$D "$COPIA" >/dev/null 2>&1
+check "reescribir la prosa NO la rompe"  "0" "$?"
+
+# Y el otro descuido: añadir un diagrama al README y olvidar la página.
+cp "$ARNES/docs/como-funciona.html" "$COPIA/docs/como-funciona.html"
+printf '\n```mermaid\ngraph TD\n  A-->B\n```\n' >> "$COPIA/README.md"
+SALIDA="$($D "$COPIA" 2>&1)"; CODE=$?
+check "un diagrama de más: falla"        "1"  "$CODE"
+check "dice cuántos hay en cada sitio"   "si" "$(grep -q 'diagrama(s) y' <<<"$SALIDA" && echo si || echo no)"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1

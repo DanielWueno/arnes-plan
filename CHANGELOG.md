@@ -6,6 +6,22 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.2.0] — 2026-08-25
+
+### Añadido
+- **Los dos diagramas del arnés en el README**, que GitHub renderiza solo: una
+  invocación de principio a fin —con las puertas de cierre dibujadas fuera de
+  la sesión que hizo el trabajo— y el ciclo de vida de un ítem con la condición
+  escrita en cada arista. Es la explicación que antes costaba tres párrafos.
+- `docs/como-funciona.html`, la misma explicación como página, para proyectar
+  en una reunión o imprimir a PDF.
+- `scripts/validar-diagramas.py`, y con él la razón de que las dos cosas
+  anteriores puedan convivir: el mismo Mermaid tiene que vivir en dos sitios
+  porque cada uno sirve a un público distinto, y dos copias del mismo texto se
+  desincronizan solas. El script falla si dejan de coincidir, así que un
+  diagrama viejo no llega a proyectarse. Compara el diagrama, no el documento:
+  la página tiene prosa propia y reescribirla no pone el CI en rojo.
+
 ## [1.1.0] — 2026-08-25
 
 Un ítem volvía marcado `hecho` porque lo marcaba el mismo agente que lo había
