@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sintaxis de los scripts
+        run: |
+          for f in scripts/*.sh tests/*.sh; do bash -n "$f"; done
+          for f in scripts/*.py; do python3 -m py_compile "$f"; done
+
+      - name: Manifiestos bien formados
+        run: |
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json \
+                   hooks/hooks.json plantillas/ledger.plantilla.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
+          done
+
+      - name: La versión del manifiesto está en el CHANGELOG
+        run: |
+          V=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          grep -q "^## \[$V\]" CHANGELOG.md || {
+            echo "plugin.json dice $V y CHANGELOG.md no tiene esa entrada"; exit 1; }
+
+      - name: Regresión
+        run: bash tests/prueba.sh

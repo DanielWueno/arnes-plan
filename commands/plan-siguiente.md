@@ -3,9 +3,9 @@ description: Ejecuta UN solo ítem pendiente del plan de ingeniería y se detien
 argument-hint: "[id del ítem, u ola:N para restringir a una ola]"
 ---
 
-Ledger: la ruta la da `python3 infra/arnes/ledger_path.py`. Es la fuente de verdad del avance y
+Ledger: la ruta la da `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ledger_path.py"`. Es la fuente de verdad del avance y
 sobrevive al reinicio del límite de sesión, a `/clear` y a cerrar la terminal. Guía del arnés:
-`infra/arnes/README.md`.
+`${CLAUDE_PLUGIN_ROOT}/README.md`.
 
 Argumento recibido: `$ARGUMENTS` (si viene vacío, toma el siguiente ítem pendiente en orden de ola).
 
@@ -53,5 +53,5 @@ Argumento recibido: `$ARGUMENTS` (si viene vacío, toma el siguiente ítem pendi
   un diff es peor y mucho más caro que correr esa verificación. Resérvalo para los cambios donde un
   error sería silencioso y caro de detectar.
 
-- Antes de cerrar, valida el ledger: `python3 infra/arnes/validar-ledger.py`. Un campo mal escrito
+- Antes de cerrar, valida el ledger: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validar-ledger.py"`. Un campo mal escrito
   no rompe nada visiblemente, sólo hace que la próxima invocación elija mal.

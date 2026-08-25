@@ -3,8 +3,9 @@
 Una forma de trabajar con un asistente de código en tareas largas sin que se pierda el hilo,
 sin que se dispare el coste y sin que nadie tenga que acordarse de en qué iba.
 
-Es portable: vive en `infra/arnes/`, no depende del lenguaje ni del stack de este proyecto, y se
-instala en otro repositorio con un comando.
+Es un plugin de Claude Code. No depende del lenguaje ni del stack de tu proyecto: lo único que
+deja en tu repositorio es el ledger, un JSON con tu plan. La herramienta se actualiza con
+`claude plugin update`; tu plan no se toca.
 
 ---
 
@@ -33,22 +34,35 @@ memoria de una conversación**, y se ejecuta un ítem por sesión.
 | `docs/plan/ejecucion-plan.estado.json` | **El ledger.** La fuente de verdad del avance. Sobrevive al reinicio del límite, a `/clear` y a cerrar la terminal. Todo lo demás lo lee. |
 | `/plan-siguiente` | Ejecuta **un** ítem, lo verifica con su propio criterio, actualiza el ledger, commitea y **se detiene**. Acepta un id o `ola:N`. |
 | `/plan-estado` | El avance sin ejecutar nada. Corre en el modelo barato; cuesta casi nada. |
-| `infra/arnes/plan-run.sh` | Lanza un ítem en una **sesión nueva** de Claude Code: contexto limpio de verdad, no un `/clear`. Anuncia el ítem antes y frena si algo no cuadra. |
+| `scripts/plan-run.sh` | Lanza un ítem en una **sesión nueva** de Claude Code: contexto limpio de verdad, no un `/clear`. Anuncia el ítem antes y frena si algo no cuadra. |
 | Hook `SessionStart` | Cada sesión arranca sabiendo qué ítem toca. Lo resuelve un script, así que averiguarlo cuesta cero tokens. |
-| `infra/arnes/validar-ledger.py` | Comprueba que el ledger está bien formado. Un campo mal escrito no rompe nada visiblemente: sólo hace que la próxima invocación elija mal. Con `--item ID` juzga una sola ficha, que es como lo llama `plan-run.sh` antes de gastar. |
-| `infra/arnes/instalar.sh` | Copia todo esto a otro repositorio. |
+| `scripts/validar-ledger.py` | Comprueba que el ledger está bien formado. Un campo mal escrito no rompe nada visiblemente: sólo hace que la próxima invocación elija mal. Con `--item ID` juzga una sola ficha, que es como lo llama `plan-run.sh` antes de gastar. |
 
 ---
 
-## Empezar en este repositorio
-
-Ya está instalado. Para usarlo:
+## Instalar
 
 ```bash
-bash infra/arnes/plan-run.sh --solo-anunciar   # ¿qué toca? (no ejecuta nada)
-bash infra/arnes/plan-run.sh                   # ejecutar el siguiente, en sesión limpia
-bash infra/arnes/plan-run.sh 5.0               # ejecutar uno concreto
-bash infra/arnes/plan-run.sh ola:5             # el siguiente de una ola
+claude plugin marketplace add DanielWueno/arnes-plan
+claude plugin install arnes-plan@arnes-plan
+```
+
+Reinicia la sesión para que carguen el hook y los dos comandos. A partir de ahí, en cualquier
+proyecto:
+
+```bash
+/plan-estado        # el avance, sin ejecutar nada
+/plan-siguiente     # ejecuta UN ítem y se detiene
+```
+
+Y desde una terminal, para que cada ítem corra en un proceso nuevo de verdad (`ARNES` es el
+directorio `scripts/` del plugin; `claude plugin list` dice dónde quedó instalado):
+
+```bash
+bash "$ARNES/plan-run.sh" --solo-anunciar   # ¿qué toca? (no ejecuta nada)
+bash "$ARNES/plan-run.sh"                   # ejecutar el siguiente, en sesión limpia
+bash "$ARNES/plan-run.sh" 5.0               # ejecutar uno concreto
+bash "$ARNES/plan-run.sh" ola:5             # el siguiente de una ola
 ```
 
 Las banderas van en cualquier orden y se combinan con el id.
@@ -95,24 +109,24 @@ si sigues. Nada avanza sin que lo pidas.
 
 ---
 
-## Instalarlo en otro proyecto
+## Tu primer ledger
+
+El plugin no siembra nada: el ledger es tuyo y vive en tu repositorio. Copia la plantilla y
+escribe tus ítems, que es lo único que no se puede automatizar.
 
 ```bash
-bash infra/arnes/instalar.sh /ruta/al/otro/repo --dry-run   # ver qué haría
-bash infra/arnes/instalar.sh /ruta/al/otro/repo             # hacerlo
+mkdir -p docs/plan
+cp "$ARNES/../plantillas/ledger.plantilla.json" docs/plan/ejecucion-plan.estado.json
+python3 "$ARNES/validar-ledger.py"
 ```
-
-Copia el arnés, los dos comandos, **mezcla** el hook en el `settings.json` que ya hubiera —sin pisar
-otros hooks— y siembra un ledger de ejemplo sólo si no encuentra uno. No toca tu código y no
-commitea.
 
 No hace falta que el otro proyecto sea .NET, ni que use las mismas carpetas: el ledger se busca en
 `docs/plan/`, `docs/analisis-futuro/` y `.claude/plan/`, y la variable `PLAN_LEDGER` manda sobre
 todas si lo tienes en otro sitio.
 
-Después de instalar quedan tres cosas por hacer, y el instalador te las recuerda: **escribir tus
-ítems** (lo único que no se puede automatizar), validar, y abrir `/hooks` una vez en Claude Code
-para que cargue el hook nuevo.
+El campo `_moneda` de la plantilla es tuyo: aquí `horas_maquina` mide tiempo de ingesta y
+evaluación, pero en tu proyecto será otra cosa. Cámbialo y dilo en ese campo — es el recurso
+escaso el que decide qué ítems se lanzan sin preguntar.
 
 ---
 
@@ -193,7 +207,7 @@ Están escritas dentro de los comandos, no dependen de que nadie se acuerde:
 
 Lo mínimo que necesitas saber, en orden:
 
-1. **`bash infra/arnes/plan-run.sh --solo-anunciar`.** Te dice qué toca. No ejecuta nada, no gasta
+1. **`bash "$ARNES/plan-run.sh" --solo-anunciar`.** Te dice qué toca. No ejecuta nada, no gasta
    nada. Empieza por ahí.
 2. **El ledger es el plan.** Si quieres saber por qué algo está como está, búscalo por su `id`: los
    ítems cerrados llevan un campo `resultado` con qué se hizo y qué evidencia lo prueba.
@@ -238,16 +252,20 @@ específicos de Claude Code.
 ## Ficheros
 
 ```
-infra/arnes/
-  README.md                  esta guía
+.claude-plugin/
+  plugin.json                manifiesto y versión (semver)
+  marketplace.json           hace el repo instalable con `marketplace add`
+commands/
+  plan-siguiente.md          /plan-siguiente
+  plan-estado.md             /plan-estado
+hooks/hooks.json             el hook SessionStart
+scripts/
   plan-run.sh                lanza un ítem en sesión limpia
   plan-siguiente-linea.py    el hook SessionStart
   ledger_path.py             localiza el ledger (PLAN_LEDGER manda)
   validar-ledger.py          valida el ledger (o una ficha, con --item); sale 1 y dice qué falta
+plantillas/
   ledger.plantilla.json      semilla para un proyecto nuevo
-  instalar.sh                copia el arnés a otro repositorio
-.claude/commands/
-  plan-siguiente.md          /plan-siguiente
-  plan-estado.md             /plan-estado
-.claude/settings.json        el hook SessionStart
 ```
+
+En tu proyecto no queda nada de esto: sólo el ledger, donde tú lo pongas.

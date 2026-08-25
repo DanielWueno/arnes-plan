@@ -1,5 +1,6 @@
 {
   "_leeme": "Ledger de ejecución del plan de ingeniería. Fuente de verdad del avance: sobrevive al reinicio del límite de sesión, a un /clear y a cerrar la terminal. Se avanza con /plan-siguiente o `bash infra/arnes/plan-run.sh` (un ítem por invocación, commit al final). Estados: pendiente | en_curso | hecho | bloqueado | descartado. Guía: infra/arnes/README.md",
+  "schema_version": 1,
   "_moneda": "horas_maquina = tiempo de reloj de builds, tests, ingestas o evaluaciones. NO son tokens. Cámbialo por lo que de verdad sea escaso en tu proyecto y dilo aquí.",
   "olas": [
     {

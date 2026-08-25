@@ -4,7 +4,7 @@
 Hook SessionStart: escribe en el contexto de la sesión, en dos líneas, qué ítem
 del plan toca ahora.
 
-Por qué existe: con `infra/arnes/plan-run.sh` cada ítem corre en una sesión nueva, y
+Por qué existe: con `plan-run.sh` cada ítem corre en una sesión nueva, y
 una sesión nueva no sabe nada. Esto hace que el "qué toca" aparezca solo tras un
 /clear o al abrir una ventana, sin gastar una llamada al modelo para averiguarlo.
 
@@ -59,8 +59,12 @@ def main():
     )
     if elegido.get('bloqueado_por'):
         linea += f"\nBLOQUEADO POR: {' '.join(elegido['bloqueado_por'].split())}"
+    # Se imprime la ruta real del script hermano en vez de una relativa: como
+    # plugin, el arnés no vive dentro del proyecto y una ruta relativa no
+    # existiría desde el directorio del usuario.
+    lanzador = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plan-run.sh')
     linea += ("\nNo lo ejecutes por iniciativa propia: se lanza con "
-              "`bash infra/arnes/plan-run.sh` (sesión limpia) o `/plan-siguiente`.")
+              f"`bash {lanzador}` (sesión limpia) o `/plan-siguiente`.")
 
     json.dump({'hookSpecificOutput': {
         'hookEventName': 'SessionStart',

@@ -3,7 +3,7 @@ description: Muestra el avance del plan de ingeniería sin ejecutar nada
 model: haiku
 ---
 
-Lee el ledger —la ruta la da `python3 infra/arnes/ledger_path.py`— y muéstrame, sin ejecutar ni
+Lee el ledger —la ruta la da `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/ledger_path.py"`— y muéstrame, sin ejecutar ni
 modificar nada:
 
 1. Una tabla por ola: ítems `hecho` / total, y horas de máquina consumidas vs pendientes.
@@ -15,7 +15,7 @@ modificar nada:
 5. Si hay ítems con `horas_maquina` mayor a 1 por delante en la ola actual, dime cuáles y cuánto
    suman, para que yo decida cuándo lanzarlos.
 
-6. Si `python3 infra/arnes/validar-ledger.py` sale distinto de 0, dime qué se queja. Sólo eso: no
+6. Si `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validar-ledger.py"` sale distinto de 0, dime qué se queja. Sólo eso: no
    lo arregles.
 
 Sé breve. Nada de recomendaciones ni análisis: solo el estado.

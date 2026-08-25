@@ -22,8 +22,8 @@ Un campo presente pero en blanco cuenta como ausente: `"rollback": ""` no es
 un plan de reversión, y dejarlo pasar convierte la comprobación en teatro.
 
 Uso:
-  python3 infra/arnes/validar-ledger.py [ruta]        # todo el ledger
-  python3 infra/arnes/validar-ledger.py --item 4.2    # sólo ese ítem, por prefijo
+  python3 validar-ledger.py [ruta]        # todo el ledger
+  python3 validar-ledger.py --item 4.2    # sólo ese ítem, por prefijo
 """
 import json, os, sys
 
@@ -39,6 +39,34 @@ EJECUTABLES = {'pendiente', 'en_curso'}
 ESTADOS = {'pendiente', 'en_curso', 'hecho', 'bloqueado', 'descartado'}
 MODELOS = {'haiku', 'sonnet', 'opus'}
 ESFUERZOS = {'low', 'medium', 'high', 'xhigh', 'max'}
+
+# Esquema de ledger que esta versión del arnés sabe leer. Sólo el mayor manda:
+# un menor más alto significa campos añadidos, que un lector viejo ignora sin
+# romperse; un mayor más alto significa que algo cambió de forma.
+#
+# Esto no hacía falta mientras el arnés vivía dentro del proyecto: herramienta
+# y ledger viajaban en el mismo commit y no podían desincronizarse. Distribuido
+# como plugin sí pueden, y ese es justo el fallo que este campo detecta a
+# tiempo en vez de dejar que el arnés elija mal en silencio.
+ESQUEMA_SOPORTADO = 1
+CLAVE_ESQUEMA = 'schema_version'
+
+
+def revisar_esquema(data, errores):
+    """Un ledger sin el campo es anterior a que existiera: se asume 1 y no se
+    dice nada. Reclamárselo convertiría en error todos los ledgers en uso."""
+    bruto = data.get(CLAVE_ESQUEMA, 1)
+    try:
+        mayor = int(str(bruto).split('.')[0])
+    except (TypeError, ValueError):
+        errores.append(f'{CLAVE_ESQUEMA} "{bruto}" no es un número de versión')
+        return
+    if mayor > ESQUEMA_SOPORTADO:
+        errores.append(
+            f'El ledger declara {CLAVE_ESQUEMA} {bruto} y este arnés sólo lee '
+            f'hasta la {ESQUEMA_SOPORTADO}. Actualiza el plugin '
+            f'(`claude plugin update arnes-plan`) antes de tocarlo: leerlo con '
+            f'un lector viejo es cómo se corrompe un ledger en silencio.')
 
 
 def presente(it, campo):
@@ -137,6 +165,9 @@ def main():
         return 1
 
     errores = []
+    revisar_esquema(data, errores)
+    if errores:
+        return informar(errores, ruta)
 
     # ── Un solo ítem: la comprobación que corre antes de gastar ──────────────
     if item_pedido is not None:
