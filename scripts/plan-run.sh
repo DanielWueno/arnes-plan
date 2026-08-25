@@ -273,10 +273,19 @@ case "$MODO" in
     ;;
   desatendido)
     # Las guardas ya se evaluaron arriba: aquí sólo se arma la llamada.
-    ARGS_CLAUDE+=(-p --permission-mode acceptEdits --max-budget-usd "$PRESUPUESTO")
+    # bypassPermissions, y no acceptEdits, porque `acceptEdits` sólo aprueba
+    # EDICIONES: el propio protocolo empieza leyendo el ledger con un script, y
+    # esa llamada de Bash se quedaba esperando una aprobación que en modo -p no
+    # puede llegar. Medido: con `acceptEdits` y con `dontAsk` la sesión abría y
+    # no hacía nada; sólo así se completa. Es una escalada real de permisos, y
+    # es la razón de que este modo tenga las guardas más duras del arnés —más
+    # de una hora, multiagente, `opus`, bloqueado o árbol sucio y no arranca— y
+    # un techo de gasto obligatorio.
+    ARGS_CLAUDE+=(-p --permission-mode bypassPermissions --max-budget-usd "$PRESUPUESTO")
     echo -e "${GREEN}▶${NC} ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / ${YELLOW}desatendido${NC}, techo \$$PRESUPUESTO"
     [[ ${#RAZONES[@]} -gt 0 ]] && echo -e "   ${RED}Guardas saltadas con --igual.${NC}"
-    echo -e "${DIM}   Sin sesión interactiva: revisa el commit al terminar, no durante.${NC}"
+    echo -e "${DIM}   Sin sesión interactiva y SIN pedir permisos: revisa el commit al terminar,${NC}"
+    echo -e "${DIM}   no durante. Las guardas de arriba son lo único que hay entre esto y tu repo.${NC}"
     ;;
 esac
 echo
