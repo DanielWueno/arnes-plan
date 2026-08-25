@@ -37,7 +37,7 @@
 #   ficha delante. `--igual` salta las dos.
 #   El comando tiene un límite de tiempo: ARNES_LIMITE_VERIFICACION (def. 900 s).
 #
-# Por qué existe: /plan-siguiente delega la ejecución a un
+# Por qué existe: /arnes-plan:plan-siguiente delega la ejecución a un
 # subagente, así que ESA parte ya corre en contexto limpio, pero
 # el hilo principal acumula contexto entre invocaciones. Aquí
 # cada ítem arranca un proceso `claude` nuevo: contexto limpio de

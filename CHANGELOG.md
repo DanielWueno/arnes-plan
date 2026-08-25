@@ -6,6 +6,20 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.5.3] — 2026-08-25
+
+### Corregido
+- **El propio protocolo le enseñaba al usuario un comando que no existe.** El
+  paso 6 pedía "el comando exacto para continuar" sin decir cuál era, así que el
+  agente se lo inventaba en su forma corta, el usuario lo copiaba y se estrellaba
+  con `Unknown command`. Ahora el comando va escrito literal en el protocolo.
+
+  Es la cuarta vez que muerde el mismo patrón —texto que da por sabido el espacio
+  de nombres del plugin—, así que en vez de arreglar la cuarta se cubre la clase
+  entera: la suite falla si CUALQUIER fichero de `commands/`, `scripts/`,
+  `hooks/` o `plantillas/` enseña la forma corta. El patrón distingue el comando
+  de una ruta, para no confundirse con `scripts/plan-siguiente-linea.py`.
+
 ## [1.5.2] — 2026-08-25
 
 ### Corregido

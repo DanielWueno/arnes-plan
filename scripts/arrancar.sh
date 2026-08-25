@@ -6,7 +6,7 @@
 #               hace daño.
 # ============================================================
 # Uso:
-#   /plan-arrancar                      # desde Claude Code: sin rutas
+#   /arnes-plan:plan-arrancar           # desde Claude Code: sin rutas
 #   bash "$ARNES/arrancar.sh"           # o a mano, si ya tienes la ruta
 #   bash "$ARNES/arrancar.sh" --donde docs/analisis-futuro
 #   bash "$ARNES/arrancar.sh" --sin-atajo   # no instalar el comando `arnes`
@@ -131,7 +131,7 @@ cat > "$ATAJO_RUTA" <<'ATAJO_FIN'
 # arnes-plan:atajo — lanzador del arnés de plan.
 # No clava ninguna ruta: resuelve la instalación en cada ejecución, así que
 # sigue funcionando después de cada `claude plugin update`. Si lo borras, se
-# vuelve a crear con `/plan-arrancar`.
+# vuelve a crear con `/arnes-plan:plan-arrancar`.
 set -euo pipefail
 
 raiz_del_plugin() {

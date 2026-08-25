@@ -5,7 +5,7 @@ Valida un ledger. Sale 0 si está bien, 1 si no, y dice qué falta.
 
 Por qué existe: el ledger lo escriben personas y modelos a mano. Un campo
 ausente o un `ola` como string en vez de entero no rompe nada visiblemente —
-simplemente hace que /plan-siguiente elija mal, y eso se descubre tarde. Este
+simplemente hace que /arnes-plan:plan-siguiente elija mal, y eso se descubre
 repo ya tuvo ese bug: la Ola 4 tenía su número como string.
 
 Tres niveles de exigencia, y la diferencia importa:

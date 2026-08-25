@@ -54,7 +54,13 @@ Argumento recibido: `$ARGUMENTS` (si viene vacío, toma el siguiente ítem pendi
    Si quedó a medias, estado `bloqueado` con la razón concreta — nunca `hecho` optimista.
 
 6. **DETENTE.** Un ítem por invocación. No sigas con el siguiente ni "aprovechando que ya estoy
-   aquí". Termina con: qué quedó hecho, qué sigue, y el comando exacto para continuar.
+   aquí". Termina con: qué quedó hecho, qué sigue, y el comando para continuar.
+
+   Ese comando, **literal, sin abreviarlo**: `/arnes-plan:plan-siguiente` para seguir en esta misma
+   sesión, o `arnes` en una terminal si prefieres que el siguiente ítem arranque con el contexto
+   limpio. La forma corta `/plan-siguiente` **no existe** —los slash commands de un plugin viven en
+   su espacio de nombres y responden `Unknown command`— así que no la escribas aunque parezca la
+   natural: quien la lea la va a copiar y se va a estrellar.
 
 ## Reglas de coste
 

@@ -4,7 +4,7 @@
 Puerta de cierre que corre por CUALQUIER puerta de entrada.
 
 Por qué existe: las comprobaciones de cierre de la 1.1.0 vivían sólo en
-`plan-run.sh`, y el flujo diario de la gente es `/plan-siguiente` dentro de una
+`plan-run.sh`, y el flujo diario de la gente es `/arnes-plan:plan-siguiente` dentro de una
 sesión. Por ahí el protocolo se limitaba a PEDIRLE al agente que se
 autoevaluara — que es exactamente el fallo que esa versión decía haber cerrado,
 sobreviviendo en la otra entrada. Se vio en el único consumidor real: cuatro
@@ -12,7 +12,7 @@ sobreviviendo en la otra entrada. Se vio en el único consumidor real: cuatro
 `verificacion_comando` estaba en 0 de 57 fichas.
 
 Este hook se engancha a la escritura DEL LEDGER, no a un comando. Da igual si
-el ítem lo cerró `plan-run.sh`, `/plan-siguiente`, o alguien editando el JSON a
+el ítem lo cerró `plan-run.sh`, `/arnes-plan:plan-siguiente`, o alguien editando el JSON a
 mano: si un ítem acaba de pasar a `hecho`, aquí se comprueba.
 
 Qué comprueba, sólo sobre los ítems que ACABAN de cerrarse (comparando con la
