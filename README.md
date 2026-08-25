@@ -153,7 +153,12 @@ arnes                    # el siguiente ítem, en sesión limpia
 arnes --solo-anunciar    # qué toca, sin ejecutar ni gastar
 arnes 5.0 --auto         # uno concreto, con menos prompts
 arnes arrancar           # dejar listo otro proyecto
+arnes --help             # todos los comandos, y dónde estás ahora
 ```
+
+`arnes --help` no repite esta página: es la referencia de una pantalla —verbos, modos de
+supervisión, slash commands, variables de entorno— y termina diciéndote **el proyecto, el ledger y
+el ítem que toca**. Un README hay que ir a buscarlo; en una terminal nadie lo hace.
 
 **No lleva ninguna ruta dentro.** Resuelve la instalación en cada ejecución, así que sigue
 funcionando después de cada `claude plugin update` sin que haya que tocarlo ni recordar nada. Si lo
@@ -450,6 +455,7 @@ hooks/
   puerta-de-cierre.py        comprueba el cierre venga por donde venga
 scripts/
   arrancar.sh                deja el proyecto listo e instala el lanzador `arnes`
+  ayuda.sh                   lo que contesta `arnes --help`
   plan-run.sh                lanza un ítem en sesión limpia
   plan-siguiente-linea.py    el hook SessionStart
   ledger_path.py             localiza el ledger (PLAN_LEDGER manda)

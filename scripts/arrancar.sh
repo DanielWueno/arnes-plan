@@ -171,8 +171,15 @@ DIR="$(raiz_del_plugin)" || {
 }
 
 case "${1:-}" in
-  arrancar) shift; exec bash "$DIR/scripts/arrancar.sh" "$@" ;;
-  *)        exec bash "$DIR/scripts/plan-run.sh" "$@" ;;
+  # La ayuda vive en el plugin, no aquí: así se actualiza con él y este
+  # lanzador sigue sin contener nada que pueda quedarse viejo. El respaldo
+  # cubre el caso de un atajo más nuevo que el plugin instalado, que si no
+  # contestaría con un error de bash en vez de con una ayuda.
+  -h|--help|ayuda|help)
+    if [[ -f "$DIR/scripts/ayuda.sh" ]]; then exec bash "$DIR/scripts/ayuda.sh"; fi
+    exec bash "$DIR/scripts/plan-run.sh" --help ;;
+  arrancar)  shift; exec bash "$DIR/scripts/arrancar.sh" "$@" ;;
+  *)         exec bash "$DIR/scripts/plan-run.sh" "$@" ;;
 esac
 ATAJO_FIN
 chmod +x "$ATAJO_RUTA"
@@ -183,6 +190,7 @@ echo -e "  ${BOLD}arnes${NC}                    el siguiente ítem, en sesión l
 echo -e "  ${BOLD}arnes --solo-anunciar${NC}    qué toca, sin ejecutar ni gastar"
 echo -e "  ${BOLD}arnes 5.0 --auto${NC}         uno concreto, con menos prompts"
 echo -e "  ${BOLD}arnes arrancar${NC}           esto mismo, en otro proyecto"
+echo -e "  ${BOLD}arnes --help${NC}             todos los comandos, y dónde estás ahora"
 echo
 
 if ! command -v arnes >/dev/null 2>&1; then
