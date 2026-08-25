@@ -48,6 +48,9 @@ Argumento recibido: `$ARGUMENTS` (si viene vacío, toma el siguiente ítem pendi
    evidencia lo prueba, no el estado otra vez— y commitea el trabajo junto con el ledger en el
    mismo commit. Sin `Co-Authored-By` ni referencias a la herramienta en el mensaje.
    Comprueba el cierre con `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validar-ledger.py" --al-cerrar <id>`.
+   En cuanto escribas el ledger, la puerta de cierre se ejecuta sola y te dirá si el ítem no se
+   sostiene: no la esquives marcando `hecho` a ver si cuela — corrige lo que señale, o devuelve el
+   ítem a `en_curso`.
    Si quedó a medias, estado `bloqueado` con la razón concreta — nunca `hecho` optimista.
 
 6. **DETENTE.** Un ítem por invocación. No sigas con el siguiente ni "aprovechando que ya estoy
@@ -60,7 +63,11 @@ Argumento recibido: `$ARGUMENTS` (si viene vacío, toma el siguiente ítem pendi
 - Si el ledger tiene un ítem en `en_curso` de una sesión anterior, retómalo antes de tomar uno nuevo,
   y empieza revisando `git status` y `git diff` para ver qué quedó a medio hacer.
 - No expandas el alcance del ítem. Si encuentras otro problema, anótalo como ítem nuevo en `pendiente`
-  al final de su ola y sigue con el tuyo.
+  **en su sitio por orden de id**, no al final de la ola. Añadir siempre al final es lo único que
+  hace chocar el ledger de verdad cuando dos personas trabajan en ramas distintas: los cierres
+  fusionan solos, dos ítems añadidos al mismo final no.
+- Usa sólo los campos que documenta el README. Un campo inventado no lo valida ni lo lee nadie; si
+  necesitas una nota que el arnés deba ignorar, ponle un `_` delante.
 - No uses fan-out multi-agente salvo que el ítem diga `"multiagente": true`. Cuando ya existe una
   verificación mecánica —tests, un linter, un eval reproducible— un panel de agentes votando sobre
   un diff es peor y mucho más caro que correr esa verificación. Resérvalo para los cambios donde un

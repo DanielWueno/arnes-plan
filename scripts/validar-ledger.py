@@ -65,6 +65,17 @@ ESFUERZOS = {'low', 'medium', 'high', 'xhigh', 'max'}
 ESQUEMA_SOPORTADO = 1
 CLAVE_ESQUEMA = 'schema_version'
 
+# Todo campo que el arnés sabe leer. Lo que no esté aquí es deriva: alguien lo
+# inventó en una sesión, nadie lo valida y nadie lo lee — en el consumidor real
+# llegaron a 57 nombres fuera de esquema, 50 usados una sola vez, mientras el
+# validador respondía "✓ Ledger válido". No es un error, porque el ledger es
+# del proyecto; por eso se avisa en vez de fallar. Un `_` delante silencia el
+# aviso, que es la vía para notas deliberadas.
+CONOCIDAS = set(CAMPOS_ITEM) | CAMPOS_EJECUTABLE | CAMPOS_CERRADO | {
+    'verificacion_comando', 'archivos', 'bloquea', 'bloqueado_por', 'origen',
+    'commit', 'fecha', 'advertencia_de_coste', 'razon_del_descarte',
+}
+
 
 def revisar_esquema(data, errores):
     """Un ledger sin el campo es anterior a que existiera: se asume 1 y no se
@@ -256,6 +267,16 @@ def main():
             por_estado[it['estado']] = por_estado.get(it['estado'], 0) + 1
     resumen = ', '.join(f'{v} {k}' for k, v in sorted(por_estado.items()))
     print(f'✓ Ledger válido: {len(data["olas"])} olas, {len(ids)} ítems ({resumen}).')
+
+    # Aviso, no error: no invalida el ledger, pero sin decirlo estos campos se
+    # acumulan y lo que se escribe en ellos no lo lee nadie.
+    derivadas = sorted({c for o in data['olas'] for it in o['items']
+                        for c in it if c not in CONOCIDAS and not c.startswith('_')})
+    if derivadas:
+        muestra = ', '.join(derivadas[:8]) + ('…' if len(derivadas) > 8 else '')
+        print(f'  ⚠ {len(derivadas)} campos fuera del esquema: {muestra}')
+        print(f'    El arnés no los lee. Si son rastro del cierre, van en '
+              f'`resultado`; con `_` delante se ignoran.')
     return 0
 
 

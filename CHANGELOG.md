@@ -6,6 +6,42 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.5.0] — 2026-08-25
+
+Las puertas de cierre de la 1.1.0 sólo corrían por una de las dos entradas.
+Vivían en `plan-run.sh`, pero el flujo diario es `/plan-siguiente` dentro de una
+sesión, y por ahí el protocolo se limitaba a PEDIRLE al agente que se
+autoevaluara — el fallo exacto que esa versión decía haber cerrado,
+sobreviviendo en la otra puerta. Se vio en el único consumidor real:
+`verificacion_comando` estaba en 0 de 57 fichas y cuatro ítems llegaron a
+`hecho` sin `resultado`, parcheados a posteriori.
+
+### Añadido
+- **La puerta de cierre como hook `PostToolUse`**, enganchada a la escritura del
+  ledger y no a un comando. Da igual quién cierre el ítem: si acaba de pasar a
+  `hecho`, se comprueba que dejó `resultado` y que su `verificacion_comando`
+  sale 0 corriéndolo ahí. El motivo le llega a Claude en el momento de la
+  infracción, no tres pasos después con el commit ya escrito. Sólo mira lo que
+  ACABA de cerrarse, comparando con el ledger en `HEAD`: nada retroactivo.
+- **Aviso de campos fuera del esquema**, en el validador y en la puerta. No
+  falla —el ledger es del proyecto— pero lo que se escribe en un campo
+  inventado no lo lee nadie: en el consumidor real eran 53 nombres, la mitad
+  usados una sola vez, con el validador diciendo `✓ Ledger válido`. Un `_`
+  delante exime del aviso.
+- La plantilla explica qué escribir en `rollback` cuando revertir no es
+  posible: nombrar la mitigación, o por qué no aplica. `n/a` a secas no.
+
+### Corregido
+- **El plugin publicaba un ledger propio.** Probar `arrancar.sh` con este
+  repositorio como raíz sembró `docs/plan/ejecucion-plan.estado.json` aquí
+  dentro, y un `git add -A` lo publicó en la 1.4.0. Eliminado, con `.gitignore`
+  y una comprobación en la suite, porque un `.gitignore` protege del descuido
+  pero no de un `git add -f`.
+- El protocolo pedía añadir los ítems nuevos al final de su ola. Medido: los
+  cierres simultáneos fusionan solos incluso entre ítems contiguos, y lo único
+  que hace chocar el ledger de verdad es justo eso — dos personas añadiendo al
+  mismo final. Ahora dice que se inserte por orden de id.
+
 ## [1.4.0] — 2026-08-25
 
 La 1.3.0 arregló que la instalación pudiera destruir un plan, pero seguía

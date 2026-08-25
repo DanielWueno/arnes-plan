@@ -11,6 +11,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/puerta-de-cierre.py\"",
+            "timeout": 180,
+            "statusMessage": "Comprobando el cierre del ítem"
+          }
+        ]
+      }
     ]
   }
 }

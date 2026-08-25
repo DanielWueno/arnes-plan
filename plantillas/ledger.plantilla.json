@@ -21,7 +21,7 @@
           "estado": "pendiente",
           "por_que_este_modelo": "haiku donde un find, el compilador o un hash verifican. opus donde el CRITERIO es el trabajo: diseñar el oráculo de un test, decidir una descomposición, verificar un hallazgo dudoso. sonnet el resto.",
           "archivos": "Qué toca. Opcional pero muy útil: es lo que evita que el ítem se desborde.",
-          "rollback": "Cómo se revierte si sale mal. Si no lo sabes escribir, el ítem no está listo para ejecutarse.",
+          "rollback": "Cómo se revierte si sale mal. Si no lo sabes escribir, el ítem no está listo para ejecutarse. No siempre es un script: si el cambio no se puede deshacer -una migración con datos, una re-ingesta de horas- la respuesta honesta es decirlo y nombrar la mitigación ('irreversible: se hace snapshot antes'), o por qué no aplica ('es medición, no cambia comportamiento'). Lo que no vale es dejarlo en blanco ni poner n/a a secas: la pregunta es que pasa si esto sale mal, y esa pregunta siempre tiene respuesta.",
           "_resultado": "Al cerrar el ítem se le exige un campo `resultado`: qué se hizo y qué evidencia lo prueba. No es el estado, es el rastro que otro puede comprobar. Este campo `_resultado` es sólo la nota; bórralo con el resto del ejemplo."
         }
       ]
