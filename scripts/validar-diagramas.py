@@ -25,7 +25,10 @@ import re
 import sys
 
 README = 'README.md'
-PAGINA = os.path.join('docs', 'como-funciona.html')
+# index.html, no como-funciona.html: GitHub Pages sirve docs/index.html en la
+# raíz del sitio, así que el enlace que se reparte no lleva un nombre de
+# fichero detrás. Es la diferencia entre mandar una URL y mandar una ruta.
+PAGINA = os.path.join('docs', 'index.html')
 
 # Bloque ```mermaid ... ``` en Markdown, y <pre class="mermaid"> ... </pre> en la
 # página. La `s` (DOTALL) es lo que deja que el cuerpo tenga saltos de línea.

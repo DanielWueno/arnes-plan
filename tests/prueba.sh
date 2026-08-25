@@ -195,11 +195,11 @@ check "el repo tal cual: coinciden"      "0" "$?"
 # real: se corrige el flujo en el README y la página se queda con el viejo.
 COPIA="$TMP/copia"; mkdir -p "$COPIA/docs"
 cp "$ARNES/README.md" "$COPIA/README.md"
-cp "$ARNES/docs/como-funciona.html" "$COPIA/docs/como-funciona.html"
+cp "$ARNES/docs/index.html" "$COPIA/docs/index.html"
 # La sintaxis de flecha sólo puede aparecer dentro del diagrama: mutar por la
 # etiqueta a secas tocaría la prosa de la página, que es otra cosa.
 mutar() { # mutar <de> <a>
-  python3 - "$COPIA/docs/como-funciona.html" "$1" "$2" <<'PY' || echo "  FALLO no se pudo mutar la página"
+  python3 - "$COPIA/docs/index.html" "$1" "$2" <<'PY' || echo "  FALLO no se pudo mutar la página"
 import io, sys
 p, viejo, nuevo = sys.argv[1], sys.argv[2], sys.argv[3]
 s = io.open(p, encoding='utf-8').read()
@@ -216,13 +216,13 @@ check "dice qué línea no coincide"       "si" "$(grep -q 'hace otra cosa' <<<"
 # La propiedad complementaria, y es la que hace usable la comprobación: la
 # página tiene prosa propia que NO está en el README, y reescribirla no puede
 # poner el CI en rojo. Se compara el diagrama, no el documento.
-cp "$ARNES/docs/como-funciona.html" "$COPIA/docs/como-funciona.html"
+cp "$ARNES/docs/index.html" "$COPIA/docs/index.html"
 mutar 'El agente que hace el trabajo' 'Quien hace el trabajo'
 $D "$COPIA" >/dev/null 2>&1
 check "reescribir la prosa NO la rompe"  "0" "$?"
 
 # Y el otro descuido: añadir un diagrama al README y olvidar la página.
-cp "$ARNES/docs/como-funciona.html" "$COPIA/docs/como-funciona.html"
+cp "$ARNES/docs/index.html" "$COPIA/docs/index.html"
 printf '\n```mermaid\ngraph TD\n  A-->B\n```\n' >> "$COPIA/README.md"
 SALIDA="$($D "$COPIA" 2>&1)"; CODE=$?
 check "un diagrama de más: falla"        "1"  "$CODE"
@@ -363,6 +363,20 @@ d=json.load(open(p,encoding='utf-8')); d['olas'][0]['items'][0]['titulo']='retoq
 json.dump(d,open(p,'w',encoding='utf-8'),indent=2,ensure_ascii=False)"
 check "no re-verifica trabajo ya cerrado" ""   "$(llamar_gate)"
 cd "$PROY"
+
+echo '15. La página se puede publicar y se ve sin el visor de artifacts'
+# Antes sólo renderizaba dentro del visor: en GitHub no se ve —GitHub enseña el
+# código fuente de un .html— y con un doble clic los diagramas salían como texto
+# plano. Si se pierde el motor, la página vuelve a ser ilegible fuera y nadie se
+# entera hasta que alguien abre el enlace en una reunión.
+PAG="$ARNES/docs/index.html"
+check "la página está en docs/index.html" "si" "$(test -f "$PAG" && echo si || echo no)"
+check "trae su propio motor de mermaid"   "si" \
+      "$(grep -q 'mermaid.esm.min.mjs' "$PAG" && echo si || echo no)"
+check "y degrada sin red en vez de fallar" "si" \
+      "$(grep -q 'catch' "$PAG" && echo si || echo no)"
+check "con .nojekyll, para que Pages no la toque" "si" \
+      "$(test -f "$ARNES/docs/.nojekyll" && echo si || echo no)"
 
 echo '14. El hook no reparte rutas con la versión clavada dentro'
 # Claude Code conserva las versiones viejas del plugin. Una consola abierta
