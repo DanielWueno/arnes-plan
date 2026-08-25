@@ -293,8 +293,12 @@ check "y lleva su firma"                 "si" "$(grep -q 'arnes-plan:atajo' "$CA
 # El caso que importa: el cache tiene una 2.0.0 más alta, pero la INSTALADA es
 # la 1.0.0. Elegir por número mayor ejecutaría en silencio código que no está
 # activo. Se comprueba sin `claude` en el PATH, que es cuando entra el respaldo.
+# Se sourcea TODO lo anterior al `case`, no sólo la función: el atajo resuelve
+# el intérprete por encima de ella —en Windows es `python`, no `python3`— y
+# extraer sólo el cuerpo dejaba esa variable sin definir. La prueba se rompió
+# al hacer el arnés agnóstico de plataforma, y tenía razón en romperse.
 RESUELVE="$(env HOME="$CASA" PATH=/usr/bin:/bin bash -c \
-  'source /dev/stdin <<< "$(sed -n "/^raiz_del_plugin()/,/^}/p" "$0")"; raiz_del_plugin' \
+  'source /dev/stdin <<< "$(sed -n "/^set -euo/,/^case /p" "$0" | sed "\$d")"; raiz_del_plugin' \
   "$CASA/.local/bin/arnes" 2>/dev/null)"
 check "elige la instalada, no la 2.0.0"  "$CACHE/1.0.0" "$RESUELVE"
 
@@ -364,6 +368,31 @@ json.dump(d,open(p,'w',encoding='utf-8'),indent=2,ensure_ascii=False)"
 check "no re-verifica trabajo ya cerrado" ""   "$(llamar_gate)"
 cd "$PROY"
 
+echo '16. El arnés no da consejos de un sistema en otro'
+# Se escribió en un macOS y lo daba por supuesto. Un compañero lo instaló en
+# Windows/PowerShell: el núcleo funcionó -el ledger se sembró- pero la última
+# milla le dio tres instrucciones falsas: `~/.local/bin`, `export PATH=...` y
+# `python3`. Un consejo equivocado es peor que ninguno: se sigue, no funciona,
+# y parece culpa de quien lo siguió.
+for os_falso in darwin24 linux-gnu msys cygwin; do
+  ES="$(OSTYPE="$os_falso" bash -c 'source "$0"; echo "$ES_WINDOWS"' \
+        "$ARNES/scripts/entorno.sh" 2>/dev/null)"
+  esperado=0; case "$os_falso" in msys*|cygwin*) esperado=1 ;; esac
+  check "detecta $os_falso" "$esperado" "$ES"
+done
+CONSEJO_WIN="$(OSTYPE=msys     bash -c 'source "$0"; echo "$CONSEJO_PATH"' "$ARNES/scripts/entorno.sh")"
+CONSEJO_NIX="$(OSTYPE=darwin24 bash -c 'source "$0"; echo "$CONSEJO_PATH"' "$ARNES/scripts/entorno.sh")"
+check "en Windows no dice export"      "0"  "$(grep -c 'export PATH' <<<"$CONSEJO_WIN")"
+check "en Windows habla de PowerShell" "si" "$(grep -q 'env:Path' <<<"$CONSEJO_WIN" && echo si || echo no)"
+check "en Unix sí dice export"         "si" "$(grep -q 'export PATH' <<<"$CONSEJO_NIX" && echo si || echo no)"
+# Y que ningún script vuelva a clavar el intérprete.
+CLAVADOS=0
+for f in plan-run.sh arrancar.sh ayuda.sh; do
+  grep -q 'python3 "' "$ARNES/scripts/$f" && CLAVADOS=$((CLAVADOS+1))
+done
+check "ningún script clava python3"    "0"  "$CLAVADOS"
+check "ni el hook"                     "0"  "$(grep -c '"python3 ' "$ARNES/hooks/hooks.json")"
+
 echo '15. La página se puede publicar y se ve sin el visor de artifacts'
 # Antes sólo renderizaba dentro del visor: en GitHub no se ve —GitHub enseña el
 # código fuente de un .html— y con un doble clic los diagramas salían como texto
@@ -377,6 +406,13 @@ check "y degrada sin red en vez de fallar" "si" \
       "$(grep -q 'catch' "$PAG" && echo si || echo no)"
 check "con .nojekyll, para que Pages no la toque" "si" \
       "$(test -f "$ARNES/docs/.nojekyll" && echo si || echo no)"
+# La versión está escrita a mano en la página: es una copia del manifiesto, y
+# dos copias de un dato divergen solas. La página desplegada llegó a anunciar
+# v1.1.0 con el plugin en la 1.8.0 — y una carta de presentación que miente
+# sobre su propia versión es peor que no llevarla.
+V_MANIFIESTO="$(python3 -c "import json;print(json.load(open('$ARNES/.claude-plugin/plugin.json'))['version'])" 2>/dev/null)"
+V_PAGINA="$(grep -oE 'arnes-plan · v[0-9]+\.[0-9]+\.[0-9]+' "$PAG" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+check "la página anuncia la versión real" "$V_MANIFIESTO" "$V_PAGINA"
 
 echo '14. El hook no reparte rutas con la versión clavada dentro'
 # Claude Code conserva las versiones viejas del plugin. Una consola abierta
@@ -400,6 +436,9 @@ echo '13. arnes --help contesta desde la terminal, sin ir al README'
 cd "$PROY"
 AYUDA="$(bash "$ARNES/scripts/ayuda.sh" 2>&1)"; CODE=$?
 check "sale 0"                            "0"  "$CODE"
+# Si falla en otra máquina, que el log sirva para algo: sin esto, el CI sólo
+# dice "esperado 0, obtenido 1" y hay que adivinar desde otro sistema.
+[[ $CODE -ne 0 ]] && { echo "        ── salida completa de ayuda.sh ──"; sed 's/^/        /' <<<"$AYUDA"; }
 # Lo que hace que se consulte en vez de ignorarse: los verbos, los modos, los
 # slash commands, las variables de entorno y DÓNDE ESTÁS. Si algo de eso vive
 # sólo en el README, es documentación, y en una terminal nadie va a buscarla.

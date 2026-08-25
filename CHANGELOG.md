@@ -6,6 +6,39 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.8.0] — 2026-08-25
+
+### Corregido
+- **El arnés daba consejos de macOS en Windows.** Se escribió aquí y lo daba
+  por supuesto. Un compañero lo instaló en Windows/PowerShell: el núcleo
+  funcionó —el ledger se sembró— pero la última milla le dijo tres cosas falsas:
+  que el lanzador iba a `~/.local/bin`, que lo pusiera en el PATH con
+  `export PATH=...`, y que validara con `python3`. Ninguna vale ahí. Un consejo
+  equivocado es peor que ninguno: se sigue, no funciona, y parece culpa de quien
+  lo siguió.
+
+  Ahora `scripts/entorno.sh` resuelve lo que cambia entre sistemas y los demás
+  scripts lo consultan: el intérprete (`python3` o `python`), y el consejo de
+  PATH en la sintaxis del shell que toca. En Windows se escribe además un
+  `arnes.cmd`, porque PowerShell y `cmd` no saben ejecutar un script de bash.
+  El hook tampoco clava ya el intérprete.
+
+  **No está probado en Windows de punta a punta**, y el README lo dice en vez de
+  prometerlo: hoy hemos visto tres veces que lo que no se ejecuta está roto.
+- **`arnes --help` no tenía un código de salida definido.** Lo decidía el
+  último comando ejecutado, que cambia según la rama que se tome y según el
+  sistema: el CI de Ubuntu la vio salir 1 donde en macOS salía 0. Una pantalla
+  de ayuda que a veces falla no tiene sentido, así que ahora sale 0 siempre —
+  eso no es tapar el síntoma, es escribir el contrato que faltaba. La prueba
+  vuelca además la salida completa cuando falla, para que el log de otra
+  máquina sirva para algo en vez de obligar a adivinar desde aquí.
+- **La página desplegada anunciaba una versión falsa.** El número está escrito a
+  mano en el HTML, así que era una copia del manifiesto — y dos copias del mismo
+  dato divergen solas: la web decía `v1.1.0` con el plugin en la 1.8.0. Una
+  carta de presentación que miente sobre su propia versión es peor que no
+  llevarla. La suite falla ahora si el número de la página no es el del
+  manifiesto.
+
 ## [1.7.0] — 2026-08-25
 
 ### Añadido
