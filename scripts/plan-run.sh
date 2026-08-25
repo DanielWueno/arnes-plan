@@ -3,13 +3,14 @@
 # plan-run.sh — Ejecuta UN ítem del ledger en una sesión de
 #               contexto limpio, anunciándolo antes.
 # ============================================================
-# Uso:
-#   bash infra/arnes/plan-run.sh              # el siguiente pendiente
-#   bash infra/arnes/plan-run.sh 5.0          # un ítem concreto
-#   bash infra/arnes/plan-run.sh ola:5        # el siguiente de la Ola 5
-#   bash infra/arnes/plan-run.sh 5.0 --solo-anunciar    # sólo la ficha, no ejecuta
-#   bash infra/arnes/plan-run.sh 5.0 --auto             # menos prompts de permisos
-#   bash infra/arnes/plan-run.sh 4.6 --desatendido      # sin nadie delante (con guardas)
+# Uso (ARNES = el directorio de este script; instalado como plugin sale de
+# `claude plugin list`, y dentro de una sesión es ${CLAUDE_PLUGIN_ROOT}/scripts):
+#   bash "$ARNES/plan-run.sh"              # el siguiente pendiente
+#   bash "$ARNES/plan-run.sh" 5.0          # un ítem concreto
+#   bash "$ARNES/plan-run.sh" ola:5        # el siguiente de la Ola 5
+#   bash "$ARNES/plan-run.sh" 5.0 --solo-anunciar    # sólo la ficha, no ejecuta
+#   bash "$ARNES/plan-run.sh" 5.0 --auto             # menos prompts de permisos
+#   bash "$ARNES/plan-run.sh" 4.6 --desatendido      # sin nadie delante (con guardas)
 #
 # Modos de permisos:
 #   (por defecto)   interactivo. Apruebas lo que pida. Es lo correcto casi siempre.
@@ -40,9 +41,22 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'
 CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'; DIM='\033[2m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Raíz del proyecto: la del repo git si estamos dentro de uno, si no dos niveles
-# por encima del script (infra/arnes/ -> raíz). No se asume dónde vive el arnés.
-ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || (cd "$SCRIPT_DIR/../.." && pwd))"
+
+# Raíz del proyecto SOBRE EL QUE SE TRABAJA. No se deriva de dónde vive este
+# script, y la distinción es la que hace que el arnés funcione instalado:
+# cuando llega como plugin, $SCRIPT_DIR está en ~/.claude/plugins/..., cuyo
+# repositorio git es el DEL PLUGIN. Derivar la raíz de ahí —como hacía la
+# versión vendorizada, que podía permitírselo porque vivía dentro del propio
+# proyecto— haría que `git status`, las guardas de árbol sucio y el commit de
+# cierre apuntaran al repositorio equivocado, y en silencio.
+#
+# Orden: lo que diga Claude Code, si no la raíz del repo desde el que se
+# invoca, si no el directorio actual.
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+  ROOT="$CLAUDE_PROJECT_DIR"
+else
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
 LEDGER="$(cd "$ROOT" && python3 "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
 
 # Las banderas se aceptan en cualquier posición: el primer argumento que no
@@ -55,7 +69,8 @@ for a in "$@"; do
     --desatendido)              MODO="desatendido" ;;
     --desatendido=*)            MODO="desatendido"; PRESUPUESTO="${a#*=}" ;;
     --igual|--force)            FORZAR=1 ;;
-    -h|--help)                  sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)                  awk '/^# ={10,}$/{n++; if(n==3) exit} NR>1{sub(/^# ?/,""); print}' \
+                                    "${BASH_SOURCE[0]}"; exit 0 ;;
     --*) echo "Bandera desconocida: $a (usa --help)"; exit 1 ;;
     *)   [[ -z "$ARG" ]] && ARG="$a" || { echo "Sobra el argumento: $a"; exit 1; } ;;
   esac
@@ -65,9 +80,9 @@ command -v claude >/dev/null || { echo -e "${RED}✗${NC} 'claude' no está en e
 if [[ -z "$LEDGER" || ! -f "$LEDGER" ]]; then
   echo -e "${RED}✗${NC} No encuentro el ledger."
   echo "   Se buscó en las rutas convencionales bajo $ROOT."
-  echo "   Crea uno con:  cp $SCRIPT_DIR/ledger.plantilla.json docs/plan/ejecucion-plan.estado.json"
+  echo "   Crea uno con:  cp $SCRIPT_DIR/../plantillas/ledger.plantilla.json docs/plan/ejecucion-plan.estado.json"
   echo "   o apunta a él: export PLAN_LEDGER=/ruta/al/ejecucion-plan.estado.json"
-  echo "   Guía completa: $SCRIPT_DIR/README.md"
+  echo "   Guía completa: $SCRIPT_DIR/../README.md"
   exit 1
 fi
 
@@ -261,5 +276,5 @@ for o in d['olas']:
         if it['id'] == sys.argv[2]:
             print(f"  estado en el ledger: {it['estado']}")
 PY
-echo -e "${DIM}  siguiente: bash infra/arnes/plan-run.sh${NC}"
+echo -e "${DIM}  siguiente: bash $SCRIPT_DIR/plan-run.sh${NC}"
 exit $CODE
