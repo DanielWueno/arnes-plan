@@ -6,6 +6,23 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.5.1] — 2026-08-25
+
+### Corregido
+- **`plan-run.sh` arrancaba la sesión nueva con un comando que no existe.** Los
+  slash commands de un plugin viven en el espacio de nombres del plugin, así que
+  `/plan-siguiente` responde `Unknown command`: la sesión se abría y no hacía
+  nada. Es la función principal del arnés, y estuvo rota desde que se extrajo a
+  plugin. El nombre se lee ahora del manifiesto, para que renombrar el plugin no
+  vuelva a romperlo en silencio.
+
+  Lo tapaba la propia suite: sus pruebas sustituyen `claude` por un doble que
+  acepta cualquier cadena, así que el comando inválido pasaba verde. La
+  regresión ahora comprueba **la cadena que se le pasa**, no que no reviente —
+  un doble de prueba sólo verifica lo que se le pide verificar.
+- La línea del hook de arranque y toda la documentación anunciaban también la
+  forma corta, que era el primer tropiezo de cualquiera que llegara nuevo.
+
 ## [1.5.0] — 2026-08-25
 
 Las puertas de cierre de la 1.1.0 sólo corrían por una de las dos entradas.

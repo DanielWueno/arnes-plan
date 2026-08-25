@@ -50,6 +50,15 @@ check "se anunció el ítem del ledger del consumidor" \
       "si" "$(grep -q 'ítem de prueba' <<<"$SALIDA" && echo si || echo no)"
 check "se lanzó con el modelo que dice el ledger" \
       "si" "$(grep -q -- '--model haiku' <<<"$SALIDA" && echo si || echo no)"
+# El comando tiene que ir CUALIFICADO con el nombre del plugin. La forma corta
+# responde "Unknown command" y la sesión nueva arranca sin hacer nada — así
+# estuvo rota la función principal del arnés desde que se extrajo a plugin,
+# invisible para esta suite porque el `claude` de mentira acepta cualquier cosa.
+# Por eso la comprobación mira la CADENA que se le pasa, no que no reviente.
+check "el slash command va cualificado" \
+      "si" "$(grep -q -- '/arnes-plan:plan-siguiente' <<<"$SALIDA" && echo si || echo no)"
+check "y no en su forma corta" \
+      "0"  "$(grep -c -- ' /plan-siguiente' <<<"$SALIDA")"
 
 echo "2. Un ítem sin plan de reversión no llega a gastar"
 python3 - <<'PY'

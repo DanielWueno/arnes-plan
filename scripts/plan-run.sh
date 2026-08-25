@@ -282,7 +282,16 @@ esac
 echo
 
 set +e
-claude "${ARGS_CLAUDE[@]}" "/plan-siguiente $ID"
+# El comando va CUALIFICADO con el nombre del plugin. Los slash commands de un
+# plugin viven en su propio espacio de nombres, así que la forma corta responde
+# "Unknown command" y la sesión nueva arranca sin hacer nada — que es como esta
+# línea estuvo rota desde que el arnés se extrajo a plugin, sin que la suite lo
+# viera: sus pruebas usan un `claude` de mentira, que acepta cualquier cosa.
+# El nombre se lee del manifiesto en vez de escribirse a mano, para que renombrar
+# el plugin no vuelva a romperlo en silencio.
+PLUGIN="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' \
+          "$SCRIPT_DIR/../.claude-plugin/plugin.json" 2>/dev/null || echo arnes-plan)"
+claude "${ARGS_CLAUDE[@]}" "/$PLUGIN:plan-siguiente $ID"
 CODE=$?
 set -e
 

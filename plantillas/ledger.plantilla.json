@@ -1,5 +1,5 @@
 {
-  "_leeme": "Ledger de ejecución del plan de ingeniería. Fuente de verdad del avance: sobrevive al reinicio del límite de sesión, a un /clear y a cerrar la terminal. Se avanza con /plan-siguiente o `bash \"$ARNES/plan-run.sh\"` (un ítem por invocación, commit al final); `claude plugin list` dice dónde quedó instalado el arnés. Estados: pendiente | en_curso | hecho | bloqueado | descartado. Guía: el README del plugin.",
+  "_leeme": "Ledger de ejecución del plan de ingeniería. Fuente de verdad del avance: sobrevive al reinicio del límite de sesión, a un /clear y a cerrar la terminal. Se avanza con /arnes-plan:plan-siguiente o `bash \"$ARNES/plan-run.sh\"` (un ítem por invocación, commit al final); `claude plugin list` dice dónde quedó instalado el arnés. Estados: pendiente | en_curso | hecho | bloqueado | descartado. Guía: el README del plugin.",
   "schema_version": 1,
   "_moneda": "horas_maquina = tiempo de reloj de builds, tests, ingestas o evaluaciones. NO son tokens. Cámbialo por lo que de verdad sea escaso en tu proyecto y dilo aquí.",
   "olas": [

@@ -87,8 +87,12 @@ stateDiagram-v2
 | Pieza | Qué hace |
 |---|---|
 | `docs/plan/ejecucion-plan.estado.json` | **El ledger.** La fuente de verdad del avance. Sobrevive al reinicio del límite, a `/clear` y a cerrar la terminal. Todo lo demás lo lee. |
-| `/plan-siguiente` | Ejecuta **un** ítem, lo verifica con su propio criterio, actualiza el ledger, commitea y **se detiene**. Acepta un id o `ola:N`. |
-| `/plan-estado` | El avance sin ejecutar nada. Corre en el modelo barato; cuesta casi nada. |
+| `/arnes-plan:plan-siguiente` | Ejecuta **un** ítem, lo verifica con su propio criterio, actualiza el ledger, commitea y **se detiene**. Acepta un id o `ola:N`. |
+| `/arnes-plan:plan-estado` | El avance sin ejecutar nada. Corre en el modelo barato; cuesta casi nada. |
+
+Los comandos van **cualificados con el nombre del plugin**. La forma corta
+—`/plan-siguiente`— responde `Unknown command`: los slash commands de un plugin viven en su propio
+espacio de nombres. Escribiendo `/plan` el autocompletado ya te ofrece la forma correcta.
 | `scripts/plan-run.sh` | Lanza un ítem en una **sesión nueva** de Claude Code: contexto limpio de verdad, no un `/clear`. Anuncia el ítem antes y frena si algo no cuadra. |
 | Hook `SessionStart` | Cada sesión arranca sabiendo qué ítem toca. Lo resuelve un script, así que averiguarlo cuesta cero tokens. |
 | `scripts/validar-ledger.py` | Comprueba que el ledger está bien formado. Un campo mal escrito no rompe nada visiblemente: sólo hace que la próxima invocación elija mal. Con `--item ID` juzga una sola ficha, que es como lo llama `plan-run.sh` antes de gastar. |
@@ -106,8 +110,8 @@ Reinicia la sesión para que carguen el hook y los dos comandos. A partir de ah�
 proyecto:
 
 ```bash
-/plan-estado        # el avance, sin ejecutar nada
-/plan-siguiente     # ejecuta UN ítem y se detiene
+/arnes-plan:plan-estado        # el avance, sin ejecutar nada
+/arnes-plan:plan-siguiente     # ejecuta UN ítem y se detiene
 ```
 
 Dentro de una sesión de Claude Code no hace falta nada más: esos dos comandos ya saben dónde está
@@ -120,7 +124,7 @@ anterior.
 Recién instalado el plugin, dentro de Claude Code:
 
 ```
-/plan-arrancar
+/arnes-plan:plan-arrancar
 ```
 
 Sin rutas y sin variables: dentro de una sesión el plugin ya sabe dónde está. Sirve tanto si eres
@@ -141,7 +145,7 @@ desde el principio: la que sólo se cumple si alguien se acuerda.
 
 ### El comando `arnes`
 
-`/plan-arrancar` instala un lanzador en `~/.local/bin` —donde vive el propio `claude`, así que ya
+`/arnes-plan:plan-arrancar` instala un lanzador en `~/.local/bin` —donde vive el propio `claude`, así que ya
 está en tu PATH— y a partir de ahí el arnés es un comando normal:
 
 ```bash
@@ -153,7 +157,7 @@ arnes arrancar           # dejar listo otro proyecto
 
 **No lleva ninguna ruta dentro.** Resuelve la instalación en cada ejecución, así que sigue
 funcionando después de cada `claude plugin update` sin que haya que tocarlo ni recordar nada. Si lo
-borras, `/plan-arrancar` lo vuelve a crear; si ya tenías un `arnes` tuyo en el PATH, no lo pisa.
+borras, `/arnes-plan:plan-arrancar` lo vuelve a crear; si ya tenías un `arnes` tuyo en el PATH, no lo pisa.
 
 Y resuelve a la instalación **activa**, no a la versión más alta que haya en el cache: ahí quedan
 las viejas y también versiones que nunca se activaron, y ejecutar en silencio una que no está en
@@ -239,10 +243,10 @@ El comando corre en la raíz del proyecto, con un límite de tiempo (`ARNES_LIMI
 defecto 900 s) para que un comando colgado no deje una sesión desatendida esperando para siempre.
 
 **Y corren por cualquier puerta de entrada.** Hasta la 1.4.0 estas comprobaciones vivían sólo en
-`plan-run.sh`, mientras que el flujo diario de casi todo el mundo es `/plan-siguiente` dentro de una
+`plan-run.sh`, mientras que el flujo diario de casi todo el mundo es `/arnes-plan:plan-siguiente` dentro de una
 sesión — y por ahí el protocolo se limitaba a *pedirle* al agente que se autoevaluara, que es el
 fallo exacto que estas puertas dicen cerrar. Desde la 1.5.0 hay un hook enganchado a la **escritura
-del ledger**, no a un comando: da igual quién cierre el ítem —`plan-run.sh`, `/plan-siguiente`, o
+del ledger**, no a un comando: da igual quién cierre el ítem —`plan-run.sh`, `/arnes-plan:plan-siguiente`, o
 alguien editando el JSON a mano—, si acaba de pasar a `hecho` se comprueba, y el motivo le llega a
 Claude en el momento de la infracción en vez de tres pasos después. Sólo mira los ítems que
 **acaban** de cerrarse, comparando con la versión del ledger en `HEAD`.
@@ -256,8 +260,8 @@ que `rollback` sólo se le pide a lo que aún se va a ejecutar. Los ítems que s
 que la regla existiera no se van a volver a tocar, y reclamárselos sería ruido permanente. Lo que
 cambia es cuándo se comprueba, no qué.
 
-Dentro de una sesión de Claude Code ya abierta, lo mismo se pide con `/plan-estado` y
-`/plan-siguiente`. La diferencia es el contexto: `plan-run.sh` arranca un proceso nuevo, así que el
+Dentro de una sesión de Claude Code ya abierta, lo mismo se pide con `/arnes-plan:plan-estado` y
+`/arnes-plan:plan-siguiente`. La diferencia es el contexto: `plan-run.sh` arranca un proceso nuevo, así que el
 ítem no hereda nada de lo que estuvieras haciendo antes.
 
 **Cadencia recomendada:** `--solo-anunciar` para ver qué viene, ejecutar, revisar el commit, decidir
@@ -272,7 +276,7 @@ El ledger es tuyo y vive en tu repositorio; el plugin no se lleva nada a otro si
 ítems es cosa tuya: es lo único que no se puede automatizar.
 
 ```bash
-/plan-arrancar                          # o: arnes arrancar
+/arnes-plan:plan-arrancar                          # o: arnes arrancar
 arnes arrancar --donde docs/analisis-futuro   # otra carpeta
 python3 "$ARNES/validar-ledger.py"      # cuando hayas escrito tus ítems
 ```
@@ -433,9 +437,9 @@ específicos de Claude Code.
   plugin.json                manifiesto y versión (semver)
   marketplace.json           hace el repo instalable con `marketplace add`
 commands/
-  plan-siguiente.md          /plan-siguiente
-  plan-estado.md             /plan-estado
-  plan-arrancar.md           /plan-arrancar — puesta en marcha sin rutas
+  plan-siguiente.md          ejecuta un ítem y se detiene
+  plan-estado.md             el avance, sin ejecutar nada
+  plan-arrancar.md           puesta en marcha sin rutas
 hooks/
   hooks.json                 los dos hooks: SessionStart y la puerta de cierre
   puerta-de-cierre.py        comprueba el cierre venga por donde venga

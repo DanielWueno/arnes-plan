@@ -29,7 +29,7 @@ def main():
         return 0
 
     # Un ítem en_curso manda sobre el siguiente pendiente: el protocolo de
-    # /plan-siguiente pide retomarlo antes de tomar uno nuevo.
+    # /arnes-plan:plan-siguiente pide retomarlo antes de tomar uno nuevo.
     elegido = ola = None
     for estado_buscado in ('en_curso', 'pendiente'):
         for o in olas:
@@ -64,7 +64,7 @@ def main():
     # existiría desde el directorio del usuario.
     lanzador = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plan-run.sh')
     linea += ("\nNo lo ejecutes por iniciativa propia: se lanza con "
-              f"`bash {lanzador}` (sesión limpia) o `/plan-siguiente`.")
+              f"`bash {lanzador}` (sesión limpia) o `/arnes-plan:plan-siguiente`.")
 
     json.dump({'hookSpecificOutput': {
         'hookEventName': 'SessionStart',
