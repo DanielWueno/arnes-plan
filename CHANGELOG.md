@@ -6,6 +6,30 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.4.0] — 2026-08-25
+
+La 1.3.0 arregló que la instalación pudiera destruir un plan, pero seguía
+pidiéndole al recién llegado que resolviera una ruta a mano y la guardara en
+una variable de entorno. Eso no es instalar: es trabajo manual con otro nombre,
+y encima caduca en cada actualización.
+
+### Añadido
+- **`/plan-arrancar`**, la puesta en marcha sin rutas ni variables. Dentro de
+  una sesión el plugin ya sabe dónde está, así que funciona recién instalado.
+- **El lanzador `arnes`**, que `arrancar.sh` deja en `~/.local/bin` —donde vive
+  el propio `claude`, así que ya está en el PATH de quien tiene Claude Code—.
+  No clava ninguna ruta: resuelve la instalación en cada ejecución y sobrevive
+  a los `claude plugin update` sin tocarlo. No sobrescribe un `arnes` ajeno que
+  ya estuviera en el PATH, y `--sin-atajo` lo omite.
+
+### Corregido
+- **El lanzador podía ejecutar una versión que no era la instalada.** El
+  respaldo para cuando `claude` no está en el PATH elegía la versión más alta
+  del cache, y ahí quedan tanto las instalaciones viejas como versiones que
+  nunca llegaron a activarse. Ahora lee `installed_plugins.json`, que es lo que
+  el propio CLI escribe. Correr en silencio código que no está activo es justo
+  el fallo que este arnés existe para no cometer.
+
 ## [1.3.0] — 2026-08-25
 
 ### Corregido

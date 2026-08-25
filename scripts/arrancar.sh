@@ -6,8 +6,10 @@
 #               hace daño.
 # ============================================================
 # Uso:
-#   bash "$ARNES/arrancar.sh"           # detecta y hace lo que toque
+#   /plan-arrancar                      # desde Claude Code: sin rutas
+#   bash "$ARNES/arrancar.sh"           # o a mano, si ya tienes la ruta
 #   bash "$ARNES/arrancar.sh" --donde docs/analisis-futuro
+#   bash "$ARNES/arrancar.sh" --sin-atajo   # no instalar el comando `arnes`
 #
 # Por qué existe: el arranque documentado era `cp plantilla ledger.json`,
 # y eso es una bomba. El segundo miembro del equipo clona el repositorio,
@@ -28,11 +30,12 @@ CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'; DIM='\033[2m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DONDE="docs/plan"
+DONDE="docs/plan"; ATAJO=1
 for a in "$@"; do
   case "$a" in
     --donde) shift; DONDE="${1:-docs/plan}" ;;
     --donde=*) DONDE="${a#*=}" ;;
+    --sin-atajo) ATAJO=0 ;;
     -h|--help) awk '/^# ={10,}$/{n++; if(n==2) exit} NR>1{sub(/^# ?/,""); print}' \
                    "${BASH_SOURCE[0]}"; exit 0 ;;
     *) ;;
@@ -95,15 +98,95 @@ else
   echo -e "  Cuando termines:  ${BOLD}python3 \"\$ARNES/validar-ledger.py\"${NC}"
 fi
 
-# ── El atajo, resuelto de verdad ────────────────────────────────────────────
-# La ruta del plugin lleva la versión dentro y cambia en cada `plugin update`.
-# Se imprime ya resuelta para que se pegue en el perfil del shell una vez y
-# no haya que volver a buscarla nunca.
+# ── El atajo: un comando de verdad, no una variable ─────────────────────────
+# Pedirle a alguien que resuelva una ruta y la meta en su perfil de shell es
+# trabajo manual disfrazado de instalación, y encima caduca: la ruta lleva el
+# número de versión dentro. Lo que se instala aquí es un lanzador de tres
+# líneas que resuelve la instalación EN CADA EJECUCIÓN, así que sobrevive a
+# todos los `claude plugin update` sin tocarlo nunca más.
+#
+# Va a ~/.local/bin porque es donde vive el propio `claude`: quien tenga Claude
+# Code ya lo tiene en el PATH, así que no hay un segundo paso escondido.
+[[ $ATAJO -eq 0 ]] && exit 0
+
+BIN="$HOME/.local/bin"
+ATAJO_RUTA="$BIN/arnes"
+FIRMA="# arnes-plan:atajo"
+
 echo
 echo -e "${DIM}────────────────────────────────────────────────────────────${NC}"
-echo -e "Para no volver a buscar la ruta, añade esto a tu ${BOLD}~/.zshrc${NC} o ${BOLD}~/.bashrc${NC}:"
+
+if [[ -e "$ATAJO_RUTA" ]] && ! grep -q "$FIRMA" "$ATAJO_RUTA" 2>/dev/null; then
+  # Hay un `arnes` que no pusimos nosotros. No se toca: sobrescribir un
+  # ejecutable ajeno del PATH de alguien es exactamente lo que no debe hacer
+  # un instalador.
+  echo -e "${YELLOW}⚠${NC}  Ya hay un ${BOLD}arnes${NC} en $BIN que no es de este plugin. No lo toco."
+  echo -e "${DIM}   Usa las rutas largas, o renombra el tuyo si quieres el atajo.${NC}"
+  exit 0
+fi
+
+mkdir -p "$BIN"
+cat > "$ATAJO_RUTA" <<'ATAJO_FIN'
+#!/bin/bash
+# arnes-plan:atajo — lanzador del arnés de plan.
+# No clava ninguna ruta: resuelve la instalación en cada ejecución, así que
+# sigue funcionando después de cada `claude plugin update`. Si lo borras, se
+# vuelve a crear con `/plan-arrancar`.
+set -euo pipefail
+
+raiz_del_plugin() {
+  local p
+  # Lo autoritativo es el CLI. `claude plugin list` a secas NO da la ruta.
+  p="$(claude plugin list --json 2>/dev/null \
+       | python3 -c 'import json,sys
+try: print(next(x["installPath"] for x in json.load(sys.stdin) if x["id"].startswith("arnes-plan")))
+except Exception: pass' 2>/dev/null)" || true
+  [[ -n "${p:-}" && -d "$p" ]] && { printf '%s' "$p"; return 0; }
+  # Respaldo, por si `claude` no está en el PATH de este shell: el registro que
+  # el propio CLI escribe. NO se elige la versión más alta del cache: ahí
+  # quedan las instalaciones viejas y también versiones que nunca llegaron a
+  # activarse, así que la más alta puede no ser la que está en uso — y correr
+  # en silencio una versión que no es la instalada es exactamente el fallo que
+  # este arnés existe para no cometer.
+  p="$(python3 -c 'import json, os, sys
+r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
+try:
+    d = json.load(open(r, encoding="utf-8"))
+except Exception:
+    sys.exit(1)
+for clave, entradas in d.get("plugins", {}).items():
+    if clave.startswith("arnes-plan"):
+        for e in entradas:
+            if e.get("installPath"):
+                print(e["installPath"]); sys.exit(0)
+sys.exit(1)' 2>/dev/null)" || true
+  [[ -n "${p:-}" && -d "$p" ]] && { printf '%s' "$p"; return 0; }
+  return 1
+}
+
+DIR="$(raiz_del_plugin)" || {
+  echo "arnes: no encuentro el plugin instalado." >&2
+  echo "       Instálalo con: claude plugin install arnes-plan@arnes-plan" >&2
+  exit 127
+}
+
+case "${1:-}" in
+  arrancar) shift; exec bash "$DIR/scripts/arrancar.sh" "$@" ;;
+  *)        exec bash "$DIR/scripts/plan-run.sh" "$@" ;;
+esac
+ATAJO_FIN
+chmod +x "$ATAJO_RUTA"
+
+echo -e "${GREEN}✓${NC} Atajo instalado. Desde cualquier proyecto, en la terminal:"
 echo
-echo "  export ARNES=\"\$(claude plugin list --json | python3 -c 'import json,sys; print(next(p[\"installPath\"] for p in json.load(sys.stdin) if p[\"id\"].startswith(\"arnes-plan\")))')/scripts\""
+echo -e "  ${BOLD}arnes${NC}                    el siguiente ítem, en sesión limpia"
+echo -e "  ${BOLD}arnes --solo-anunciar${NC}    qué toca, sin ejecutar ni gastar"
+echo -e "  ${BOLD}arnes 5.0 --auto${NC}         uno concreto, con menos prompts"
+echo -e "  ${BOLD}arnes arrancar${NC}           esto mismo, en otro proyecto"
 echo
-echo -e "${DIM}  Se lo pregunta al CLI en vez de clavar la versión, así que sobrevive a${NC}"
-echo -e "${DIM}  cada actualización. Hoy resuelve a: $SCRIPT_DIR${NC}"
+
+if ! command -v arnes >/dev/null 2>&1; then
+  echo -e "${YELLOW}⚠${NC}  $BIN no está en tu PATH en esta terminal. Añade a tu perfil:"
+  echo -e "     ${BOLD}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
+  echo -e "${DIM}     (o abre una terminal nueva, si acabas de crearlo)${NC}"
+fi

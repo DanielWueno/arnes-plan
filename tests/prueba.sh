@@ -256,6 +256,42 @@ check "y el fichero sigue como estaba"   "si" \
       "$(grep -q 'me borres' otra/ruta/ejecucion-plan.estado.json && echo si || echo no)"
 cd "$PROY"
 
+
+echo '9. El atajo arnes resuelve la instalación ACTIVA, no la más nueva'
+# Todo contra un HOME de mentira: ni se toca el del usuario ni se depende de
+# lo que tenga instalado.
+CASA="$TMP/casa"; mkdir -p "$CASA/.local/bin"
+CACHE="$CASA/.claude/plugins/cache/arnes-plan/arnes-plan"
+mkdir -p "$CACHE/1.0.0/scripts" "$CACHE/2.0.0/scripts"
+cat > "$CASA/.claude/plugins/installed_plugins.json" <<PY
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"$CACHE/1.0.0","version":"1.0.0"}]}}
+PY
+
+cd "$PROY"
+HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" >/dev/null 2>&1
+check "arrancar instala el atajo"        "si" "$(test -x "$CASA/.local/bin/arnes" && echo si || echo no)"
+check "y lleva su firma"                 "si" "$(grep -q 'arnes-plan:atajo' "$CASA/.local/bin/arnes" && echo si || echo no)"
+
+# El caso que importa: el cache tiene una 2.0.0 más alta, pero la INSTALADA es
+# la 1.0.0. Elegir por número mayor ejecutaría en silencio código que no está
+# activo. Se comprueba sin `claude` en el PATH, que es cuando entra el respaldo.
+RESUELVE="$(env HOME="$CASA" PATH=/usr/bin:/bin bash -c \
+  'source /dev/stdin <<< "$(sed -n "/^raiz_del_plugin()/,/^}/p" "$0")"; raiz_del_plugin' \
+  "$CASA/.local/bin/arnes" 2>/dev/null)"
+check "elige la instalada, no la 2.0.0"  "$CACHE/1.0.0" "$RESUELVE"
+
+# --sin-atajo respeta el PATH de quien no lo quiere.
+rm -f "$CASA/.local/bin/arnes"
+HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" --sin-atajo >/dev/null 2>&1
+check "--sin-atajo no instala nada"      "no" "$(test -e "$CASA/.local/bin/arnes" && echo si || echo no)"
+
+# Y no le pisa a nadie un ejecutable suyo que se llame igual.
+printf '#!/bin/bash\necho MIO\n' > "$CASA/.local/bin/arnes"; chmod +x "$CASA/.local/bin/arnes"
+SALIDA="$(HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" 2>&1)"
+check "no sobrescribe un arnes ajeno"    "MIO" "$(bash "$CASA/.local/bin/arnes")"
+check "y avisa de que no lo tocó"        "si" "$(grep -q 'no es de este plugin' <<<"$SALIDA" && echo si || echo no)"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1
