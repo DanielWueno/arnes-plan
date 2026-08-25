@@ -2,14 +2,14 @@
   "name": "arnes-plan",
   "description": "Canal de distribución del arnés de ejecución de planes de ingeniería",
   "owner": {
-    "name": "Alfonso Saucedo",
-    "email": "asaucedo@reyma.net"
+    "name": "DWeno",
+    "email": "dbueno@reyma.net"
   },
   "plugins": [
     {
       "name": "arnes-plan",
       "description": "Ejecuta un plan de ingeniería un ítem por sesión, con el avance en un ledger versionado que sobrevive al /clear y al reinicio del límite de sesión",
-      "author": { "name": "Alfonso Saucedo" },
+      "author": { "name": "DWeno" },
       "category": "workflow",
       "source": "./"
     }

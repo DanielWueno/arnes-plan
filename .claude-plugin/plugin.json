@@ -3,8 +3,8 @@
   "description": "Ejecuta un plan de ingeniería un ítem por sesión, con el avance en un ledger versionado que sobrevive al /clear y al reinicio del límite de sesión",
   "version": "1.0.0",
   "author": {
-    "name": "Alfonso Saucedo",
-    "email": "asaucedo@reyma.net"
+    "name": "DWeno",
+    "email": "dbueno@reyma.net"
   },
   "homepage": "https://github.com/DanielWueno/arnes-plan",
   "repository": "https://github.com/DanielWueno/arnes-plan",
