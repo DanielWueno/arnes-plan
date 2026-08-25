@@ -364,6 +364,22 @@ json.dump(d,open(p,'w',encoding='utf-8'),indent=2,ensure_ascii=False)"
 check "no re-verifica trabajo ya cerrado" ""   "$(llamar_gate)"
 cd "$PROY"
 
+echo '12. Nada le enseña al usuario la forma corta del comando'
+# Cuatro veces mordió hoy el mismo patrón: texto que da por sabido el espacio de
+# nombres del plugin. El hook, el README y plan-run.sh ya estaban; el que
+# faltaba era el propio protocolo, que le pedía al agente "el comando exacto
+# para continuar" sin decirle cuál era — así que se lo inventaba corto, y el
+# usuario lo copiaba y se estrellaba. Esto lo cubre de una vez y para siempre.
+# El patrón excluye rutas y nombres de fichero: `scripts/plan-siguiente-linea.py`
+# no es el comando. Por eso exige que delante no haya un carácter de ruta y que
+# detrás no siga un guión.
+CORTAS="$(grep -rnE '(^|[^A-Za-z0-9_./-])/plan-(siguiente|estado|arrancar)([^A-Za-z0-9_-]|$)' \
+          "$ARNES/commands" "$ARNES/scripts" "$ARNES/hooks" "$ARNES/plantillas" 2>/dev/null \
+          | grep -v 'no existe' | grep -v 'no la escribas' || true)"
+check "ningún fichero enseña la forma corta" "" "$CORTAS"
+check "y el protocolo da la cualificada"     "si" \
+      "$(grep -q '/arnes-plan:plan-siguiente' "$ARNES/commands/plan-siguiente.md" && echo si || echo no)"
+
 echo '11. El plugin no publica un ledger propio'
 # Pasó de verdad en la 1.4.0: probar `arrancar.sh` con el repositorio del
 # plugin como raíz sembró un ledger ahí, y un `git add -A` lo publicó a todos
