@@ -364,6 +364,31 @@ json.dump(d,open(p,'w',encoding='utf-8'),indent=2,ensure_ascii=False)"
 check "no re-verifica trabajo ya cerrado" ""   "$(llamar_gate)"
 cd "$PROY"
 
+echo '13. arnes --help contesta desde la terminal, sin ir al README'
+cd "$PROY"
+AYUDA="$(bash "$ARNES/scripts/ayuda.sh" 2>&1)"; CODE=$?
+check "sale 0"                            "0"  "$CODE"
+# Lo que hace que se consulte en vez de ignorarse: los verbos, los modos, los
+# slash commands, las variables de entorno y DÓNDE ESTÁS. Si algo de eso vive
+# sólo en el README, es documentación, y en una terminal nadie va a buscarla.
+for pieza in 'arnes arrancar' '--desatendido' '--solo-anunciar' \
+             '/arnes-plan:plan-siguiente' 'PLAN_LEDGER' 'ARNES_LIMITE_VERIFICACION' \
+             'AQUÍ Y AHORA' 'siguiente'; do
+  check "menciona: $pieza" "si" "$(grep -qF -- "$pieza" <<<"$AYUDA" && echo si || echo no)"
+done
+# El escape tiene que llegar como carácter: dentro de un heredoc una variable
+# con "\033[2m" se imprime literal, y así salió la primera versión.
+check "sin escapes ANSI literales"        "0"  "$(grep -c '\\\\033\[' <<<"$AYUDA")"
+# Y el atajo tiene que enrutar la ayuda, no reenviarla a plan-run.sh. Se genera
+# uno limpio: la sección 9 deja a propósito un `arnes` ajeno en su HOME falso.
+CASA13="$TMP/casa13"; mkdir -p "$CASA13"
+HOME="$CASA13" bash "$ARNES/scripts/arrancar.sh" --donde otra/ruta13 >/dev/null 2>&1
+ATAJO13="$CASA13/.local/bin/arnes"
+check "el atajo enruta --help"            "si" \
+      "$(grep -q 'ayuda.sh' "$ATAJO13" 2>/dev/null && echo si || echo no)"
+check "con respaldo si el plugin es viejo" "si" \
+      "$(grep -q 'plan-run.sh" --help' "$ATAJO13" 2>/dev/null && echo si || echo no)"
+
 echo '12. Nada le enseña al usuario la forma corta del comando'
 # Cuatro veces mordió hoy el mismo patrón: texto que da por sabido el espacio de
 # nombres del plugin. El hook, el README y plan-run.sh ya estaban; el que

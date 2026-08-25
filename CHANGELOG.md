@@ -6,6 +6,23 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.6.0] — 2026-08-25
+
+### Añadido
+- **`arnes --help`**, que ahora contesta de verdad. Antes reenviaba a la
+  cabecera de `plan-run.sh`: documentaba sus banderas, pero enseñaba la forma
+  larga que el atajo existe para sustituir, y no mencionaba ni los verbos de
+  `arnes`, ni las variables de entorno, ni los slash commands. Todo eso vivía
+  sólo en el README, que es documentación — hay que ir a buscarla, y en una
+  terminal nadie la busca.
+
+  La ayuda cabe en una pantalla y termina con **el estado real**: proyecto,
+  ledger y el ítem que toca. Una ayuda que además contesta "¿y dónde estoy?" se
+  consulta; una que recita banderas, no. Vive en el plugin y no en el lanzador,
+  así que se actualiza con él; el lanzador cae a `plan-run.sh --help` si el
+  plugin instalado es más viejo que el atajo, en vez de contestar con un error
+  de bash.
+
 ## [1.5.3] — 2026-08-25
 
 ### Corregido
