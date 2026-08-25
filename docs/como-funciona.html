@@ -1,0 +1,430 @@
+<title>Arnés de plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<style>
+  :root {
+    --ground:     #F2F5F4;
+    --surface:    #FFFFFF;
+    --ink:        #121A18;
+    --ink-soft:   #56635F;
+    --ink-faint:  #8A9793;
+    --rule:       #D7DEDB;
+    --accent:     #0A6A5F;
+    --accent-dim: #E2EFEC;
+    --pass:       #1E7A3C;
+    --fail:       #A32B21;
+    --shadow:     0 1px 2px rgba(18,26,24,.06), 0 8px 24px rgba(18,26,24,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:     #0D1211;
+      --surface:    #151B1A;
+      --ink:        #E7ECEA;
+      --ink-soft:   #9AA7A3;
+      --ink-faint:  #6B7A76;
+      --rule:       #29312F;
+      --accent:     #5CC9B9;
+      --accent-dim: #172E2A;
+      --pass:       #55B173;
+      --fail:       #E37866;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:     #0D1211;
+    --surface:    #151B1A;
+    --ink:        #E7ECEA;
+    --ink-soft:   #9AA7A3;
+    --ink-faint:  #6B7A76;
+    --rule:       #29312F;
+    --accent:     #5CC9B9;
+    --accent-dim: #172E2A;
+    --pass:       #55B173;
+    --fail:       #E37866;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 18px;
+    line-height: 1.62;
+    margin: 0;
+    padding: clamp(2rem, 6vw, 5rem) clamp(1.1rem, 5vw, 2rem) 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 7vw, 4.75rem);
+  }
+
+  .col { max-width: 36rem; }
+
+  /* ── Cabecera ─────────────────────────────────────────────── */
+  header { display: flex; flex-direction: column; gap: 1.1rem; }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .72rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  h1 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.6rem, 7vw, 4.1rem);
+    line-height: .96;
+    letter-spacing: -.028em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .thesis {
+    font-size: clamp(1.15rem, 2.4vw, 1.4rem);
+    line-height: 1.45;
+    color: var(--ink-soft);
+    max-width: 34rem;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .rule-top { border: 0; border-top: 2px solid var(--ink); margin: 0; }
+
+  /* ── Secciones ────────────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 1.4rem; }
+
+  .when {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .7rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin: 0;
+  }
+  .when::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  h2 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+    margin: 0;
+    max-width: 26rem;
+  }
+
+  p { margin: 0; }
+  .col > p + p { margin-top: .95rem; }
+
+  strong { font-weight: 600; }
+
+  code {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .84em;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: .1em .38em;
+    border-radius: 3px;
+  }
+
+  /* ── Problemas ────────────────────────────────────────────── */
+  .problems {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .problem {
+    background: var(--surface);
+    padding: 1.5rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+  }
+  .problem h3 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    font-size: 1.02rem;
+    letter-spacing: -.01em;
+    line-height: 1.25;
+    margin: 0;
+  }
+  .problem p {
+    font-size: .95rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+
+  /* ── Figuras: hojas de papel, iguales en ambos temas ──────── */
+  figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .sheet {
+    background: #FDFDFC;
+    border: 1px solid #DFE5E2;
+    border-radius: 2px;
+    box-shadow: var(--shadow);
+    padding: clamp(1rem, 3vw, 2rem) clamp(.5rem, 2vw, 1.5rem);
+    overflow-x: auto;
+  }
+  .sheet .mermaid {
+    display: flex;
+    justify-content: center;
+    min-width: 30rem;
+  }
+  figcaption {
+    font-size: .92rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    padding-top: .95rem;
+    max-width: 38rem;
+  }
+  figcaption b {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ── Tabla de barreras ────────────────────────────────────── */
+  .barriers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.5rem;
+  }
+  .barrier {
+    border-top: 3px solid var(--ink);
+    padding-top: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .9rem;
+  }
+  .barrier.after { border-top-color: var(--accent); }
+  .barrier h3 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -.01em;
+    margin: 0;
+  }
+  .barrier > p {
+    font-size: .95rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .barrier ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+  .barrier li {
+    font-size: .93rem;
+    line-height: 1.45;
+    padding-left: 1.35rem;
+    position: relative;
+  }
+  .barrier li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--ink-faint);
+    font-family: "JetBrains Mono", monospace;
+    font-size: .8rem;
+    top: .12em;
+  }
+
+  /* ── Cierre ───────────────────────────────────────────────── */
+  .closing {
+    border-left: 3px solid var(--accent);
+    padding-left: clamp(1.1rem, 3vw, 1.8rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 38rem;
+  }
+  .closing p:first-child {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 500;
+    font-size: clamp(1.25rem, 2.8vw, 1.55rem);
+    line-height: 1.28;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+  }
+  .closing p:not(:first-child) {
+    color: var(--ink-soft);
+    font-size: 1rem;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.2rem;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .74rem;
+    line-height: 1.7;
+    letter-spacing: .02em;
+    color: var(--ink-faint);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet { transition: box-shadow .25s ease; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">arnes-plan · v1.1.0</p>
+    <h1>Arnés de plan</h1>
+    <hr class="rule-top">
+    <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
+  </header>
+
+  <section>
+    <p class="when">Por qué existe</p>
+    <h2>Tres cosas que salen mal cuando un agente trabaja solo</h2>
+    <div class="problems">
+      <div class="problem">
+        <h3>Se califica a sí mismo</h3>
+        <p>El agente que hace el trabajo es el mismo que declara que está terminado. Por sí sola, esa declaración no es evidencia de nada.</p>
+      </div>
+      <div class="problem">
+        <h3>Arrastra contexto</h3>
+        <p>Dos tareas seguidas en la misma conversación se contaminan: la segunda hereda suposiciones de la primera sin que nadie lo decida.</p>
+      </div>
+      <div class="problem">
+        <h3>El coste aparece después</h3>
+        <p>Una tarea que ocupa la máquina tres horas se descubre cuando ya lleva tres horas ocupada.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="when">Durante · una invocación completa</p>
+    <h2>Las comprobaciones viven fuera de la sesión que hizo el trabajo</h2>
+    <p class="col">Esto es el mecanismo entero. Lo que importa del dibujo es la caja: todo lo que ocurre <em>dentro</em> es lo que el agente dice de su propio trabajo. Todo lo que decide si el ítem cuenta como cerrado ocurre <em>fuera</em>.</p>
+
+    <figure>
+      <div class="sheet">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant T as Persona
+    participant A as El arnés
+    participant L as Ledger
+    participant C as Sesión de Claude
+
+    T->>A: ejecuta el siguiente ítem
+    A->>L: lee la ficha
+    L-->>A: modelo, coste, criterio
+    A->>A: ¿la ficha está completa?
+    A->>T: anuncia el coste y espera confirmación
+    Note over T,A: Guardas: antes de gastar nada
+
+    rect rgb(226, 240, 237)
+    A->>C: arranca un proceso nuevo
+    C->>C: hace el trabajo
+    C->>L: lo marca hecho y escribe qué pasó
+    C->>C: commit del trabajo y del ledger
+    end
+
+    A->>L: relee cómo quedó el ítem
+    A->>A: ¿dejó escrito qué se hizo?
+    A->>A: corre la verificación aquí
+    A->>T: verde, o rojo diciendo por qué
+    Note over T,A: Puertas: fuera de la sesión
+</pre>
+      </div>
+      <figcaption><b>La caja sombreada es la sesión de Claude.</b> Las dos comprobaciones de cierre —que quedó escrito qué se hizo, y que la verificación del ítem pasa— se ejecutan después de que esa sesión haya terminado, en el proceso de fuera. Es la diferencia entre <em>«el agente dice que pasa»</em> y <em>pasa</em>.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="when">El ítem · ciclo de vida</p>
+    <h2>Ningún camino borra nada</h2>
+    <p class="col">Un ítem sólo se mueve de un estado a otro si cumple lo que dice la flecha. Y lo que se descarta no desaparece: cambia de estado y se queda escrito, con su razón, para que dentro de seis meses nadie lo vuelva a proponer desde cero.</p>
+
+    <figure>
+      <div class="sheet">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> pendiente: alguien escribe la ficha
+    pendiente --> en_curso: sólo si sabe escribir cómo se revierte
+    en_curso --> hecho: sólo con qué pasó escrito y la verificación en 0
+    en_curso --> bloqueado: con la razón concreta
+    bloqueado --> en_curso: se retoma donde quedó
+    pendiente --> descartado: con la razón. Nunca se borra
+    hecho --> [*]
+    descartado --> [*]
+</pre>
+      </div>
+      <figcaption><b>Las condiciones están en las flechas, no en la buena voluntad.</b> Son las que el arnés comprueba él mismo: un ítem sin plan de reversión no llega a ejecutarse, y uno que dice estar hecho sin demostrarlo no cierra.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="when">Después · qué se comprueba</p>
+    <h2>Dos barreras, en dos momentos distintos</h2>
+    <div class="barriers">
+      <div class="barrier">
+        <h3>Antes de gastar</h3>
+        <p>Se juzga la ficha, no el trabajo. Nada arranca si algo de esto falla.</p>
+        <ul>
+          <li>La ficha está completa y sabe decir cómo se revierte.</li>
+          <li>El coste en horas de máquina se anuncia y se confirma.</li>
+          <li>Sin nadie delante, se niega a lanzar lo que exige criterio humano.</li>
+          <li>El árbol de trabajo está limpio: nada ajeno entra en el commit.</li>
+        </ul>
+      </div>
+      <div class="barrier after">
+        <h3>Después de cerrar</h3>
+        <p>Se juzga la afirmación de que está hecho, desde fuera de quien la hizo.</p>
+        <ul>
+          <li>El ítem dejó escrito qué se hizo y qué evidencia lo prueba.</li>
+          <li>Su verificación se ejecuta de nuevo aquí y tiene que salir limpia.</li>
+          <li>Si falla, sale en rojo y dice por qué, con las últimas líneas del error.</li>
+          <li>No revierte nada por su cuenta: el commit ya existe y deshacerlo es tuyo.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="when">En una frase</p>
+    <div class="closing">
+      <p>El arnés no hace el trabajo mejor. Hace que sea imposible dar por bueno un trabajo que no se ha demostrado.</p>
+      <p>Empieza donde termina la investigación: no es donde se decide <em>qué</em> hacer, sino lo que garantiza que lo decidido se ejecuta una vez, se verifica, y queda escrito.</p>
+    </div>
+  </section>
+
+  <footer>
+    arnes-plan · plugin de Claude Code · MIT<br>
+    Los dos diagramas son Mermaid: el mismo código fuente se puede pegar en el README del repositorio.
+  </footer>
+
+</div>

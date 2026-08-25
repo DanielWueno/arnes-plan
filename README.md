@@ -27,6 +27,61 @@ memoria de una conversación**, y se ejecuta un ítem por sesión.
 
 ---
 
+## Cómo funciona
+
+Dos dibujos y se entiende entero. GitHub los renderiza aquí mismo; la misma fuente alimenta la
+página de presentación (`docs/como-funciona.html`), y `tests/prueba.sh` falla si las dos copias
+dejan de coincidir.
+
+**Una invocación, de principio a fin.** Lo único que hay que mirar es la caja: dentro está lo que
+el agente dice de su propio trabajo, y fuera está lo que decide si el ítem cuenta como cerrado.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as Persona
+    participant A as El arnés
+    participant L as Ledger
+    participant C as Sesión de Claude
+
+    T->>A: ejecuta el siguiente ítem
+    A->>L: lee la ficha
+    L-->>A: modelo, coste, criterio
+    A->>A: ¿la ficha está completa?
+    A->>T: anuncia el coste y espera confirmación
+    Note over T,A: Guardas: antes de gastar nada
+
+    rect rgb(226, 240, 237)
+    A->>C: arranca un proceso nuevo
+    C->>C: hace el trabajo
+    C->>L: lo marca hecho y escribe qué pasó
+    C->>C: commit del trabajo y del ledger
+    end
+
+    A->>L: relee cómo quedó el ítem
+    A->>A: ¿dejó escrito qué se hizo?
+    A->>A: corre la verificación aquí
+    A->>T: verde, o rojo diciendo por qué
+    Note over T,A: Puertas: fuera de la sesión
+```
+
+**El ciclo de vida de un ítem.** Las condiciones están escritas en las flechas porque el arnés las
+comprueba él: no son buenas intenciones. Y ningún camino borra nada.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pendiente: alguien escribe la ficha
+    pendiente --> en_curso: sólo si sabe escribir cómo se revierte
+    en_curso --> hecho: sólo con qué pasó escrito y la verificación en 0
+    en_curso --> bloqueado: con la razón concreta
+    bloqueado --> en_curso: se retoma donde quedó
+    pendiente --> descartado: con la razón. Nunca se borra
+    hecho --> [*]
+    descartado --> [*]
+```
+
+---
+
 ## Las piezas
 
 | Pieza | Qué hace |
@@ -304,8 +359,12 @@ scripts/
   plan-siguiente-linea.py    el hook SessionStart
   ledger_path.py             localiza el ledger (PLAN_LEDGER manda)
   validar-ledger.py          valida el ledger (o una ficha, con --item); sale 1 y dice qué falta
+  validar-diagramas.py       comprueba que el README y la página cuentan el mismo diagrama
 plantillas/
   ledger.plantilla.json      semilla para un proyecto nuevo
+docs/
+  como-funciona.html         la página de presentación; el Mermaid sale del README
+tests/prueba.sh              la regresión completa
 ```
 
 En tu proyecto no queda nada de esto: sólo el ledger, donde tú lo pongas.
