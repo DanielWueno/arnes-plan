@@ -6,6 +6,32 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.3.0] — 2026-08-25
+
+### Corregido
+- **El arranque documentado podía destruir el plan de otro.** Decía
+  `cp plantilla docs/plan/ejecucion-plan.estado.json`: el segundo miembro del
+  equipo clonaba el repositorio, seguía el README al pie de la letra, y le
+  pasaba por encima al ledger del primero. Sin preguntar, y sobre el único
+  fichero que registra el avance. Ahora el arranque es `arrancar.sh`, que
+  detecta si ya hay plan y **nunca sobrescribe**: si lo hay, valida el que hay
+  y anuncia el ítem que toca; si no, siembra. Correrlo dos veces no hace daño.
+  Un README que avisara "si ya existe, no lo copies" habría sido la misma clase
+  de regla que este proyecto lleva moviendo al código desde el principio.
+- **El README mandaba a `claude plugin list` a buscar la ruta de instalación,
+  y ese comando no la da.** Sólo nombre, versión, scope y estado; hace falta
+  `claude plugin list --json`, que sí trae `installPath`. Queda documentada la
+  línea que resuelve `$ARNES` preguntándole al CLI, en vez de clavar un número
+  de versión que caduca en cada `plugin update` — que es exactamente cómo se
+  quedó obsoleta la ruta que la gente tenía copiada.
+- Documentado que `claude plugin update` exige el nombre cualificado
+  (`arnes-plan@arnes-plan`); a secas falla con "Plugin not found".
+
+### Añadido
+- `scripts/arrancar.sh`, y con él una puesta en marcha de un solo comando que
+  se explica sola: imprime al terminar la línea de `export ARNES` ya resuelta,
+  para no tener que volver al README a buscarla.
+
 ## [1.2.0] — 2026-08-25
 
 ### Añadido
