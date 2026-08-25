@@ -6,6 +6,24 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.7.0] — 2026-08-25
+
+### Añadido
+- **La página de presentación se publica sola**, con su propio motor de Mermaid.
+  Antes sólo renderizaba dentro del visor de artifacts: en GitHub no se ve
+  —GitHub no renderiza HTML, enseña el código— y con un doble clic los dos
+  diagramas salían como texto plano. Ahora vale para GitHub Pages, para un
+  adjunto y para un proyector, sin pedirle cuenta a nadie.
+
+  El mismo fichero sirve en los dos sitios: dentro del visor la CSP bloquea esa
+  carga a propósito y los diagramas los renderiza el visor. Sin red se leen como
+  texto, que es degradación y no error.
+
+### Cambiado
+- `docs/como-funciona.html` pasa a `docs/index.html`, para que el enlace que se
+  reparte sea la raíz del sitio y no lleve un nombre de fichero detrás. Es la
+  diferencia entre mandar una URL y mandar una ruta.
+
 ## [1.6.1] — 2026-08-25
 
 ### Corregido

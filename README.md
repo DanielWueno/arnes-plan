@@ -30,8 +30,13 @@ memoria de una conversación**, y se ejecuta un ítem por sesión.
 ## Cómo funciona
 
 Dos dibujos y se entiende entero. GitHub los renderiza aquí mismo; la misma fuente alimenta la
-página de presentación (`docs/como-funciona.html`), y `tests/prueba.sh` falla si las dos copias
-dejan de coincidir.
+página de presentación (`docs/index.html`), y `tests/prueba.sh` falla si las dos copias dejan de
+coincidir.
+
+**Para enseñárselo a alguien sin cuenta ni instalación:** esa misma página se publica con GitHub
+Pages en **<https://danielwueno.github.io/arnes-plan/>**. Renderiza sola —trae su propio motor de
+Mermaid— así que sirve para un correo, una reunión o un proyector. Sin red los diagramas se leen
+como texto: degradación, no error.
 
 **Una invocación, de principio a fin.** Lo único que hay que mirar es la caja: dentro está lo que
 el agente dice de su propio trabajo, y fuera está lo que decide si el ítem cuenta como cerrado.
@@ -471,7 +476,8 @@ scripts/
 plantillas/
   ledger.plantilla.json      semilla para un proyecto nuevo
 docs/
-  como-funciona.html         la página de presentación; el Mermaid sale del README
+  index.html                 la página de presentación; el Mermaid sale del README
+  .nojekyll                  que GitHub Pages sirva el fichero tal cual
 tests/prueba.sh              la regresión completa
 ```
 
