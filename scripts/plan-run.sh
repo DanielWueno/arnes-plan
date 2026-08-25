@@ -25,6 +25,18 @@
 #                   también la comprobación de que la ficha esté completa.
 #                   Acepta un techo de gasto: --desatendido=3  (dólares, def. 5)
 #
+# Puertas de cierre (todas las modalidades, tras salir la sesión):
+#   Un ítem que vuelve marcado `hecho` lo marcó el mismo agente que lo hizo:
+#   por sí solo es autoevaluación. Al cerrar se comprueban dos cosas que no
+#   dependen de su palabra:
+#     · que dejó `resultado` escrito — qué se hizo y qué lo prueba;
+#     · que `verificacion_comando`, si la ficha lo trae, sale 0 corriéndolo
+#       AQUÍ, no en la sesión que lo declaró hecho.
+#   Si alguna falla, el script sale distinto de 0 y lo dice. No revierte nada:
+#   el commit ya existe y deshacerlo es decisión tuya, con el `rollback` de la
+#   ficha delante. `--igual` salta las dos.
+#   El comando tiene un límite de tiempo: ARNES_LIMITE_VERIFICACION (def. 900 s).
+#
 # Por qué existe: /plan-siguiente delega la ejecución a un
 # subagente, así que ESA parte ya corre en contexto limpio, pero
 # el hilo principal acumula contexto entre invocaciones. Aquí
@@ -128,6 +140,7 @@ campos = {
     'bloqueado_por': ' '.join(elegido.get('bloqueado_por', '').split()),
     'aviso_item': ' '.join(elegido.get('advertencia_de_coste', '').split()),
     'aviso_ola': ' '.join(ola_elegida.get('advertencia_de_coste', '').split()),
+    'verif_cmd': ' '.join((elegido.get('verificacion_comando') or '').split()),
 }
 for k, v in campos.items():
     print(k + '\t' + v)
@@ -144,6 +157,7 @@ ESFUERZO=$(campo esfuerzo); HORAS=$(campo horas);  ESTADO=$(campo estado)
 MULTI=$(campo multiagente); OLA=$(campo ola);      OLA_NOMBRE=$(campo ola_nombre)
 VERIF=$(campo verificacion); BLOQUEA=$(campo bloquea)
 BLOQ_POR=$(campo bloqueado_por); AVISO_I=$(campo aviso_item); AVISO_O=$(campo aviso_ola)
+VERIF_CMD=$(campo verif_cmd)
 
 # ── Anuncio ─────────────────────────────────────────────────────────────────
 echo
@@ -161,6 +175,9 @@ echo -e "  ${CYAN}multiagente${NC} $MULTI"
 echo -e "  ${CYAN}estado     ${NC} $ESTADO"
 echo
 echo -e "  ${DIM}verificación:${NC} $VERIF" | fold -s -w 76 | sed '2,$s/^/               /'
+# Si la ficha trae comando, se enseña ahora: es el criterio con el que se le va
+# a medir al cerrar, y verlo antes es lo que evita discutirlo después.
+[[ -n "$VERIF_CMD" ]] && echo -e "  ${DIM}al cerrar:   ${NC} ${BOLD}$VERIF_CMD${NC}"
 [[ -n "$BLOQ_POR" ]] && { echo; echo -e "  ${RED}BLOQUEADO POR:${NC} $BLOQ_POR" | fold -s -w 76 | sed '2,$s/^/    /'; }
 [[ -n "$BLOQUEA"  ]] && { echo; echo -e "  ${YELLOW}ESTE ÍTEM BLOQUEA:${NC} $BLOQUEA" | fold -s -w 76 | sed '2,$s/^/    /'; }
 [[ -n "$AVISO_O"  ]] && { echo; echo -e "  ${YELLOW}COSTE (ola):${NC} $AVISO_O" | fold -s -w 76 | sed '2,$s/^/    /'; }
@@ -205,6 +222,11 @@ if [[ "$MODO" == "desatendido" ]]; then
   RAZONES=()
   [[ $CARO -eq 1 ]]       && RAZONES+=("pide $HORAS h de máquina y nadie podría confirmarlo")
   [[ "$MULTI" == "sí" ]]  && RAZONES+=("lleva multiagente, que el ledger reserva para lo supervisado")
+  # El propio ledger ya declara cuánto criterio hace falta: `opus` es el campo
+  # con el que se marca "aquí el CRITERIO es el trabajo". Dejar solo justo eso
+  # es dejar solo lo único que el arnés dice que no hay que dejar solo. Estaba
+  # escrito en el README y no en el código, que es como una regla no se cumple.
+  [[ "$MODELO" == "opus" ]] && RAZONES+=("el ledger lo marca \`opus\`: donde el criterio ES el trabajo, y eso no se deja sin nadie delante")
   [[ -n "$BLOQ_POR" ]]    && RAZONES+=("está bloqueado por $BLOQ_POR")
   [[ $ARBOL_SUCIO -eq 1 ]] && RAZONES+=("el árbol tiene cambios sin commitear y el ítem los arrastraría al commit")
   if [[ ${#RAZONES[@]} -gt 0 && $FORZAR -eq 0 ]]; then
@@ -268,13 +290,85 @@ echo
 echo -e "${BOLD}── Cierre ──${NC}"
 git -C "$ROOT" log --oneline -1
 git -C "$ROOT" status --short | sed 's/^/  /'
-python3 - "$LEDGER" "$ID" <<'PY'
+
+# ── Puertas de cierre ───────────────────────────────────────────────────────
+# El ledger se RELEE: lo que importa aquí es cómo quedó el ítem, no cómo estaba
+# al empezar. El comando de verificación también se toma de esta relectura, no
+# del anuncio: si la sesión lo cambió, se corre el que quedó escrito.
+CIERRE="$(python3 - "$LEDGER" "$ID" <<'PY'
 import json, sys
-d = json.load(open(sys.argv[1]))
+d = json.load(open(sys.argv[1], encoding='utf-8'))
 for o in d['olas']:
     for it in o['items']:
         if it['id'] == sys.argv[2]:
-            print(f"  estado en el ledger: {it['estado']}")
+            print('estado\t' + str(it.get('estado', '?')))
+            print('cmd\t' + ' '.join((it.get('verificacion_comando') or '').split()))
 PY
+)"
+ESTADO_FIN=$(sed -n 's/^estado\t//p' <<<"$CIERRE")
+VERIF_CMD=$(sed -n 's/^cmd\t//p' <<<"$CIERRE")
+echo "  estado en el ledger: ${ESTADO_FIN:-(el ítem ya no está en el ledger)}"
+
+CIERRE_ROTO=0
+if [[ "$ESTADO_FIN" != "hecho" ]]; then
+  # Un ítem que quedó `en_curso` o `bloqueado` no afirma nada, así que no hay
+  # nada que auditarle. El sitio donde se ve que quedó abierto es la línea de
+  # estado de arriba.
+  :
+elif [[ $FORZAR -eq 1 ]]; then
+  echo -e "  ${YELLOW}⚠${NC}  Puertas de cierre saltadas por --igual."
+else
+  # (a) Rastro. `hecho` lo escribió el mismo agente que hizo el trabajo; el
+  #     campo `resultado` es lo único de ese cierre que otro puede comprobar.
+  if SALIDA_CIERRE="$(python3 "$SCRIPT_DIR/validar-ledger.py" --al-cerrar "$ID" "$LEDGER" 2>&1)"; then
+    echo -e "  ${GREEN}✓${NC} $(sed 's/^✓ //' <<<"$SALIDA_CIERRE" | head -1)"
+  else
+    CIERRE_ROTO=1
+    echo -e "  ${RED}✗${NC} El cierre no dejó rastro:"
+    sed 's/^/     /' <<<"$SALIDA_CIERRE"
+  fi
+
+  # (b) Criterio mecánico. Se corre AQUÍ, fuera de la sesión que declaró el
+  #     ítem hecho: es la diferencia entre "el agente dice que pasa" y "pasa".
+  if [[ -n "$VERIF_CMD" ]]; then
+    LIMITE="${ARNES_LIMITE_VERIFICACION:-900}"
+    echo -e "  ${CYAN}▸${NC} verificando: ${BOLD}$VERIF_CMD${NC} ${DIM}(límite ${LIMITE}s)${NC}"
+    LOG_VERIF="$(mktemp)"
+    # Perro guardián en vez de `timeout`: coreutils no está en un macOS de
+    # serie, y un comando colgado en --desatendido no lo destraba nadie.
+    set +e
+    ( cd "$ROOT" && bash -c "$VERIF_CMD" ) >"$LOG_VERIF" 2>&1 &
+    PID_VERIF=$!
+    ( sleep "$LIMITE"; kill -TERM "$PID_VERIF" ) >/dev/null 2>&1 &
+    PID_PERRO=$!
+    wait "$PID_VERIF"; CODE_VERIF=$?
+    kill -TERM "$PID_PERRO" >/dev/null 2>&1
+    wait "$PID_PERRO" >/dev/null 2>&1
+    set -e
+    if [[ $CODE_VERIF -eq 0 ]]; then
+      echo -e "  ${GREEN}✓${NC} La verificación del ítem pasa fuera de su propia sesión."
+    else
+      CIERRE_ROTO=1
+      if [[ $CODE_VERIF -ge 128 ]]; then
+        echo -e "  ${RED}✗${NC} La verificación no terminó en ${LIMITE}s (se cortó)."
+        echo -e "     ${DIM}Sube ARNES_LIMITE_VERIFICACION si el comando es legítimamente lento.${NC}"
+      else
+        echo -e "  ${RED}✗${NC} La verificación falla (código $CODE_VERIF), pero el ítem quedó \`hecho\`."
+      fi
+      echo -e "     ${DIM}últimas líneas:${NC}"
+      tail -20 "$LOG_VERIF" | sed 's/^/     /'
+    fi
+    rm -f "$LOG_VERIF"
+  fi
+fi
+
+if [[ $CIERRE_ROTO -eq 1 ]]; then
+  echo
+  echo -e "${RED}✗${NC} ${BOLD}$ID${NC} está marcado \`hecho\` pero no lo demuestra."
+  echo -e "${DIM}   No se revierte nada: el commit ya existe y deshacerlo es tuyo. La ficha${NC}"
+  echo -e "${DIM}   trae el \`rollback\`. Reabrir el ítem es cambiar su estado a \`en_curso\`.${NC}"
+  [[ $CODE -eq 0 ]] && CODE=1
+fi
+
 echo -e "${DIM}  siguiente: bash $SCRIPT_DIR/plan-run.sh${NC}"
 exit $CODE

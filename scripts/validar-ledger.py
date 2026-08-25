@@ -8,7 +8,7 @@ ausente o un `ola` como string en vez de entero no rompe nada visiblemente —
 simplemente hace que /plan-siguiente elija mal, y eso se descubre tarde. Este
 repo ya tuvo ese bug: la Ola 4 tenía su número como string.
 
-Dos niveles de exigencia, y la diferencia importa:
+Tres niveles de exigencia, y la diferencia importa:
 
   · Los campos estructurales (CAMPOS_ITEM) se piden a TODO ítem. Sin ellos el
     arnés no sabe ni con qué modelo lanzarlo.
@@ -17,13 +17,24 @@ Dos niveles de exigencia, y la diferencia importa:
     listo para ejecutarse" — y no se puede aplicar hacia atrás: 24 de los 25
     ítems ya cerrados se escribieron antes de que el campo existiera, y
     reclamárselo sería ruido permanente sobre trabajo que ya no se va a tocar.
+  · `resultado` se pide a un ítem que ACABA de pasar a `hecho`, y sólo en ese
+    momento (`--al-cerrar`). No se reclama en el barrido general por la misma
+    razón que `rollback`: los ítems cerrados antes de que la regla existiera no
+    se van a volver a tocar. La diferencia es cuándo se comprueba, no qué.
+
+Por qué `resultado` merece una puerta propia: el estado `hecho` lo escribe el
+mismo agente que hizo el trabajo, así que por sí solo es autoevaluación. El
+campo `resultado` — qué se hizo y qué evidencia lo prueba — es lo único que
+deja rastro comprobable por otro, y es justo el que se olvida cuando el ítem
+"ya está". Un `hecho` sin `resultado` es un `hecho` optimista con otro nombre.
 
 Un campo presente pero en blanco cuenta como ausente: `"rollback": ""` no es
 un plan de reversión, y dejarlo pasar convierte la comprobación en teatro.
 
 Uso:
-  python3 validar-ledger.py [ruta]        # todo el ledger
-  python3 validar-ledger.py --item 4.2    # sólo ese ítem, por prefijo
+  python3 validar-ledger.py [ruta]            # todo el ledger
+  python3 validar-ledger.py --item 4.2        # antes de ejecutar: ¿está listo?
+  python3 validar-ledger.py --al-cerrar 4.2   # después: ¿quedó bien cerrado?
 """
 import json, os, sys
 
@@ -36,6 +47,9 @@ CAMPOS_ITEM = {'id', 'titulo', 'modelo', 'esfuerzo', 'multiagente',
 # Se exigen sólo a los ítems que aún se van a ejecutar. Ver el docstring.
 CAMPOS_EJECUTABLE = {'rollback'}
 EJECUTABLES = {'pendiente', 'en_curso'}
+# Se exigen al cerrar, y sólo entonces (--al-cerrar). Ver el docstring.
+CAMPOS_CERRADO = {'resultado'}
+CERRADOS = {'hecho'}
 ESTADOS = {'pendiente', 'en_curso', 'hecho', 'bloqueado', 'descartado'}
 MODELOS = {'haiku', 'sonnet', 'opus'}
 ESFUERZOS = {'low', 'medium', 'high', 'xhigh', 'max'}
@@ -90,27 +104,35 @@ def sitio(o, n, m):
     return f'{cabeza}.items[{m}]'
 
 
-def revisar_item(it, donde, errores, ids=None):
+def revisar_item(it, donde, errores, ids=None, exigir_cierre=False):
     """Acumula en `errores` los problemas de un ítem. `ids` opcional para
-    detectar duplicados cuando se recorre el ledger entero."""
+    detectar duplicados cuando se recorre el ledger entero. `exigir_cierre`
+    añade los campos que sólo tienen sentido reclamar en el momento de cerrar."""
     iid = it.get('id', 'sin id')
     estado = it.get('estado')
 
     exigidos = set(CAMPOS_ITEM)
     if estado in EJECUTABLES:
         exigidos |= CAMPOS_EJECUTABLE
+    if exigir_cierre and estado in CERRADOS:
+        exigidos |= CAMPOS_CERRADO
     faltan = {c for c in exigidos if not presente(it, c)}
     if faltan:
         # Se nombra la razón cuando el campo se exige por el estado: si no, un
         # "falta rollback" sobre un ítem hecho parecería un bug del validador.
         solo_ejecutable = sorted(faltan & CAMPOS_EJECUTABLE)
-        estructurales = sorted(faltan - CAMPOS_EJECUTABLE)
+        solo_cierre = sorted(faltan & CAMPOS_CERRADO)
+        estructurales = sorted(faltan - CAMPOS_EJECUTABLE - CAMPOS_CERRADO)
         if estructurales:
             errores.append(f'{donde} ({iid}): faltan campos {estructurales}')
         if solo_ejecutable:
             errores.append(f'{donde} ({iid}): faltan campos {solo_ejecutable} '
                            f'(obligatorios con estado "{estado}": sin plan de '
                            f'reversión escrito, el ítem no está listo para ejecutarse)')
+        if solo_cierre:
+            errores.append(f'{donde} ({iid}): faltan campos {solo_cierre} '
+                           f'(obligatorios al cerrar: un "{estado}" sin qué se hizo '
+                           f'y qué evidencia lo prueba no se puede comprobar después)')
 
     # Se sigue comprobando lo que SÍ está: un campo ausente no debe tapar los
     # otros problemas del mismo ítem. Con un `continue` aquí, un id duplicado
@@ -140,14 +162,20 @@ def informar(errores, ruta):
 
 def main():
     args = sys.argv[1:]
-    item_pedido = None
-    if '--item' in args:
-        i = args.index('--item')
-        if i + 1 >= len(args):
-            print('✗ --item necesita un id (o un prefijo).', file=sys.stderr)
-            return 1
-        item_pedido = args[i + 1]
-        del args[i:i + 2]
+    item_pedido, exigir_cierre = None, False
+    # --item y --al-cerrar miran el mismo ítem en momentos distintos: el
+    # primero antes de gastar (¿tiene con qué ejecutarse?), el segundo después
+    # (¿dejó rastro de qué pasó?). Comparten camino para no divergir.
+    for bandera in ('--item', '--al-cerrar'):
+        if bandera in args:
+            i = args.index(bandera)
+            if i + 1 >= len(args):
+                print(f'✗ {bandera} necesita un id (o un prefijo).', file=sys.stderr)
+                return 1
+            item_pedido = args[i + 1]
+            exigir_cierre = bandera == '--al-cerrar'
+            del args[i:i + 2]
+            break
 
     ruta = args[0] if args else resolver()
     if not ruta or not os.path.isfile(ruta):
@@ -174,10 +202,21 @@ def main():
         for n, o in enumerate(data['olas']):
             for m, it in enumerate(o['items']):
                 if str(it.get('id', '')).startswith(item_pedido):
-                    revisar_item(it, sitio(o, n, m), errores)
+                    revisar_item(it, sitio(o, n, m), errores,
+                                 exigir_cierre=exigir_cierre)
                     if errores:
                         return informar(errores, ruta)
-                    if it['estado'] in EJECUTABLES:
+                    if exigir_cierre:
+                        if it['estado'] in CERRADOS:
+                            print(f'✓ {it["id"]} cerró con rastro de qué pasó.')
+                        else:
+                            # No es un fallo: un ítem que quedó `bloqueado` o
+                            # `en_curso` no cerró, y a eso no se le reclama un
+                            # `resultado`. Pero decirlo evita leer el ✓ como
+                            # "el ítem está hecho".
+                            print(f'✓ {it["id"]} bien formado; su estado es '
+                                  f'"{it["estado"]}", así que no cerró.')
+                    elif it['estado'] in EJECUTABLES:
                         print(f'✓ {it["id"]} está listo para ejecutarse '
                               f'(estado "{it["estado"]}").')
                     else:

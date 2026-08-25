@@ -1,5 +1,5 @@
 {
-  "_leeme": "Ledger de ejecución del plan de ingeniería. Fuente de verdad del avance: sobrevive al reinicio del límite de sesión, a un /clear y a cerrar la terminal. Se avanza con /plan-siguiente o `bash infra/arnes/plan-run.sh` (un ítem por invocación, commit al final). Estados: pendiente | en_curso | hecho | bloqueado | descartado. Guía: infra/arnes/README.md",
+  "_leeme": "Ledger de ejecución del plan de ingeniería. Fuente de verdad del avance: sobrevive al reinicio del límite de sesión, a un /clear y a cerrar la terminal. Se avanza con /plan-siguiente o `bash \"$ARNES/plan-run.sh\"` (un ítem por invocación, commit al final); `claude plugin list` dice dónde quedó instalado el arnés. Estados: pendiente | en_curso | hecho | bloqueado | descartado. Guía: el README del plugin.",
   "schema_version": 1,
   "_moneda": "horas_maquina = tiempo de reloj de builds, tests, ingestas o evaluaciones. NO son tokens. Cámbialo por lo que de verdad sea escaso en tu proyecto y dilo aquí.",
   "olas": [
@@ -16,11 +16,13 @@
           "esfuerzo": "medium",
           "multiagente": false,
           "verificacion": "El comando exacto que decide si está hecho, y qué salida cuenta como verde. Nada de 'comprobar que funciona'.",
+          "verificacion_comando": "Opcional: la parte de arriba que una máquina puede decidir sola, en una línea de shell que sale 0 o no. El arnés la corre ÉL al cerrar, en la raíz del proyecto, fuera de la sesión que declaró el ítem hecho. Si tu criterio no cabe en un comando, quita el campo: media verificación automática miente más de lo que ayuda.",
           "horas_maquina": 0,
           "estado": "pendiente",
           "por_que_este_modelo": "haiku donde un find, el compilador o un hash verifican. opus donde el CRITERIO es el trabajo: diseñar el oráculo de un test, decidir una descomposición, verificar un hallazgo dudoso. sonnet el resto.",
           "archivos": "Qué toca. Opcional pero muy útil: es lo que evita que el ítem se desborde.",
-          "rollback": "Cómo se revierte si sale mal. Si no lo sabes escribir, el ítem no está listo para ejecutarse."
+          "rollback": "Cómo se revierte si sale mal. Si no lo sabes escribir, el ítem no está listo para ejecutarse.",
+          "_resultado": "Al cerrar el ítem se le exige un campo `resultado`: qué se hizo y qué evidencia lo prueba. No es el estado, es el rastro que otro puede comprobar. Este campo `_resultado` es sólo la nota; bórralo con el resto del ejemplo."
         }
       ]
     },
