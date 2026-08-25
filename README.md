@@ -76,10 +76,15 @@ Las banderas van en cualquier orden y se combinan con el id.
 | `--desatendido[=N]` | Sin sesión interactiva (`claude -p`), con techo de gasto en dólares (`N`, por defecto 5). | Los ítems mecánicos: `haiku`, cero horas de máquina. Revisas el commit al terminar, no durante. |
 
 `--desatendido` **se niega** —y dice por qué— si el ítem pide más de una hora de máquina, lleva
-`multiagente`, está bloqueado, o el árbol tiene cambios sin commitear. No es celo: en modo `-p` no
-hay a quién preguntar, y el protocolo exige preguntar justo en esos casos. Una pregunta que nadie
-puede responder no es una puerta, es un cuelgue. `--igual` salta las guardas bajo tu
-responsabilidad.
+`multiagente`, **el ledger lo marca `opus`**, está bloqueado, o el árbol tiene cambios sin
+commitear. No es celo: en modo `-p` no hay a quién preguntar, y el protocolo exige preguntar justo
+en esos casos. Una pregunta que nadie puede responder no es una puerta, es un cuelgue. `--igual`
+salta las guardas bajo tu responsabilidad.
+
+Lo de `opus` merece una línea aparte, porque es la guarda que más se nota: ese campo es justo con
+el que el ledger declara *"aquí el CRITERIO es el trabajo"*. Dejar sin nadie delante precisamente
+eso es dejar solo lo único que el arnés dice que no hay que dejar solo. La regla estaba escrita en
+este README y no en el código, que es exactamente cómo una regla deja de cumplirse.
 
 ### La ficha tiene que estar completa antes de gastar
 
@@ -98,7 +103,31 @@ después de haber pagado la sesión; esta guarda lo descubre antes. `--igual` la
 demás.
 
 Regla práctica: **si el ledger dice `haiku` y 0 horas, `--desatendido` es seguro; si dice `opus`,
-quédate delante.** El campo `modelo` ya codifica cuánto criterio hace falta.
+quédate delante.** El campo `modelo` ya codifica cuánto criterio hace falta, y desde la 1.1.0 el
+arnés la aplica él en vez de confiar en que te acuerdes.
+
+### Y tiene que demostrarlo antes de darse por cerrado
+
+Un ítem vuelve marcado `hecho` porque **lo marcó el mismo agente que lo hizo**. Por sí solo eso es
+autoevaluación, y es el punto por donde se cuela un `hecho` optimista. Al salir la sesión —en todos
+los modos— `plan-run.sh` comprueba dos cosas que no dependen de su palabra:
+
+| Puerta | Qué exige | Por qué no basta con lo de antes |
+|---|---|---|
+| **Rastro** | El ítem cerrado trae `resultado`: qué se hizo y qué evidencia lo prueba. | Es el único rastro del cierre que otro puede leer y comprobar. Un `hecho` sin `resultado` es un `hecho` optimista con otro nombre. |
+| **Criterio mecánico** | Si la ficha trae `verificacion_comando`, se corre **aquí**, y tiene que salir 0. | Corrido fuera de la sesión que declaró el ítem hecho, es la diferencia entre *"el agente dice que pasa"* y *pasa*. |
+
+El comando corre en la raíz del proyecto, con un límite de tiempo (`ARNES_LIMITE_VERIFICACION`, por
+defecto 900 s) para que un comando colgado no deje una sesión desatendida esperando para siempre.
+
+Si alguna puerta falla, el script sale distinto de 0 y enseña las últimas líneas del comando. **No
+revierte nada**: el commit ya existe, y deshacerlo es una decisión tuya con el `rollback` de la
+ficha delante. Reabrir el ítem es cambiarle el estado a `en_curso`. `--igual` salta las dos puertas.
+
+`resultado` se reclama **en el momento de cerrar**, no en el barrido general del validador — igual
+que `rollback` sólo se le pide a lo que aún se va a ejecutar. Los ítems que se cerraron antes de
+que la regla existiera no se van a volver a tocar, y reclamárselos sería ruido permanente. Lo que
+cambia es cuándo se comprueba, no qué.
 
 Dentro de una sesión de Claude Code ya abierta, lo mismo se pide con `/plan-estado` y
 `/plan-siguiente`. La diferencia es el contexto: `plan-run.sh` arranca un proceso nuevo, así que el
@@ -163,7 +192,18 @@ Cada ítem lleva estos campos, y todos son obligatorios:
 
 Opcionales que valen su peso: `archivos` (qué toca — evita que el ítem se desborde), `rollback`
 (cómo se revierte; si no lo sabes escribir, el ítem no está listo), `bloquea` / `bloqueado_por`,
-`origen` (por qué existe este ítem), y `resultado` (qué pasó, al cerrarlo).
+y `origen` (por qué existe este ítem).
+
+Y dos que sostienen las puertas de cierre:
+
+| Campo | Para qué |
+|---|---|
+| `verificacion_comando` | La parte de `verificacion` que una máquina puede decidir sola, como una línea de shell que sale 0 o no. **El arnés la corre él**, en la raíz del proyecto, después de la sesión. Si tu criterio no cabe en un comando —"clasificar 30 casos a mano"— deja el campo fuera: media verificación automática mentiría más de lo que ayuda. |
+| `resultado` | Qué pasó, al cerrarlo. Obligatorio en un ítem que pasa a `hecho`. No es el estado, es la evidencia. |
+
+`verificacion_comando` se ejecuta con tu shell y tus permisos, igual que un `Makefile` del
+repositorio. Vale lo mismo que el ledger: si no te fiarías de correr a ciegas lo que dice, no te
+fíes del ledger tampoco.
 
 ### Cómo se elige el modelo
 

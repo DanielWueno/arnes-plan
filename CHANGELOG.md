@@ -6,6 +6,51 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.1.0] — 2026-08-25
+
+Un ítem volvía marcado `hecho` porque lo marcaba el mismo agente que lo había
+hecho, y el arnés se lo creía. Esta versión añade las dos comprobaciones de
+cierre que no dependen de su palabra.
+
+El esquema del ledger sigue en la versión 1: `verificacion_comando` es un campo
+que un lector viejo ignora. Con la contrapartida de que lo ignora *en silencio*
+— un arnés 1.0.x sobre un ledger que lo usa no correrá la verificación y no
+dirá nada. Si repartes el ledger, reparte la versión del plugin con él.
+
+### Añadido
+- **`verificacion_comando`**, campo opcional del ítem. Es la parte de
+  `verificacion` que una máquina puede decidir sola, y `plan-run.sh` la corre
+  **él**, en la raíz del proyecto, después de que la sesión haya terminado.
+  Corrido fuera de la sesión que declaró el ítem hecho, es la diferencia entre
+  "el agente dice que pasa" y "pasa". Lleva perro guardián propio
+  (`ARNES_LIMITE_VERIFICACION`, 900 s por defecto): sin él, un comando colgado
+  dejaría una sesión `--desatendido` esperando para siempre.
+- **`resultado` obligatorio al cerrar.** Un ítem que pasa a `hecho` sin decir
+  qué se hizo y qué evidencia lo prueba no cuenta como cerrado. Se reclama en
+  el momento del cierre (`validar-ledger.py --al-cerrar`) y no en el barrido
+  general, por la misma razón que `rollback` sólo se le pide a lo que aún se va
+  a ejecutar: reclamárselo a lo ya cerrado sería ruido permanente.
+- **Techo de reintentos y parada por hueco de ficha**, en el protocolo del
+  comando. Tres intentos sobre una verificación en rojo son depuración; el
+  cuarto es prueba y error. Y una ambigüedad que viene de la ficha —no de la
+  implementación— para al instante y se pregunta, sin intentos previos: ningún
+  número de intentos rellena un hueco del plan. Eran las dos únicas reglas que
+  el arnés no tenía de un flujo de trabajo anterior al ledger; el resto de
+  aquel flujo (estado, changelog, elección de modelo, no borrar sin traza,
+  criterio de cierre) ya vivía aquí como campo validado en vez de como prosa.
+- Ninguna de las dos puertas revierte nada. El commit ya existe y deshacerlo es
+  decisión de quien mira, con el `rollback` de la ficha delante; el script se
+  limita a salir distinto de 0 y a enseñar por qué.
+
+### Corregido
+- **`--desatendido` aceptaba ítems marcados `opus`.** Las guardas miraban las
+  horas, el multiagente y el bloqueo, pero no el modelo — justo el campo con el
+  que el ledger declara "aquí el CRITERIO es el trabajo". La regla estaba
+  escrita en el README y no en el código, que es como una regla deja de
+  cumplirse. `--igual` la salta, como las demás.
+- La plantilla del ledger apuntaba a `infra/arnes/`, la ruta de cuando el arnés
+  vivía vendorizado dentro del proyecto.
+
 ## [1.0.0] — 2026-08-24
 
 Primera versión distribuible. Antes vivía vendorizado dentro de un proyecto y

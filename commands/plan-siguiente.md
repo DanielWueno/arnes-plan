@@ -31,10 +31,23 @@ Argumento recibido: `$ARGUMENTS` (si viene vacío, toma el siguiente ítem pendi
    correr algo y no lo corriste, el ítem NO está hecho: déjalo `en_curso` y dímelo.
    Escepticismo con n=1: un caso que pasa no es el criterio. Y prueba el escenario de riesgo real,
    no sólo el benigno.
+   Si la ficha trae `verificacion_comando`, ese comando **se va a correr fuera de esta sesión** al
+   cerrar. Córrelo tú también antes de marcar nada: darlo por hecho sin correrlo sólo consigue que
+   el rojo salga después, con el commit ya escrito.
 
-5. **Cierra el ítem**: actualiza el ledger a `hecho` con una línea de qué se hizo y qué evidencia lo
-   prueba, y commitea el trabajo junto con el ledger en el mismo commit. Sin `Co-Authored-By` ni
-   referencias a la herramienta en el mensaje.
+   **Si la verificación sale roja, tienes tres intentos sobre esa misma actividad.** Eso es
+   depuración legítima: la ficha cubre el trabajo y lo que falla es la implementación. Al agotarlos,
+   PARA y dime el estado exacto — qué falló y qué probaste — en vez de seguir insistiendo. Un cuarto
+   intento ya no es depurar, es prueba y error a mi costa.
+
+   **Si la ambigüedad es de la ficha y no de la implementación, para al instante y pregunta, sin
+   intentos previos.** No es lo mismo: eso no es un fallo que se depura, es un hueco del plan, y
+   ningún número de intentos lo rellena. Adivinar el alcance aquí es cómo un ítem se desborda.
+
+5. **Cierra el ítem**: actualiza el ledger a `hecho` **con el campo `resultado`** —qué se hizo y qué
+   evidencia lo prueba, no el estado otra vez— y commitea el trabajo junto con el ledger en el
+   mismo commit. Sin `Co-Authored-By` ni referencias a la herramienta en el mensaje.
+   Comprueba el cierre con `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/validar-ledger.py" --al-cerrar <id>`.
    Si quedó a medias, estado `bloqueado` con la razón concreta — nunca `hecho` optimista.
 
 6. **DETENTE.** Un ítem por invocación. No sigas con el siguiente ni "aprovechando que ya estoy
