@@ -292,6 +292,70 @@ SALIDA="$(HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" 2>&1)"
 check "no sobrescribe un arnes ajeno"    "MIO" "$(bash "$CASA/.local/bin/arnes")"
 check "y avisa de que no lo tocó"        "si" "$(grep -q 'no es de este plugin' <<<"$SALIDA" && echo si || echo no)"
 
+
+echo '10. La puerta de cierre corre por cualquier puerta de entrada'
+# El fallo que cierra: las comprobaciones vivían sólo en plan-run.sh, y el flujo
+# diario es /plan-siguiente, donde el protocolo sólo PEDÍA autoevaluarse.
+GATE="python3 $ARNES/hooks/puerta-de-cierre.py"
+GP="$TMP/gate"; mkdir -p "$GP/docs/plan"; cd "$GP"
+git init -q . && git config user.email t@t && git config user.name t
+cp "$ARNES/plantillas/ledger.plantilla.json" docs/plan/ejecucion-plan.estado.json
+LG="$GP/docs/plan/ejecucion-plan.estado.json"
+
+ficha_gate() { # ficha_gate <estado> <comando> [resultado]
+  python3 - "$@" <<'PY'
+import json, sys
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8')); it = d['olas'][0]['items'][0]
+it.pop('_resultado', None)
+it.update(id='1.1-x', titulo='x', modelo='haiku', esfuerzo='low', horas_maquina=0,
+          estado=sys.argv[1], verificacion='x', rollback='x', multiagente=False,
+          por_que_este_modelo='x', verificacion_comando=sys.argv[2])
+if len(sys.argv) > 3 and sys.argv[3]: it['resultado'] = sys.argv[3]
+else: it.pop('resultado', None)
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+}
+# printf, no echo: `echo {...}` dispara la expansión de llaves de bash y el
+# hook recibiría JSON roto, saliendo callado. Un falso verde de manual.
+llamar_gate() {
+  printf '{"tool_name":"Edit","tool_input":{"file_path":"%s"}}' "${1:-$LG}" \
+    | CLAUDE_PROJECT_DIR="$GP" $GATE 2>&1
+}
+
+ficha_gate pendiente 'true'; git add -A; git commit -qm base
+
+ficha_gate hecho 'true'
+check "cerrar sin resultado: se queja"   "si" "$(grep -q 'sin .resultado' <<<"$(llamar_gate)" && echo si || echo no)"
+
+ficha_gate hecho 'echo rojo-de-verdad; exit 7' 'evidencia: commit abc'
+SALIDA="$(llamar_gate)"
+check "la verificación se corre AQUÍ"     "si" "$(grep -q 'código 7' <<<"$SALIDA" && echo si || echo no)"
+check "y enseña la salida del comando"    "si" "$(grep -q 'rojo-de-verdad' <<<"$SALIDA" && echo si || echo no)"
+
+ficha_gate hecho 'true' 'evidencia: commit abc'
+check "cierre bien hecho: silencio"       ""   "$(llamar_gate)"
+
+check "editar otro fichero: ni se mete"   ""   "$(llamar_gate "$GP/README.md")"
+
+# Sin ruido retroactivo: lo ya cerrado antes de esta edición no se re-verifica.
+ficha_gate hecho 'exit 7' 'ya estaba'; git add -A; git commit -qm cerrado
+python3 -c "
+import json; p='docs/plan/ejecucion-plan.estado.json'
+d=json.load(open(p,encoding='utf-8')); d['olas'][0]['items'][0]['titulo']='retoque'
+json.dump(d,open(p,'w',encoding='utf-8'),indent=2,ensure_ascii=False)"
+check "no re-verifica trabajo ya cerrado" ""   "$(llamar_gate)"
+cd "$PROY"
+
+echo '11. El plugin no publica un ledger propio'
+# Pasó de verdad en la 1.4.0: probar `arrancar.sh` con el repositorio del
+# plugin como raíz sembró un ledger ahí, y un `git add -A` lo publicó a todos
+# los usuarios. Un .gitignore protege del descuido pero no de un `git add -f`.
+COLADOS="$(cd "$ARNES" && git ls-files | grep -c 'ejecucion-plan.estado.json' || true)"
+check "ningún ledger versionado en el plugin" "0" "$COLADOS"
+check "la plantilla sí sigue estando"         "si" \
+      "$(test -f "$ARNES/plantillas/ledger.plantilla.json" && echo si || echo no)"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1

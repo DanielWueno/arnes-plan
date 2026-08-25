@@ -238,6 +238,15 @@ los modos— `plan-run.sh` comprueba dos cosas que no dependen de su palabra:
 El comando corre en la raíz del proyecto, con un límite de tiempo (`ARNES_LIMITE_VERIFICACION`, por
 defecto 900 s) para que un comando colgado no deje una sesión desatendida esperando para siempre.
 
+**Y corren por cualquier puerta de entrada.** Hasta la 1.4.0 estas comprobaciones vivían sólo en
+`plan-run.sh`, mientras que el flujo diario de casi todo el mundo es `/plan-siguiente` dentro de una
+sesión — y por ahí el protocolo se limitaba a *pedirle* al agente que se autoevaluara, que es el
+fallo exacto que estas puertas dicen cerrar. Desde la 1.5.0 hay un hook enganchado a la **escritura
+del ledger**, no a un comando: da igual quién cierre el ítem —`plan-run.sh`, `/plan-siguiente`, o
+alguien editando el JSON a mano—, si acaba de pasar a `hecho` se comprueba, y el motivo le llega a
+Claude en el momento de la infracción en vez de tres pasos después. Sólo mira los ítems que
+**acaban** de cerrarse, comparando con la versión del ledger en `HEAD`.
+
 Si alguna puerta falla, el script sale distinto de 0 y enseña las últimas líneas del comando. **No
 revierte nada**: el commit ya existe, y deshacerlo es una decisión tuya con el `rollback` de la
 ficha delante. Reabrir el ítem es cambiarle el estado a `en_curso`. `--igual` salta las dos puertas.
@@ -318,7 +327,16 @@ Y dos que sostienen las puertas de cierre:
 | Campo | Para qué |
 |---|---|
 | `verificacion_comando` | La parte de `verificacion` que una máquina puede decidir sola, como una línea de shell que sale 0 o no. **El arnés la corre él**, en la raíz del proyecto, después de la sesión. Si tu criterio no cabe en un comando —"clasificar 30 casos a mano"— deja el campo fuera: media verificación automática mentiría más de lo que ayuda. |
-| `resultado` | Qué pasó, al cerrarlo. Obligatorio en un ítem que pasa a `hecho`. No es el estado, es la evidencia. |
+| `resultado` | Qué pasó, al cerrarlo. Obligatorio en un ítem que pasa a `hecho`. No es el estado, es la evidencia. Dos líneas y el hash del commit bastan: la narrativa larga ya tiene sitio versionado, que es el mensaje del commit. |
+
+### Campos que el arnés no conoce
+
+El validador avisa —sin fallar— de los campos que no están en esta página. No es un error: el
+ledger es tuyo. Pero lo que se escriba ahí **no lo lee nadie**, ni el arnés ni la siguiente persona
+que busque por qué algo está como está, y se acumulan rápido: en el consumidor real llegaron a 53
+nombres fuera de esquema, la mitad usados una sola vez, mientras el validador respondía
+`✓ Ledger válido`. Si es rastro del cierre, va en `resultado`; si es una nota deliberada, un `_`
+delante la exime del aviso.
 
 `verificacion_comando` se ejecuta con tu shell y tus permisos, igual que un `Makefile` del
 repositorio. Vale lo mismo que el ledger: si no te fiarías de correr a ciegas lo que dice, no te
@@ -418,7 +436,9 @@ commands/
   plan-siguiente.md          /plan-siguiente
   plan-estado.md             /plan-estado
   plan-arrancar.md           /plan-arrancar — puesta en marcha sin rutas
-hooks/hooks.json             el hook SessionStart
+hooks/
+  hooks.json                 los dos hooks: SessionStart y la puerta de cierre
+  puerta-de-cierre.py        comprueba el cierre venga por donde venga
 scripts/
   arrancar.sh                deja el proyecto listo e instala el lanzador `arnes`
   plan-run.sh                lanza un ítem en sesión limpia
@@ -426,6 +446,7 @@ scripts/
   ledger_path.py             localiza el ledger (PLAN_LEDGER manda)
   validar-ledger.py          valida el ledger (o una ficha, con --item); sale 1 y dice qué falta
   validar-diagramas.py       comprueba que el README y la página cuentan el mismo diagrama
+  validar_ledger_compat.py   puente de importación (un nombre con guiones no se importa)
 plantillas/
   ledger.plantilla.json      semilla para un proyecto nuevo
 docs/

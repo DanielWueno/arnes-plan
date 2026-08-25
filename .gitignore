@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+# El arnés se prueba corriéndolo, y `arrancar.sh` siembra un ledger en la raíz
+# desde la que se invoque. Si esa raíz es este repositorio, el ledger acaba
+# publicado dentro del plugin — pasó en la 1.4.0. `tests/prueba.sh` lo
+# comprueba además, porque un .gitignore sólo protege del descuido, no de un
+# `git add -f`.
+docs/plan/
