@@ -7,6 +7,12 @@ Es un plugin de Claude Code. No depende del lenguaje ni del stack de tu proyecto
 deja en tu repositorio es el ledger, un JSON con tu plan. La herramienta se actualiza con
 `claude plugin update`; tu plan no se toca.
 
+**Sistemas.** Los scripts son bash y Python 3, así que corren en macOS, Linux y en Windows sobre
+git-bash o WSL —que es lo que Claude Code usa allí—. El intérprete se resuelve solo (`python3` o
+`python`, según el sistema), y en Windows el lanzador se instala además como `arnes.cmd` para que
+PowerShell y `cmd` sepan invocarlo. Lo que **no** está probado en Windows es el recorrido completo:
+si eres el primero, dilo si tropiezas.
+
 ---
 
 ## El problema que resuelve

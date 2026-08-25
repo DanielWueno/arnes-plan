@@ -20,7 +20,8 @@ set -uo pipefail
 # se imprimiría literal. Pasó al escribir esto.
 B=$'\033[1m'; D=$'\033[2m'; G=$'\033[0;32m'; Y=$'\033[1;33m'; N=$'\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' \
+source "$SCRIPT_DIR/entorno.sh"
+VERSION="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' \
            "$SCRIPT_DIR/../.claude-plugin/plugin.json" 2>/dev/null || echo '?')"
 
 cat <<AYUDA
@@ -63,22 +64,22 @@ ${B}VARIABLES DE ENTORNO${N}
   CLAUDE_PROJECT_DIR           raíz del proyecto. Si no está, se usa la del repo.
 
 ${B}COMPROBAR${N}
-  python3 "\$ARNES/validar-ledger.py"              todo el ledger
-  python3 "\$ARNES/validar-ledger.py" --item 5.0   ¿está listo para ejecutarse?
-  python3 "\$ARNES/validar-ledger.py" --al-cerrar 5.0   ¿quedó bien cerrado?
+  "$PY" "\$ARNES/validar-ledger.py"              todo el ledger
+  "$PY" "\$ARNES/validar-ledger.py" --item 5.0   ¿está listo para ejecutarse?
+  "$PY" "\$ARNES/validar-ledger.py" --al-cerrar 5.0   ¿quedó bien cerrado?
 AYUDA
 
 # ── Estado real, que es lo que convierte esto en algo consultable ───────────
 if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then ROOT="$CLAUDE_PROJECT_DIR"
 else ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; fi
-LEDGER="$(cd "$ROOT" 2>/dev/null && python3 "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
+LEDGER="$(cd "$ROOT" 2>/dev/null && "$PY" "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
 
 echo
 printf "${B}AQUÍ Y AHORA${N}\n"
 printf "  proyecto  %s\n" "$ROOT"
 if [[ -n "$LEDGER" ]]; then
   printf "  ledger    %s\n" "$LEDGER"
-  SIG="$(cd "$ROOT" && python3 - "$LEDGER" <<'PY' 2>/dev/null || true
+  SIG="$(cd "$ROOT" && "$PY" - "$LEDGER" <<'PY' 2>/dev/null || true
 import json, sys
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 for o in d['olas']:
@@ -95,3 +96,10 @@ else
   printf "  ${Y}ledger    no hay ninguno en este proyecto${N}\n"
   printf "${D}  Crearlo:  arnes arrancar${N}\n"
 fi
+
+# Salida explícita. Sin esto, el código lo decide el último comando que se haya
+# ejecutado —que cambia según la rama que se tome y según el sistema— y una
+# pantalla de ayuda que a veces sale 1 no tiene ningún sentido. El CI de Ubuntu
+# la vio fallar donde en macOS salía 0, y esa diferencia no merece un misterio:
+# merece un contrato.
+exit 0

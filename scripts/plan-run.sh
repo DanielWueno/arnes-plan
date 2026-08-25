@@ -53,6 +53,7 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'
 CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'; DIM='\033[2m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/entorno.sh"
 
 # Raíz del proyecto SOBRE EL QUE SE TRABAJA. No se deriva de dónde vive este
 # script, y la distinción es la que hace que el arnés funcione instalado:
@@ -69,7 +70,7 @@ if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
 else
   ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 fi
-LEDGER="$(cd "$ROOT" && python3 "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
+LEDGER="$(cd "$ROOT" && "$PY" "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
 
 # Las banderas se aceptan en cualquier posición: el primer argumento que no
 # empiece por "--" es el id o el ola:N.
@@ -97,7 +98,7 @@ command -v claude >/dev/null || { echo -e "${RED}✗${NC} 'claude' no está en e
 # (probar una rama, comparar); pero en silencio no: la versión vieja puede
 # lanzar un comando que ya no existe, y el fallo aparece dentro de la sesión
 # nueva, lejos de su causa.
-INSTALADO="$(python3 -c 'import json, os, sys
+INSTALADO="$("$PY" -c 'import json, os, sys
 r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
 try: d = json.load(open(r, encoding="utf-8"))
 except Exception: sys.exit(0)
@@ -123,7 +124,7 @@ if [[ -z "$LEDGER" || ! -f "$LEDGER" ]]; then
 fi
 
 # ── Resolver el ítem desde el ledger (coste: cero tokens) ────────────────────
-FICHA="$(python3 - "$LEDGER" "$ARG" <<'PY'
+FICHA="$("$PY" - "$LEDGER" "$ARG" <<'PY'
 import json, sys
 ledger, arg = sys.argv[1], sys.argv[2]
 d = json.load(open(ledger))
@@ -216,7 +217,7 @@ echo
 # slash commands ya validaban, pero al CERRAR, que es tarde para no gastar.
 # El fallo se ve entero (el validador dice qué campo falta) y se puede saltar
 # con --igual, como las demás guardas.
-if ! python3 "$SCRIPT_DIR/validar-ledger.py" --item "$ID" "$LEDGER"; then
+if ! "$PY" "$SCRIPT_DIR/validar-ledger.py" --item "$ID" "$LEDGER"; then
   if [[ $FORZAR -eq 0 ]]; then
     echo -e "${RED}✗${NC} No lanzo ${BOLD}$ID${NC}: la ficha está incompleta."
     echo -e "${DIM}   Complétala en $LEDGER, o añade --igual para ejecutarlo así.${NC}"
@@ -227,7 +228,7 @@ fi
 
 # El resto del ledger no bloquea este ítem, pero un id duplicado o un `ola` como
 # string hacen que la PRÓXIMA invocación elija mal, y eso se descubre tarde.
-if ! SALIDA_LEDGER="$(python3 "$SCRIPT_DIR/validar-ledger.py" "$LEDGER" 2>&1)"; then
+if ! SALIDA_LEDGER="$("$PY" "$SCRIPT_DIR/validar-ledger.py" "$LEDGER" 2>&1)"; then
   echo -e "${YELLOW}⚠${NC}  El ledger tiene problemas (no bloquean este ítem):"
   sed 's/^/     /' <<<"$SALIDA_LEDGER"
   echo
@@ -322,7 +323,7 @@ set +e
 # viera: sus pruebas usan un `claude` de mentira, que acepta cualquier cosa.
 # El nombre se lee del manifiesto en vez de escribirse a mano, para que renombrar
 # el plugin no vuelva a romperlo en silencio.
-PLUGIN="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' \
+PLUGIN="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' \
           "$SCRIPT_DIR/../.claude-plugin/plugin.json" 2>/dev/null || echo arnes-plan)"
 claude "${ARGS_CLAUDE[@]}" "/$PLUGIN:plan-siguiente $ID"
 CODE=$?
@@ -337,7 +338,7 @@ git -C "$ROOT" status --short | sed 's/^/  /'
 # El ledger se RELEE: lo que importa aquí es cómo quedó el ítem, no cómo estaba
 # al empezar. El comando de verificación también se toma de esta relectura, no
 # del anuncio: si la sesión lo cambió, se corre el que quedó escrito.
-CIERRE="$(python3 - "$LEDGER" "$ID" <<'PY'
+CIERRE="$("$PY" - "$LEDGER" "$ID" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 for o in d['olas']:
@@ -362,7 +363,7 @@ elif [[ $FORZAR -eq 1 ]]; then
 else
   # (a) Rastro. `hecho` lo escribió el mismo agente que hizo el trabajo; el
   #     campo `resultado` es lo único de ese cierre que otro puede comprobar.
-  if SALIDA_CIERRE="$(python3 "$SCRIPT_DIR/validar-ledger.py" --al-cerrar "$ID" "$LEDGER" 2>&1)"; then
+  if SALIDA_CIERRE="$("$PY" "$SCRIPT_DIR/validar-ledger.py" --al-cerrar "$ID" "$LEDGER" 2>&1)"; then
     echo -e "  ${GREEN}✓${NC} $(sed 's/^✓ //' <<<"$SALIDA_CIERRE" | head -1)"
   else
     CIERRE_ROTO=1

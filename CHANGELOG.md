@@ -6,6 +6,27 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.8.0] — 2026-08-25
+
+### Corregido
+- **Instrucciones específicas de Unix en sistemas Windows.** Tras sembrar el
+  ledger, el arnés indicaba instalar el lanzador en `~/.local/bin`, añadirlo al
+  PATH con `export PATH=...` y validar con `python3`. Ninguna de las tres es
+  válida en PowerShell. `scripts/entorno.sh` centraliza ahora lo que varía entre
+  sistemas —intérprete de Python y sintaxis de PATH— y el resto de scripts lo
+  consulta. En Windows se instala además `arnes.cmd`, ya que PowerShell y `cmd`
+  no ejecutan scripts de bash. El hook tampoco fija el intérprete.
+
+  El soporte de Windows depende de git-bash o WSL y **no está verificado de
+  extremo a extremo**; el README lo indica explícitamente.
+- **Código de salida indeterminado en `arnes --help`.** Lo definía el último
+  comando ejecutado, que varía según la rama del script y el sistema operativo,
+  provocando fallos intermitentes en integración continua. Ahora devuelve 0 de
+  forma explícita.
+- **Versión desactualizada en la página de presentación.** El número está
+  escrito en el HTML y no se sincronizaba con el manifiesto: la página publicada
+  anunciaba la 1.1.0. La suite de pruebas verifica ahora que ambos coincidan.
+
 ## [1.7.0] — 2026-08-25
 
 ### Añadido
