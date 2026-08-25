@@ -270,6 +270,12 @@ que `rollback` sólo se le pide a lo que aún se va a ejecutar. Los ítems que s
 que la regla existiera no se van a volver a tocar, y reclamárselos sería ruido permanente. Lo que
 cambia es cuándo se comprueba, no qué.
 
+Ojo con una trampa: Claude Code **conserva las versiones anteriores** del plugin en su cache, y
+siguen siendo ejecutables. Una ruta con el número de versión dentro, copiada de una consola abierta
+antes de actualizar, lanza código viejo meses después sin decir nada — por eso el arnés no reparte
+rutas: ofrece `arnes`, que resuelve la instalación en cada ejecución. Si aun así corres una copia
+que no es la instalada, `plan-run.sh` te lo dice antes de empezar.
+
 Dentro de una sesión de Claude Code ya abierta, lo mismo se pide con `/arnes-plan:plan-estado` y
 `/arnes-plan:plan-siguiente`. La diferencia es el contexto: `plan-run.sh` arranca un proceso nuevo, así que el
 ítem no hereda nada de lo que estuvieras haciendo antes.

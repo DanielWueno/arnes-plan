@@ -12,7 +12,7 @@ Contrato de silencio: si el ledger no está, no se puede leer o no tiene ítems
 pendientes, este script NO imprime nada y sale con 0. Un hook que se queja en
 cada arranque es peor que no tener hook.
 """
-import json, os, sys
+import json, os, shutil, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ledger_path import resolver  # noqa: E402
@@ -59,12 +59,19 @@ def main():
     )
     if elegido.get('bloqueado_por'):
         linea += f"\nBLOQUEADO POR: {' '.join(elegido['bloqueado_por'].split())}"
-    # Se imprime la ruta real del script hermano en vez de una relativa: como
-    # plugin, el arnés no vive dentro del proyecto y una ruta relativa no
-    # existiría desde el directorio del usuario.
-    lanzador = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plan-run.sh')
+    # NUNCA una ruta con la versión clavada. Se imprimía la del script hermano,
+    # que incluye el número de versión del plugin: en cuanto alguien actualiza,
+    # la consola que quedó abierta antes sigue ofreciendo un camino directo a
+    # código viejo — y ese camino se copia y se ejecuta. Pasó de verdad, con un
+    # plan-run.sh de cinco versiones atrás que lanzaba un comando ya inválido.
+    # Lo que se ofrece es el lanzador, que resuelve la instalación en cada
+    # ejecución; si no está instalado, la línea para instalarlo.
+    if shutil.which('arnes'):
+        lanzador = '`arnes` (sesión limpia)'
+    else:
+        lanzador = '`/arnes-plan:plan-arrancar`, que instala el lanzador `arnes`,'
     linea += ("\nNo lo ejecutes por iniciativa propia: se lanza con "
-              f"`bash {lanzador}` (sesión limpia) o `/arnes-plan:plan-siguiente`.")
+              f"{lanzador} o `/arnes-plan:plan-siguiente`.")
 
     json.dump({'hookSpecificOutput': {
         'hookEventName': 'SessionStart',

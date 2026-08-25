@@ -6,6 +6,23 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.6.1] — 2026-08-25
+
+### Corregido
+- **El hook de arranque repartía una ruta con la versión clavada dentro.**
+  Imprimía `bash …/arnes-plan/1.2.0/scripts/plan-run.sh`, y Claude Code conserva
+  las versiones viejas: una consola abierta antes de actualizar seguía ofreciendo
+  un camino directo a código obsoleto, que se copia y se ejecuta. Pasó de verdad,
+  con un `plan-run.sh` de cinco versiones atrás lanzando un comando ya inválido —
+  y el fallo aparecía dentro de la sesión nueva, lejos de su causa. Ahora ofrece
+  `arnes`, que resuelve la instalación en cada ejecución; y si no está instalado,
+  la línea para instalarlo.
+
+  Era el último sitio del arnés que clavaba una versión: la enfermedad que este
+  plugin lleva toda la 1.4 y la 1.5 curando, en el rincón donde quedaba.
+- `plan-run.sh` avisa cuando la copia que se ejecuta no es la instalada. No
+  bloquea —correr una copia a propósito es legítimo— pero deja de ser silencioso.
+
 ## [1.6.0] — 2026-08-25
 
 ### Añadido

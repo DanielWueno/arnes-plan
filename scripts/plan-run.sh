@@ -89,6 +89,30 @@ for a in "$@"; do
 done
 
 command -v claude >/dev/null || { echo -e "${RED}✗${NC} 'claude' no está en el PATH."; exit 1; }
+
+# ¿Se está ejecutando la copia instalada, o una vieja del cache? Claude Code
+# conserva las versiones anteriores, y una ruta con la versión dentro —copiada
+# de una consola abierta antes de actualizar— sigue siendo ejecutable meses
+# después. No se bloquea, porque correr una copia a propósito es legítimo
+# (probar una rama, comparar); pero en silencio no: la versión vieja puede
+# lanzar un comando que ya no existe, y el fallo aparece dentro de la sesión
+# nueva, lejos de su causa.
+INSTALADO="$(python3 -c 'import json, os, sys
+r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
+try: d = json.load(open(r, encoding="utf-8"))
+except Exception: sys.exit(0)
+for k, v in d.get("plugins", {}).items():
+    if k.startswith("arnes-plan"):
+        for e in v:
+            if e.get("installPath"): print(e["installPath"]); sys.exit(0)' 2>/dev/null || true)"
+if [[ -n "$INSTALADO" && "$SCRIPT_DIR" != "$INSTALADO/scripts" ]]; then
+  echo -e "${YELLOW}⚠${NC}  Esta NO es la copia instalada del arnés."
+  echo -e "${DIM}   corriendo:  $SCRIPT_DIR${NC}"
+  echo -e "${DIM}   instalada:  $INSTALADO/scripts${NC}"
+  echo -e "${DIM}   Si copiaste la ruta de una consola vieja, usa \`arnes\` en su lugar:${NC}"
+  echo -e "${DIM}   resuelve la instalación en cada ejecución y no se queda atrás.${NC}"
+  echo
+fi
 if [[ -z "$LEDGER" || ! -f "$LEDGER" ]]; then
   echo -e "${RED}✗${NC} No encuentro el ledger."
   echo "   Se buscó en las rutas convencionales bajo $ROOT."

@@ -364,6 +364,24 @@ json.dump(d,open(p,'w',encoding='utf-8'),indent=2,ensure_ascii=False)"
 check "no re-verifica trabajo ya cerrado" ""   "$(llamar_gate)"
 cd "$PROY"
 
+echo '14. El hook no reparte rutas con la versión clavada dentro'
+# Claude Code conserva las versiones viejas del plugin. Una consola abierta
+# antes de actualizar seguía ofreciendo `bash .../1.2.0/scripts/plan-run.sh`,
+# que meses después sigue siendo ejecutable y lanza un comando ya inválido.
+# Pasó de verdad. La línea tiene que ofrecer el lanzador, no una ruta.
+cd "$PROY"
+LINEA="$(python3 "$ARNES/scripts/plan-siguiente-linea.py" 2>/dev/null \
+         | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' 2>/dev/null || true)"
+check "no ofrece ninguna ruta del cache" "0" "$(grep -c 'plugins/cache' <<<"$LINEA")"
+check "ni un plan-run.sh por ruta"       "0" "$(grep -c 'plan-run.sh' <<<"$LINEA")"
+check "y sigue diciendo qué ejecutar"    "si" \
+      "$(grep -qE 'arnes|plan-arrancar' <<<"$LINEA" && echo si || echo no)"
+
+# Y la red por si alguien ya tiene una ruta vieja copiada: correrla avisa.
+SALIDA="$(bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
+check "correr una copia no instalada avisa" "si" \
+      "$(grep -q 'NO es la copia instalada' <<<"$SALIDA" && echo si || echo no)"
+
 echo '13. arnes --help contesta desde la terminal, sin ir al README'
 cd "$PROY"
 AYUDA="$(bash "$ARNES/scripts/ayuda.sh" 2>&1)"; CODE=$?
