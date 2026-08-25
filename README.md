@@ -110,8 +110,71 @@ proyecto:
 /plan-siguiente     # ejecuta UN ítem y se detiene
 ```
 
-Y desde una terminal, para que cada ítem corra en un proceso nuevo de verdad (`ARNES` es el
-directorio `scripts/` del plugin; `claude plugin list` dice dónde quedó instalado):
+Dentro de una sesión de Claude Code no hace falta nada más: esos dos comandos ya saben dónde está
+el plugin. Lo de abajo es para la terminal, y existe porque un slash command no puede darte lo que
+más valor tiene aquí — que cada ítem arranque en un proceso nuevo, sin heredar el contexto de lo
+anterior.
+
+### Dejar el proyecto listo
+
+Recién instalado el plugin, dentro de Claude Code:
+
+```
+/plan-arrancar
+```
+
+Sin rutas y sin variables: dentro de una sesión el plugin ya sabe dónde está. Sirve tanto si eres
+el primero que llega como si el plan ya existe, y además instala el lanzador `arnes` para la
+terminal. Desde fuera de Claude Code es `bash "$ARNES/arrancar.sh"`, con el mismo efecto.
+
+- **Repositorio sin plan:** siembra la plantilla y te dice qué escribir.
+- **Repositorio que ya tiene plan** —el caso del segundo que clona— **no toca nada**, valida el
+  ledger que hay y te anuncia el ítem que toca. Correrlo dos veces no hace daño.
+
+Nunca sobrescribe un ledger. Merece la pena decir por qué existe este script en vez de un `cp` en
+las instrucciones: el arranque documentado antes era copiar la plantilla encima de
+`ejecucion-plan.estado.json`, y eso es una bomba. El segundo miembro del equipo clona, sigue el
+README al pie de la letra, y le pasa por encima al plan del primero —sin preguntar, sobre un JSON
+versionado que a esas alturas es la única fuente de verdad del avance. Un README que avisa "ojo, si
+ya existe no lo copies" es exactamente la clase de regla que este proyecto lleva moviendo al código
+desde el principio: la que sólo se cumple si alguien se acuerda.
+
+### El comando `arnes`
+
+`/plan-arrancar` instala un lanzador en `~/.local/bin` —donde vive el propio `claude`, así que ya
+está en tu PATH— y a partir de ahí el arnés es un comando normal:
+
+```bash
+arnes                    # el siguiente ítem, en sesión limpia
+arnes --solo-anunciar    # qué toca, sin ejecutar ni gastar
+arnes 5.0 --auto         # uno concreto, con menos prompts
+arnes arrancar           # dejar listo otro proyecto
+```
+
+**No lleva ninguna ruta dentro.** Resuelve la instalación en cada ejecución, así que sigue
+funcionando después de cada `claude plugin update` sin que haya que tocarlo ni recordar nada. Si lo
+borras, `/plan-arrancar` lo vuelve a crear; si ya tenías un `arnes` tuyo en el PATH, no lo pisa.
+
+Y resuelve a la instalación **activa**, no a la versión más alta que haya en el cache: ahí quedan
+las viejas y también versiones que nunca se activaron, y ejecutar en silencio una que no está en
+uso es justo el fallo que este arnés existe para no cometer.
+
+<details>
+<summary>Si prefieres no instalar nada en el PATH</summary>
+
+Las rutas largas siguen funcionando. `ARNES` es el directorio `scripts/` del plugin:
+
+```bash
+export ARNES="$(claude plugin list --json \
+  | python3 -c 'import json,sys; print(next(p["installPath"] for p in json.load(sys.stdin) if p["id"].startswith("arnes-plan")))')/scripts"
+```
+
+Ojo con dos cosas que confunden: `claude plugin list` a secas **no** dice la ruta —sólo nombre,
+versión y estado, hace falta `--json`— y para actualizar el nombre tiene que ir cualificado,
+`claude plugin update arnes-plan@arnes-plan`.
+</details>
+
+### Ejecutar
 
 ```bash
 bash "$ARNES/plan-run.sh" --solo-anunciar   # ¿qué toca? (no ejecuta nada)
@@ -195,13 +258,14 @@ si sigues. Nada avanza sin que lo pidas.
 
 ## Tu primer ledger
 
-El plugin no siembra nada: el ledger es tuyo y vive en tu repositorio. Copia la plantilla y
-escribe tus ítems, que es lo único que no se puede automatizar.
+El ledger es tuyo y vive en tu repositorio; el plugin no se lleva nada a otro sitio. Lo siembra
+`bash "$ARNES/arrancar.sh"` —que **no sobrescribe** si ya hay uno— y a partir de ahí escribir los
+ítems es cosa tuya: es lo único que no se puede automatizar.
 
 ```bash
-mkdir -p docs/plan
-cp "$ARNES/../plantillas/ledger.plantilla.json" docs/plan/ejecucion-plan.estado.json
-python3 "$ARNES/validar-ledger.py"
+/plan-arrancar                          # o: arnes arrancar
+arnes arrancar --donde docs/analisis-futuro   # otra carpeta
+python3 "$ARNES/validar-ledger.py"      # cuando hayas escrito tus ítems
 ```
 
 No hace falta que el otro proyecto sea .NET, ni que use las mismas carpetas: el ledger se busca en
@@ -353,8 +417,10 @@ específicos de Claude Code.
 commands/
   plan-siguiente.md          /plan-siguiente
   plan-estado.md             /plan-estado
+  plan-arrancar.md           /plan-arrancar — puesta en marcha sin rutas
 hooks/hooks.json             el hook SessionStart
 scripts/
+  arrancar.sh                deja el proyecto listo e instala el lanzador `arnes`
   plan-run.sh                lanza un ítem en sesión limpia
   plan-siguiente-linea.py    el hook SessionStart
   ledger_path.py             localiza el ledger (PLAN_LEDGER manda)

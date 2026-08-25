@@ -6,6 +6,56 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.4.0] — 2026-08-25
+
+La 1.3.0 arregló que la instalación pudiera destruir un plan, pero seguía
+pidiéndole al recién llegado que resolviera una ruta a mano y la guardara en
+una variable de entorno. Eso no es instalar: es trabajo manual con otro nombre,
+y encima caduca en cada actualización.
+
+### Añadido
+- **`/plan-arrancar`**, la puesta en marcha sin rutas ni variables. Dentro de
+  una sesión el plugin ya sabe dónde está, así que funciona recién instalado.
+- **El lanzador `arnes`**, que `arrancar.sh` deja en `~/.local/bin` —donde vive
+  el propio `claude`, así que ya está en el PATH de quien tiene Claude Code—.
+  No clava ninguna ruta: resuelve la instalación en cada ejecución y sobrevive
+  a los `claude plugin update` sin tocarlo. No sobrescribe un `arnes` ajeno que
+  ya estuviera en el PATH, y `--sin-atajo` lo omite.
+
+### Corregido
+- **El lanzador podía ejecutar una versión que no era la instalada.** El
+  respaldo para cuando `claude` no está en el PATH elegía la versión más alta
+  del cache, y ahí quedan tanto las instalaciones viejas como versiones que
+  nunca llegaron a activarse. Ahora lee `installed_plugins.json`, que es lo que
+  el propio CLI escribe. Correr en silencio código que no está activo es justo
+  el fallo que este arnés existe para no cometer.
+
+## [1.3.0] — 2026-08-25
+
+### Corregido
+- **El arranque documentado podía destruir el plan de otro.** Decía
+  `cp plantilla docs/plan/ejecucion-plan.estado.json`: el segundo miembro del
+  equipo clonaba el repositorio, seguía el README al pie de la letra, y le
+  pasaba por encima al ledger del primero. Sin preguntar, y sobre el único
+  fichero que registra el avance. Ahora el arranque es `arrancar.sh`, que
+  detecta si ya hay plan y **nunca sobrescribe**: si lo hay, valida el que hay
+  y anuncia el ítem que toca; si no, siembra. Correrlo dos veces no hace daño.
+  Un README que avisara "si ya existe, no lo copies" habría sido la misma clase
+  de regla que este proyecto lleva moviendo al código desde el principio.
+- **El README mandaba a `claude plugin list` a buscar la ruta de instalación,
+  y ese comando no la da.** Sólo nombre, versión, scope y estado; hace falta
+  `claude plugin list --json`, que sí trae `installPath`. Queda documentada la
+  línea que resuelve `$ARNES` preguntándole al CLI, en vez de clavar un número
+  de versión que caduca en cada `plugin update` — que es exactamente cómo se
+  quedó obsoleta la ruta que la gente tenía copiada.
+- Documentado que `claude plugin update` exige el nombre cualificado
+  (`arnes-plan@arnes-plan`); a secas falla con "Plugin not found".
+
+### Añadido
+- `scripts/arrancar.sh`, y con él una puesta en marcha de un solo comando que
+  se explica sola: imprime al terminar la línea de `export ARNES` ya resuelta,
+  para no tener que volver al README a buscarla.
+
 ## [1.2.0] — 2026-08-25
 
 ### Añadido

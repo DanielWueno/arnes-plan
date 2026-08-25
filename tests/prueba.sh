@@ -211,6 +211,87 @@ SALIDA="$($D "$COPIA" 2>&1)"; CODE=$?
 check "un diagrama de más: falla"        "1"  "$CODE"
 check "dice cuántos hay en cada sitio"   "si" "$(grep -q 'diagrama(s) y' <<<"$SALIDA" && echo si || echo no)"
 
+
+echo "8. Arrancar en un repo que ya tiene plan no puede pisarlo"
+ARRANCAR="bash $ARNES/scripts/arrancar.sh"
+
+# Usuario 1: repositorio virgen. Siembra.
+NUEVO="$TMP/usuario1"; mkdir -p "$NUEVO"; cd "$NUEVO"
+git init -q . && git config user.email t@t && git config user.name t
+SALIDA="$($ARRANCAR </dev/null 2>&1)"; CODE=$?
+check "repo virgen: siembra y sale 0"    "0"  "$CODE"
+check "el ledger existe"                 "si" "$(test -f docs/plan/ejecucion-plan.estado.json && echo si || echo no)"
+check "y dice que ahora escribas ítems"  "si" "$(grep -q 'escribe tus ítems' <<<"$SALIDA" && echo si || echo no)"
+
+# Usuario 2: el mismo repo, ya con un plan REAL dentro. Es el caso que el
+# `cp` del README destruía sin preguntar.
+python3 - <<'PY'
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['olas'][0]['items'][0].update(id='1.1-trabajo-de-verdad', titulo='no me borres',
+    modelo='haiku', esfuerzo='low', horas_maquina=0, estado='pendiente',
+    verificacion='n/a', rollback='n/a', multiagente=False, por_que_este_modelo='x')
+d['olas'][0]['items'][0].pop('verificacion_comando', None)
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+HUELLA_ANTES="$(shasum docs/plan/ejecucion-plan.estado.json | cut -d' ' -f1)"
+SALIDA="$($ARRANCAR </dev/null 2>&1)"; CODE=$?
+HUELLA_DESPUES="$(shasum docs/plan/ejecucion-plan.estado.json | cut -d' ' -f1)"
+check "ledger existente: NO se toca"     "$HUELLA_ANTES" "$HUELLA_DESPUES"
+check "y aun así sale 0"                 "0"  "$CODE"
+check "dice que no tocó nada"            "si" "$(grep -q 'No se ha tocado nada' <<<"$SALIDA" && echo si || echo no)"
+check "y anuncia el ítem que toca"       "si" "$(grep -q 'no me borres' <<<"$SALIDA" && echo si || echo no)"
+
+# Correrlo dos veces seguidas tampoco: idempotencia de verdad, no de palabra.
+$ARRANCAR </dev/null >/dev/null 2>&1
+check "dos veces seguidas: sigue intacto" "$HUELLA_ANTES" \
+      "$(shasum docs/plan/ejecucion-plan.estado.json | cut -d' ' -f1)"
+
+# Y con un destino no convencional ya ocupado, que el resolvedor no mira.
+mkdir -p otra/ruta && echo '{"no":"me borres"}' > otra/ruta/ejecucion-plan.estado.json
+SALIDA="$(PLAN_LEDGER=/no/existe $ARRANCAR --donde otra/ruta </dev/null 2>&1)"; CODE=$?
+check "destino ya ocupado: se niega"     "1"  "$CODE"
+check "y el fichero sigue como estaba"   "si" \
+      "$(grep -q 'me borres' otra/ruta/ejecucion-plan.estado.json && echo si || echo no)"
+cd "$PROY"
+
+
+echo '9. El atajo arnes resuelve la instalación ACTIVA, no la más nueva'
+# Todo contra un HOME de mentira: ni se toca el del usuario ni se depende de
+# lo que tenga instalado.
+CASA="$TMP/casa"; mkdir -p "$CASA/.local/bin"
+CACHE="$CASA/.claude/plugins/cache/arnes-plan/arnes-plan"
+mkdir -p "$CACHE/1.0.0/scripts" "$CACHE/2.0.0/scripts"
+cat > "$CASA/.claude/plugins/installed_plugins.json" <<PY
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"$CACHE/1.0.0","version":"1.0.0"}]}}
+PY
+
+cd "$PROY"
+HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" >/dev/null 2>&1
+check "arrancar instala el atajo"        "si" "$(test -x "$CASA/.local/bin/arnes" && echo si || echo no)"
+check "y lleva su firma"                 "si" "$(grep -q 'arnes-plan:atajo' "$CASA/.local/bin/arnes" && echo si || echo no)"
+
+# El caso que importa: el cache tiene una 2.0.0 más alta, pero la INSTALADA es
+# la 1.0.0. Elegir por número mayor ejecutaría en silencio código que no está
+# activo. Se comprueba sin `claude` en el PATH, que es cuando entra el respaldo.
+RESUELVE="$(env HOME="$CASA" PATH=/usr/bin:/bin bash -c \
+  'source /dev/stdin <<< "$(sed -n "/^raiz_del_plugin()/,/^}/p" "$0")"; raiz_del_plugin' \
+  "$CASA/.local/bin/arnes" 2>/dev/null)"
+check "elige la instalada, no la 2.0.0"  "$CACHE/1.0.0" "$RESUELVE"
+
+# --sin-atajo respeta el PATH de quien no lo quiere.
+rm -f "$CASA/.local/bin/arnes"
+HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" --sin-atajo >/dev/null 2>&1
+check "--sin-atajo no instala nada"      "no" "$(test -e "$CASA/.local/bin/arnes" && echo si || echo no)"
+
+# Y no le pisa a nadie un ejecutable suyo que se llame igual.
+printf '#!/bin/bash\necho MIO\n' > "$CASA/.local/bin/arnes"; chmod +x "$CASA/.local/bin/arnes"
+SALIDA="$(HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" 2>&1)"
+check "no sobrescribe un arnes ajeno"    "MIO" "$(bash "$CASA/.local/bin/arnes")"
+check "y avisa de que no lo tocó"        "si" "$(grep -q 'no es de este plugin' <<<"$SALIDA" && echo si || echo no)"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1
