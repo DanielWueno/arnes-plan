@@ -6,6 +6,23 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.5.2] — 2026-08-25
+
+### Corregido
+- **`--desatendido` abría la sesión y no hacía nada.** Pedía
+  `--permission-mode acceptEdits`, que sólo aprueba EDICIONES; pero el protocolo
+  empieza leyendo el ledger con un script, y en modo `-p` esa llamada de Bash se
+  quedaba esperando una aprobación que nadie podía dar. Ahora usa
+  `bypassPermissions`, que es el único modo con el que la cadena se completa
+  —`dontAsk` tampoco basta, medido contra un `claude` real—. Es una escalada de
+  permisos de verdad, y queda documentada junto a las guardas que la justifican:
+  este modo se niega ante más de una hora de máquina, multiagente, `opus`, un
+  ítem bloqueado o un árbol sucio, y exige techo de gasto.
+
+Con esto el arnés completa un ítem de principio a fin por primera vez desde que
+se extrajo a plugin: trabajo hecho, ítem cerrado con `resultado`, un solo commit
+con trabajo y ledger, y las dos puertas de cierre disparando.
+
 ## [1.5.1] — 2026-08-25
 
 ### Corregido

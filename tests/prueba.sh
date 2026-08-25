@@ -73,6 +73,14 @@ check "no se invocó a claude"         "0" "$(grep -c 'claude-falso' <<<"$SALIDA
 check "dice qué campo falta"          "si" "$(grep -q 'rollback' <<<"$SALIDA" && echo si || echo no)"
 SALIDA="$(bash "$ARNES/scripts/plan-run.sh" 1.1 --desatendido --igual </dev/null 2>&1)"
 check "--igual la salta"              "1" "$(grep -c 'claude-falso' <<<"$SALIDA")"
+# `acceptEdits` sólo aprueba EDICIONES, y el protocolo empieza leyendo el ledger
+# con un script: en modo -p esa llamada esperaba una aprobación imposible y la
+# sesión abría sin hacer nada. Medido contra un claude real; `dontAsk` tampoco
+# basta. Se comprueba la bandera, no que no reviente.
+check "desatendido corre sin pedir permisos" "si" \
+      "$(grep -q -- '--permission-mode bypassPermissions' <<<"$SALIDA" && echo si || echo no)"
+check "y con techo de gasto"          "si" \
+      "$(grep -q -- '--max-budget-usd' <<<"$SALIDA" && echo si || echo no)"
 git checkout -q docs/plan/ejecucion-plan.estado.json
 
 echo "3. El validador no lee un esquema de ledger que no conoce"

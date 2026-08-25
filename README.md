@@ -195,7 +195,12 @@ Las banderas van en cualquier orden y se combinan con el id.
 |---|---|---|
 | *(por defecto)* | Sesión interactiva. Apruebas los permisos y las confirmaciones. | Casi siempre. Es el que no te sorprende. |
 | `--auto` | Interactiva, pero el clasificador de auto mode resuelve los permisos rutinarios. Lo destructivo sigue frenando y tú sigues delante para confirmar una corrida larga. | Ítems con mucho toqueteo de archivos donde aprobar uno por uno sólo cansa. La primera vez, Claude Code pide aceptar el modo. |
-| `--desatendido[=N]` | Sin sesión interactiva (`claude -p`), con techo de gasto en dólares (`N`, por defecto 5). | Los ítems mecánicos: `haiku`, cero horas de máquina. Revisas el commit al terminar, no durante. |
+| `--desatendido[=N]` | Sin sesión interactiva (`claude -p`) **y sin pedir permisos**, con techo de gasto en dólares (`N`, por defecto 5). | Los ítems mecánicos: `haiku`, cero horas de máquina. Revisas el commit al terminar, no durante. |
+
+Que `--desatendido` no pida permisos no es comodidad, es lo que lo hace funcionar: el protocolo
+empieza leyendo el ledger con un script, y en modo `-p` no hay nadie que apruebe esa llamada — con
+permisos a medias la sesión abre y no hace nada. Es una escalada real, y es exactamente por eso que
+este modo carga las guardas más duras del arnés y un techo de gasto obligatorio.
 
 `--desatendido` **se niega** —y dice por qué— si el ítem pide más de una hora de máquina, lleva
 `multiagente`, **el ledger lo marca `opus`**, está bloqueado, o el árbol tiene cambios sin
