@@ -6,6 +6,14 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.8.1] — 2026-08-26
+
+### Cambiado
+- Redacción del README en tono descriptivo. Cuatro pasajes justificaban una
+  decisión de diseño narrando cómo se había detectado el problema; se sustituyen
+  por la descripción del comportamiento y su motivo. Sin cambios de código ni de
+  comportamiento.
+
 ## [1.8.0] — 2026-08-25
 
 ### Corregido

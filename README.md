@@ -146,13 +146,10 @@ terminal. Desde fuera de Claude Code es `bash "$ARNES/arrancar.sh"`, con el mism
 - **Repositorio que ya tiene plan** —el caso del segundo que clona— **no toca nada**, valida el
   ledger que hay y te anuncia el ítem que toca. Correrlo dos veces no hace daño.
 
-Nunca sobrescribe un ledger. Merece la pena decir por qué existe este script en vez de un `cp` en
-las instrucciones: el arranque documentado antes era copiar la plantilla encima de
-`ejecucion-plan.estado.json`, y eso es una bomba. El segundo miembro del equipo clona, sigue el
-README al pie de la letra, y le pasa por encima al plan del primero —sin preguntar, sobre un JSON
-versionado que a esas alturas es la única fuente de verdad del avance. Un README que avisa "ojo, si
-ya existe no lo copies" es exactamente la clase de regla que este proyecto lleva moviendo al código
-desde el principio: la que sólo se cumple si alguien se acuerda.
+**Nunca sobrescribe un ledger.** El script existe en lugar de un `cp` en las instrucciones porque
+copiar la plantilla sobre `ejecucion-plan.estado.json` reemplaza el plan de quien llegó antes, sin
+aviso y sobre el único fichero que registra el avance. La comprobación la hace la herramienta, no
+una advertencia en la documentación.
 
 ### El comando `arnes`
 
@@ -263,14 +260,11 @@ los modos— `plan-run.sh` comprueba dos cosas que no dependen de su palabra:
 El comando corre en la raíz del proyecto, con un límite de tiempo (`ARNES_LIMITE_VERIFICACION`, por
 defecto 900 s) para que un comando colgado no deje una sesión desatendida esperando para siempre.
 
-**Y corren por cualquier puerta de entrada.** Hasta la 1.4.0 estas comprobaciones vivían sólo en
-`plan-run.sh`, mientras que el flujo diario de casi todo el mundo es `/arnes-plan:plan-siguiente` dentro de una
-sesión — y por ahí el protocolo se limitaba a *pedirle* al agente que se autoevaluara, que es el
-fallo exacto que estas puertas dicen cerrar. Desde la 1.5.0 hay un hook enganchado a la **escritura
-del ledger**, no a un comando: da igual quién cierre el ítem —`plan-run.sh`, `/arnes-plan:plan-siguiente`, o
-alguien editando el JSON a mano—, si acaba de pasar a `hecho` se comprueba, y el motivo le llega a
-Claude en el momento de la infracción en vez de tres pasos después. Sólo mira los ítems que
-**acaban** de cerrarse, comparando con la versión del ledger en `HEAD`.
+**Corren por cualquier vía.** Un hook asociado a la **escritura del ledger**, y no a un comando
+concreto, comprueba el cierre con independencia de quién lo haga: `plan-run.sh`,
+`/arnes-plan:plan-siguiente` o una edición manual del JSON. El motivo del rechazo llega en el
+momento en que se produce, no varios pasos después. Sólo se evalúan los ítems que **acaban** de
+cerrarse, comparando con la versión del ledger en `HEAD`.
 
 Si alguna puerta falla, el script sale distinto de 0 y enseña las últimas líneas del comando. **No
 revierte nada**: el commit ya existe, y deshacerlo es una decisión tuya con el `rollback` de la
@@ -281,11 +275,11 @@ que `rollback` sólo se le pide a lo que aún se va a ejecutar. Los ítems que s
 que la regla existiera no se van a volver a tocar, y reclamárselos sería ruido permanente. Lo que
 cambia es cuándo se comprueba, no qué.
 
-Ojo con una trampa: Claude Code **conserva las versiones anteriores** del plugin en su cache, y
-siguen siendo ejecutables. Una ruta con el número de versión dentro, copiada de una consola abierta
-antes de actualizar, lanza código viejo meses después sin decir nada — por eso el arnés no reparte
-rutas: ofrece `arnes`, que resuelve la instalación en cada ejecución. Si aun así corres una copia
-que no es la instalada, `plan-run.sh` te lo dice antes de empezar.
+Claude Code **conserva las versiones anteriores** del plugin en su cache y siguen siendo
+ejecutables. Una ruta con el número de versión incluido —copiada de una sesión abierta antes de una
+actualización— ejecuta código obsoleto sin advertirlo, y por eso el arnés no publica rutas: indica
+`arnes`, que resuelve la instalación en cada ejecución. Si aun así se ejecuta una copia que no es la
+instalada, `plan-run.sh` lo advierte antes de empezar.
 
 Dentro de una sesión de Claude Code ya abierta, lo mismo se pide con `/arnes-plan:plan-estado` y
 `/arnes-plan:plan-siguiente`. La diferencia es el contexto: `plan-run.sh` arranca un proceso nuevo, así que el
@@ -362,12 +356,11 @@ Y dos que sostienen las puertas de cierre:
 
 ### Campos que el arnés no conoce
 
-El validador avisa —sin fallar— de los campos que no están en esta página. No es un error: el
-ledger es tuyo. Pero lo que se escriba ahí **no lo lee nadie**, ni el arnés ni la siguiente persona
-que busque por qué algo está como está, y se acumulan rápido: en el consumidor real llegaron a 53
-nombres fuera de esquema, la mitad usados una sola vez, mientras el validador respondía
-`✓ Ledger válido`. Si es rastro del cierre, va en `resultado`; si es una nota deliberada, un `_`
-delante la exime del aviso.
+El validador avisa —sin fallar— de los campos que no figuran en esta página. No es un error: el
+ledger pertenece al proyecto. Pero un campo no documentado no lo lee ninguna herramienta, y tienden
+a acumularse: un ledger en uso puede llegar a decenas de nombres fuera de esquema, la mayoría
+usados una sola vez, mientras la validación sigue en verde. Si es rastro del cierre, va en
+`resultado`; si es una nota deliberada, un `_` delante la exime del aviso.
 
 `verificacion_comando` se ejecuta con tu shell y tus permisos, igual que un `Makefile` del
 repositorio. Vale lo mismo que el ledger: si no te fiarías de correr a ciegas lo que dice, no te
