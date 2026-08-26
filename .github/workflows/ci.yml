@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Permite lanzar la suite a mano desde la pestaña Actions. Sin esto, la única
+  # forma de comprobar el estado de `main` es esperar al siguiente cambio: un
+  # merge que no llegue a disparar la ejecución deja la rama sin verificar y sin
+  # manera de reintentarlo.
+  workflow_dispatch:
 
 jobs:
   prueba:
