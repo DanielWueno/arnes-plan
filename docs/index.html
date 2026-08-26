@@ -281,6 +281,81 @@
     font-size: 1rem;
   }
 
+  /* ── Índice ──────────────────────────────────────────────────────────
+     La página dejó de ser sólo una presentación: quien llega a mirar una
+     condición concreta necesita saltar a ella, no leerla entera. */
+  .bloque {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 1rem 1.2rem; overflow-x: auto; box-shadow: var(--shadow);
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .82rem;
+    line-height: 1.7; white-space: pre; color: var(--ink-soft);
+  }
+  .bloque b { color: var(--ink); font-weight: 700; }
+  .bloque i { color: var(--ink-faint); font-style: normal; }
+  .dice { font-style: normal; }
+  .pasos { counter-reset: paso; display: flex; flex-direction: column; gap: 1.5rem; }
+  .paso { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0 1rem; }
+  .paso::before {
+    counter-increment: paso; content: counter(paso);
+    font-family: "Archivo", system-ui, sans-serif; font-weight: 800; font-size: .78rem;
+    color: var(--accent); background: var(--accent-dim);
+    width: 1.7rem; height: 1.7rem; border-radius: 99px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .paso h3 {
+    grid-column: 2; margin: 0; font-family: "Archivo", system-ui, sans-serif;
+    font-size: 1rem; font-weight: 700; letter-spacing: -.01em; align-self: center;
+  }
+  .paso > *:not(h3) { grid-column: 2; }
+  .paso p { margin: .5rem 0 0; }
+  .paso .bloque { margin-top: .7rem; }
+
+  h2 code {
+    background: none; padding: 0; font-size: .88em; color: inherit;
+    border: 0; letter-spacing: -.01em;
+  }
+
+  .indice {
+    display: flex; flex-wrap: wrap; gap: .35rem .5rem;
+    padding: 1rem 0 0; margin: 0; list-style: none;
+    font-family: "Archivo", system-ui, sans-serif; font-size: .8rem;
+  }
+  .indice a {
+    display: inline-block; padding: .3rem .7rem; border-radius: 99px;
+    border: 1px solid var(--rule); color: var(--ink-soft); text-decoration: none;
+    transition: border-color .15s, color .15s;
+  }
+  .indice a:hover { border-color: var(--accent); color: var(--accent); }
+  .indice a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Tablas de referencia ────────────────────────────────────────────── */
+  .ref { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule);
+         border-radius: 10px; box-shadow: var(--shadow); }
+  .ref table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+  .ref th, .ref td {
+    text-align: left; vertical-align: top; padding: .78rem 1.1rem;
+    border-bottom: 1px solid var(--rule); font-size: .92rem; line-height: 1.5;
+  }
+  .ref tr:last-child td { border-bottom: 0; }
+  .ref th {
+    font-family: "Archivo", system-ui, sans-serif; font-weight: 700; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint);
+    background: var(--ground); white-space: nowrap;
+  }
+  .ref td:first-child { white-space: nowrap; }
+  .ref td.libre { white-space: normal; }
+  .ref code { white-space: nowrap; }
+  .marca { font-family: "Archivo", system-ui, sans-serif; font-weight: 700;
+           font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+  .marca.para { color: var(--fail); }
+  .marca.pregunta { color: var(--accent); }
+  .marca.sigue { color: var(--ink-faint); }
+  .nota-ref { color: var(--ink-soft); font-size: .92rem; }
+  @media (max-width: 40rem) {
+    .ref th, .ref td { padding: .6rem .7rem; font-size: .85rem; }
+    .ref td:first-child { white-space: normal; }
+  }
+
   footer {
     border-top: 1px solid var(--rule);
     padding-top: 1.2rem;
@@ -299,13 +374,29 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.8.2</p>
+    <p class="eyebrow">arnes-plan · v1.10.0</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
   </header>
 
-  <section>
+  <nav aria-label="Índice de la página">
+    <ul class="indice">
+      <li><a href="#primeros-pasos">Empezar</a></li>
+      <li><a href="#por-que">Por qué existe</a></li>
+      <li><a href="#mecanismo">Cómo funciona</a></li>
+      <li><a href="#ciclo">Ciclo del ítem</a></li>
+      <li><a href="#barreras">Qué se comprueba</a></li>
+      <li><a href="#comandos">Comandos</a></li>
+      <li><a href="#modos">Modos de supervisión</a></li>
+      <li><a href="#guardas">Qué te puede frenar</a></li>
+      <li><a href="#mensajes">Si algo no arranca</a></li>
+      <li><a href="#ver">Ver el plan</a></li>
+      <li><a href="#ledger">El fichero de estado</a></li>
+    </ul>
+  </nav>
+
+  <section id="por-que">
     <p class="when">Por qué existe</p>
     <h2>Tres cosas que salen mal cuando un agente trabaja solo</h2>
     <div class="problems">
@@ -324,7 +415,7 @@
     </div>
   </section>
 
-  <section>
+  <section id="mecanismo">
     <p class="when">Durante · una invocación completa</p>
     <h2>Las comprobaciones viven fuera de la sesión que hizo el trabajo</h2>
     <p class="col">Esto es el mecanismo entero. Lo que importa del dibujo es la caja: todo lo que ocurre <em>dentro</em> es lo que el agente dice de su propio trabajo. Todo lo que decide si el ítem cuenta como cerrado ocurre <em>fuera</em>.</p>
@@ -364,7 +455,7 @@ sequenceDiagram
     </figure>
   </section>
 
-  <section>
+  <section id="ciclo">
     <p class="when">El ítem · ciclo de vida</p>
     <h2>Ningún camino borra nada</h2>
     <p class="col">Un ítem sólo se mueve de un estado a otro si cumple lo que dice la flecha. Y lo que se descarta no desaparece: cambia de estado y se queda escrito, con su razón, para que dentro de seis meses nadie lo vuelva a proponer desde cero.</p>
@@ -387,7 +478,7 @@ stateDiagram-v2
     </figure>
   </section>
 
-  <section>
+  <section id="barreras">
     <p class="when">Después · qué se comprueba</p>
     <h2>Dos barreras, en dos momentos distintos</h2>
     <div class="barriers">
@@ -414,7 +505,208 @@ stateDiagram-v2
     </div>
   </section>
 
-  <section>
+  <section id="primeros-pasos">
+    <p class="when">Empezar · de cero a un ítem cerrado</p>
+    <h2>Los cinco pasos, sin dar nada por sabido</h2>
+    <div class="pasos">
+
+      <div class="paso">
+        <h3>Instalar el plugin y tener el comando</h3>
+        <p>El plugin trae los slash commands y los hooks. El comando de terminal <code>arnes</code> no viene con él: lo escribe el arranque.</p>
+        <div class="bloque"><b>claude plugin install arnes-plan@arnes-plan</b></div>
+        <p>Si después <code>arnes</code> responde <em>command not found</em>, el lanzador está escrito pero su carpeta no está en el PATH: es <code>~/.local/bin</code>, la misma donde vive <code>claude</code>. El propio arranque imprime la línea que hay que añadir al perfil, distinta en Unix y en PowerShell.</p>
+      </div>
+
+      <div class="paso">
+        <h3>Dejar el proyecto listo</h3>
+        <p>Desde la raíz del proyecto. Siembra el fichero de estado, instala el lanzador y no toca nada si ya había plan.</p>
+        <div class="bloque"><b>arnes arrancar</b>
+<b>arnes arrancar --donde docs/analisis-futuro</b>   # si prefieres otra carpeta</div>
+      </div>
+
+      <div class="paso">
+        <h3>Escribir el primer ítem</h3>
+        <p>La plantilla se siembra con un ítem de ejemplo: hay que sustituirlo. Esta es la ficha mínima que el arnés acepta para lanzar — sin <code>rollback</code>, <code>por_que_este_modelo</code> o <code>verificacion</code> se niega antes de gastar nada.</p>
+        <div class="bloque">{
+  "id": <b>"1.1-sacar-los-logs"</b>,
+  "titulo": <b>"Sacar los logs del árbol de código y ajustar .gitignore"</b>,
+  "estado": <b>"pendiente"</b>,
+  "modelo": <b>"haiku"</b>,           <i>// haiku · sonnet · opus</i>
+  "esfuerzo": <b>"low"</b>,           <i>// low · medium · high · xhigh · max</i>
+  "horas_maquina": <b>0</b>,          <i>// de máquina, no de reloj ni de tokens</i>
+  "multiagente": <b>false</b>,
+  "verificacion": <b>"find src -name '*.json' -size +1M devuelve vacío"</b>,
+  "verificacion_comando": <b>"! find src -name '*.json' -size +1M | grep ."</b>,
+  "por_que_este_modelo": <b>"Mecánico y comprobable con un find."</b>,
+  "rollback": <b>"git revert del commit del ítem; los logs no se borran, se mueven."</b>
+}</div>
+        <p><code>verificacion_comando</code> es opcional, y es lo que convierte la verificación en mecánica: sin él, el cierre sólo comprueba que quedó escrito qué se hizo.</p>
+      </div>
+
+      <div class="paso">
+        <h3>Ensayar antes de gastar</h3>
+        <p>Las dos preguntas que conviene hacerse antes de abrir una sesión: <em>¿qué va a coger?</em> y <em>¿mi ficha va a pasar?</em>. Ninguna de las dos cuesta nada, pero son dos comandos distintos.</p>
+        <div class="bloque"><b>arnes --solo-anunciar</b>   <i># la ficha y el coste. No abre sesión.</i></div>
+        <p>El ensayo enseña qué ítem se tomaría y lo que va a costar, pero <strong>no comprueba que la ficha esté completa</strong>: termina antes de esa validación. Para eso hay un verbo aparte.</p>
+        <div class="bloque"><b>arnes validar --item 1.1</b>   <i># ¿está lista para ejecutarse?</i>
+<b>arnes validar</b>              <i># todo el fichero: ids repetidos, claves fuera de esquema</i></div>
+        <p><code>arnes ver</code> contesta la primera pregunta en el navegador, y además enseña los ítems que quedaron a medias, que el lanzador no retoma por su cuenta.</p>
+      </div>
+
+      <div class="paso">
+        <h3>Lanzarlo, y saber qué está pasando</h3>
+        <p><code>arnes</code> abre una <strong>sesión de Claude Code nueva</strong> —otro proceso, no un <code>/clear</code>— con el modelo y el esfuerzo que dice la ficha, y le pide <code>/arnes-plan:plan-siguiente &lt;id&gt;</code>. Dentro de esa ventana trabaja el agente y apruebas tú los permisos; es él quien marca el ítem <code>hecho</code>, escribe el <code>resultado</code> y hace el commit. Cuando la sesión termina, el lanzador imprime <code>── Cierre ──</code> con el último commit y el resultado de las dos comprobaciones.</p>
+        <p>Si el cierre sale en rojo, <strong>el commit ya existe</strong> y el arnés no deshace nada. Las opciones son tres: arreglar lo que falte y volver a cerrar —el hook lo vuelve a evaluar en la siguiente escritura del fichero—, reabrir el ítem poniéndolo <code>en_curso</code>, o revertir con el <code>rollback</code> que la propia ficha obligaba a escribir. Copia antes las líneas de la verificación fallida: sólo existen en esa pantalla.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="comandos">
+    <p class="when">Referencia · la terminal</p>
+    <h2>Todo lo que contesta <code>arnes</code></h2>
+    <p class="col">El lanzador resuelve la instalación en cada ejecución, así que sigue siendo válido después de cada actualización del plugin. Las banderas van en cualquier orden y se combinan con el id.</p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Comando</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr><td><code>arnes</code></td><td class="libre">Ejecuta en una sesión de contexto limpio el <strong>primero en orden de fichero</strong> cuyo estado sea <code>pendiente</code> o <code>en_curso</code>. Un ítem a medias <em>no</em> se adelanta por estar a medias: si quedó uno abierto más abajo, se lanza por su id.</td></tr>
+          <tr><td><code>arnes 5.0</code></td><td class="libre">Un ítem concreto, por su id o por el prefijo del id.</td></tr>
+          <tr><td><code>arnes ola:5</code></td><td class="libre">El siguiente pendiente de esa ola.</td></tr>
+          <tr><td><code>arnes --solo-anunciar</code></td><td class="libre">La ficha del ítem y su coste. No abre sesión y no gasta nada.</td></tr>
+          <tr><td><code>arnes ver</code></td><td class="libre">La vista web del plan. Con <code>--live</code>, además la sirve y la recarga al cambiar el fichero de estado.</td></tr>
+          <tr><td><code>arnes validar</code></td><td class="libre">Comprueba el fichero de estado entero. Con <code>--item 5.0</code>, si esa ficha está lista para ejecutarse; con <code>--al-cerrar 5.0</code>, si quedó bien cerrada. Sale 1 y dice qué falta.</td></tr>
+          <tr><td><code>arnes docs</code></td><td class="libre">Esta página, en la versión que tengas instalada. Con <code>--web</code>, la publicada.</td></tr>
+          <tr><td><code>arnes arrancar</code></td><td class="libre">Deja el proyecto listo e instala el lanzador. <strong>Nunca pisa un fichero de estado que ya exista.</strong></td></tr>
+          <tr><td><code>arnes --help</code></td><td class="libre">La ayuda, y al final el estado real: proyecto, fichero de estado y siguiente ítem.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col nota-ref">Dentro de Claude Code los mismos caminos son <code>/arnes-plan:plan-siguiente</code>, <code>/arnes-plan:plan-estado</code> y <code>/arnes-plan:plan-arrancar</code>. Van cualificados con el nombre del plugin; la forma corta no existe y responde <em>Unknown command</em>.</p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Variable</th><th>Para qué</th></tr></thead>
+        <tbody>
+          <tr><td><code>PLAN_LEDGER</code></td><td class="libre">Ruta del fichero de estado. Sustituye a la búsqueda normal —que mira <code>docs/plan/</code>, <code>docs/analisis-futuro/</code> y <code>.claude/plan/</code>—, y no cae de vuelta a ella: si la ruta que pones no existe, el arnés dice que no encuentra el ledger aunque haya uno válido en su sitio. Una errata aquí se parece mucho a no tener plan.</td></tr>
+          <tr><td><code>ARNES_LIMITE_VERIFICACION</code></td><td class="libre">Segundos que se le dan al comando de verificación de un ítem antes de cortarlo. Por defecto, 900.</td></tr>
+          <tr><td><code>CLAUDE_PROJECT_DIR</code></td><td class="libre">Raíz del proyecto. Si no está, se usa la del repositorio desde el que se invoca; y fuera de un repositorio, el directorio actual.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="modos">
+    <p class="when">Referencia · supervisión</p>
+    <h2>Tres modos, y una confusión que conviene deshacer</h2>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Modo</th><th>Qué cambia</th><th>Cuándo</th></tr></thead>
+        <tbody>
+          <tr><td><em>(por defecto)</em></td><td class="libre">Sesión interactiva. Apruebas los permisos y las confirmaciones.</td><td class="libre">Casi siempre. Es el que no sorprende.</td></tr>
+          <tr><td><code>--auto</code></td><td class="libre">Interactiva, pero el clasificador de permisos resuelve lo rutinario. Lo destructivo sigue frenando.</td><td class="libre">Ítems con mucho toqueteo de ficheros. La primera vez, Claude Code pide aceptar el modo.</td></tr>
+          <tr><td><code>--desatendido[=N]</code></td><td class="libre">Sin sesión interactiva y <strong>sin pedir permisos</strong>, con techo de gasto en dólares (<code>N</code>, por defecto 5).</td><td class="libre">Ítems mecánicos: <code>haiku</code>, cero horas de máquina.</td></tr>
+          <tr><td><code>--igual</code></td><td class="libre">Salta la comprobación de ficha completa, la negativa de <code>--desatendido</code> y las comprobaciones de cierre. <strong>No salta las preguntas del modo interactivo:</strong> si estás delante, hay que contestarlas igual.</td><td class="libre">Cuando sabes por qué salta la guarda y aun así quieres seguir.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col"><strong><code>--auto</code> actúa sobre los permisos, no sobre las guardas.</strong> Un ítem lanzado con <code>--auto</code> se detiene igual a preguntar si está bloqueado, si pide más de una hora de máquina o si el árbol tiene cambios sin commitear: las tres puertas siguen activas en los dos modos interactivos. <code>--desatendido</code> es el único que no pregunta, y por eso es el único que <em>se niega</em> en lugar de preguntar.</p>
+    <p class="col">Que <code>--desatendido</code> no pida permisos es lo que lo hace funcionar —el protocolo empieza leyendo el fichero de estado con un script, y sin nadie que apruebe esa llamada la sesión abre y no hace nada—, pero es una escalada real de permisos. De ahí que cargue las guardas más duras y un techo de gasto obligatorio.</p>
+  </section>
+
+  <section id="guardas">
+    <p class="when">Referencia · qué te puede frenar</p>
+    <h2>Cada parada, su motivo y su salida</h2>
+    <p class="col">Todo esto lo dice la consola en el momento. Está aquí para lo otro: para cuando el mensaje ya se fue del scroll, o para decidir antes de lanzar si el ítem va a pasar.</p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Antes de gastar</th><th>Interactivo y <code>--auto</code></th><th><code>--desatendido</code></th></tr></thead>
+        <tbody>
+          <tr><td class="libre">La ficha del ítem está incompleta: le falta un campo obligatorio, o el <code>rollback</code> que se les exige a los ítems que aún van a ejecutarse.</td><td><span class="marca para">no lanza</span></td><td><span class="marca para">no lanza</span></td></tr>
+          <tr><td class="libre">El ítem está bloqueado (<code>bloqueado_por</code>).</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
+          <tr><td class="libre">El ítem pide <strong>más de una hora</strong> de máquina.</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
+          <tr><td class="libre">El árbol tiene cambios sin commitear, y el ítem cierra con commit: se los llevaría por delante. Cuenta lo modificado y lo preparado; <strong>los ficheros nuevos sin <code>git add</code> no lo disparan</strong>, aunque un <code>git add -A</code> de cierre sí se los lleve.</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
+          <tr><td class="libre">El ítem lleva <code>multiagente</code>, que el fichero de estado reserva para lo supervisado.</td><td><span class="marca sigue">sigue</span></td><td><span class="marca para">se niega</span></td></tr>
+          <tr><td class="libre">El fichero de estado lo marca <code>opus</code>: donde el criterio <em>es</em> el trabajo.</td><td><span class="marca sigue">sigue</span></td><td><span class="marca para">se niega</span></td></tr>
+          <tr><td class="libre">El resto del fichero de estado tiene problemas que no afectan a este ítem —un id repetido, un número de ola escrito como texto—.</td><td><span class="marca sigue">avisa y sigue</span></td><td><span class="marca sigue">avisa y sigue</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col nota-ref"><code>--igual</code> salta la ficha incompleta y la negativa de <code>--desatendido</code>. <strong>Las tres preguntas del modo interactivo no las salta nada:</strong> si hay alguien delante, se contestan. Responder que no cancela sin gastar, y el proceso termina con código <strong>0</strong>, no con error. Cuando <code>--desatendido</code> se niega, enumera <em>todos</em> los motivos, no sólo el primero.</p>
+    <p class="col">El campo <code>modelo</code> declara cuánto criterio exige el ítem, y la guarda lo aplica: <code>opus</code> significa que el criterio <em>es</em> el trabajo, y eso no se ejecuta sin supervisión. <strong>Regla práctica: con <code>haiku</code> y cero horas, <code>--desatendido</code> es seguro; con <code>opus</code>, quédate delante.</strong></p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Al cerrar</th><th>Qué exige</th></tr></thead>
+        <tbody>
+          <tr><td class="libre">Rastro</td><td class="libre">El ítem que vuelve marcado <code>hecho</code> trae <code>resultado</code>: qué se hizo y qué lo prueba. Es lo único del cierre que otro puede comprobar.</td></tr>
+          <tr><td class="libre">Criterio mecánico</td><td class="libre">Si la ficha trae <code>verificacion_comando</code>, se ejecuta <strong>fuera</strong> de la sesión que declaró el ítem hecho, y tiene que salir 0. El límite de tiempo no es el mismo por las dos vías: por el lanzador, <code>ARNES_LIMITE_VERIFICACION</code> con 900 s por defecto; por el hook, la misma variable pero con <strong>120 s</strong> por defecto y un techo duro de <strong>180 s</strong> que impone Claude Code y que subir la variable no levanta.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col">Las dos corren por las dos vías, y conviene saber qué cubre cada una. <strong>El lanzador</strong> las evalúa al salir la sesión, y si alguna falla termina con código distinto de 0. <strong>El hook</strong> va enganchado a la escritura del fichero de estado, así que también atrapa el cierre hecho desde dentro de una sesión con <code>/arnes-plan:plan-siguiente</code> — pero sólo cuando quien escribe es Claude Code (sus herramientas de edición) y sólo si el fichero se llama exactamente <code>ejecucion-plan.estado.json</code>: una edición a mano en tu editor no lo dispara, y un fichero apuntado con <code>PLAN_LEDGER</code> con otro nombre se queda sin esa puerta. El hook además <strong>nunca falla</strong>: escribe el motivo para que el modelo lo lea en el momento, y el código de salida distinto de 0 es cosa sólo del lanzador.</p>
+    <p class="col"><strong>No revierte nada:</strong> el commit ya existe y deshacerlo es una decisión tuya, con el <code>rollback</code> de la ficha delante. Reabrir un ítem es cambiarle el estado a <code>en_curso</code>.</p>
+  </section>
+
+  <section id="mensajes">
+    <p class="when">Referencia · si algo no arranca</p>
+    <h2>El mensaje que estás viendo</h2>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Si ves</th><th>Qué pasó, y qué hacer</th></tr></thead>
+        <tbody>
+          <tr><td class="libre"><code class="dice">la ficha está incompleta</code></td><td class="libre">Falta un campo obligatorio del ítem. El validador dice cuál justo encima. Complétalo, o añade <code>--igual</code>.</td></tr>
+          <tr><td class="libre"><code class="dice">desatendido:</code> y una lista</td><td class="libre">Una o más guardas de la tabla anterior; debajo van <em>todos</em> los motivos. Córrelo sin <code>--desatendido</code>, o con <code>--igual</code> si sabes por qué.</td></tr>
+          <tr><td class="libre"><code class="dice">Está bloqueado.</code></td><td class="libre">El ítem declara <code>bloqueado_por</code>. Responder que no cancela sin gastar nada, y sale con código 0.</td></tr>
+          <tr><td class="libre"><code class="dice">No se lanza por iniciativa propia.</code></td><td class="libre">Pide más de una hora de máquina. Es una confirmación, no un rechazo: la decides tú.</td></tr>
+          <tr><td class="libre"><code class="dice">El árbol tiene cambios sin commitear.</code></td><td class="libre">El ítem cierra con commit y se los llevaría. Debajo sale el <code>git status</code>. Commitea o guarda lo tuyo antes de seguir.</td></tr>
+          <tr><td class="libre"><code class="dice">No encuentro el ledger.</code></td><td class="libre">No hay fichero de estado donde se busca. La consola propone copiar la plantilla; <code>arnes arrancar</code> hace lo mismo y además nunca pisa uno existente. Si usas <code>PLAN_LEDGER</code>, revisa la ruta: una errata da este mismo mensaje.</td></tr>
+          <tr><td class="libre"><code class="dice">Esta NO es la copia instalada del arnés.</code></td><td class="libre">Estás ejecutando una ruta con la versión dentro, copiada de una consola vieja. No para nada, pero usa <code>arnes</code>: resuelve la instalación en cada ejecución.</td></tr>
+          <tr><td class="libre"><code class="dice">El cierre no dejó rastro:</code></td><td class="libre">El ítem quedó <code>hecho</code> sin <code>resultado</code>. Escríbelo, o reábrelo poniéndolo <code>en_curso</code>.</td></tr>
+          <tr><td class="libre"><code class="dice">La verificación falla (código</code>…</td><td class="libre">Su propio criterio no pasa fuera de su sesión. Salen las últimas 20 líneas del comando <strong>y sólo ahí</strong>: el registro temporal se borra al terminar. Cópialas antes de cerrar la terminal.</td></tr>
+          <tr><td class="libre"><code class="dice">La verificación no terminó en</code>…</td><td class="libre">Se cortó por tiempo. Sube <code>ARNES_LIMITE_VERIFICACION</code> si el comando es legítimamente lento — recordando que por la vía del hook el techo son 180 s.</td></tr>
+          <tr><td class="libre"><code class="dice">pero no lo demuestra.</code></td><td class="libre">Resumen del cierre en rojo. El commit ya existe; nada se ha revertido.</td></tr>
+          <tr><td class="libre"><code class="dice">'claude' no está en el PATH.</code></td><td class="libre">El lanzador necesita el CLI de Claude Code para abrir la sesión.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col nota-ref">Códigos de salida: <strong>1</strong> si la ficha estaba incompleta, si <code>--desatendido</code> se negó, o si el cierre no se sostiene. <strong>0</strong> si el ítem corrió y cerró limpio — <em>y también</em> si contestaste que no a una de las preguntas del modo interactivo, que cancela sin gastar y no es un error. En los demás casos, el código que devolviera la sesión.</p>
+  </section>
+
+  <section id="ledger">
+    <p class="when">Referencia · el fichero de estado</p>
+    <h2>Qué lleva dentro, y qué se valida</h2>
+    <p class="col">Es un JSON versionado con el repositorio, organizado en olas que contienen ítems. Sobrevive al reinicio del límite de sesión, a un <code>/clear</code> y a cerrar la terminal, que es justo lo que no hace la memoria de una conversación.</p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Campo del ítem</th><th>Regla</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code>, <code>titulo</code></td><td class="libre">Obligatorios. El id se usa para elegir el ítem por prefijo.</td></tr>
+          <tr><td><code>estado</code></td><td class="libre">Obligatorio. Uno de <code>pendiente</code>, <code>en_curso</code>, <code>hecho</code>, <code>bloqueado</code>, <code>descartado</code>.</td></tr>
+          <tr><td><code>modelo</code></td><td class="libre">Obligatorio. <code>haiku</code>, <code>sonnet</code> u <code>opus</code>. Codifica cuánto criterio hace falta, y el arnés lo aplica.</td></tr>
+          <tr><td><code>esfuerzo</code></td><td class="libre">Obligatorio. <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code> o <code>max</code>.</td></tr>
+          <tr><td><code>horas_maquina</code></td><td class="libre">Obligatorio. Tiempo de máquina, no tokens: es el recurso escaso. Por encima de 1 dispara una guarda.</td></tr>
+          <tr><td><code>multiagente</code></td><td class="libre">Obligatorio. <code>true</code> impide el modo desatendido.</td></tr>
+          <tr><td><code>verificacion</code></td><td class="libre">Obligatorio. Cómo se comprueba que el ítem está hecho, en prosa.</td></tr>
+          <tr><td><code>por_que_este_modelo</code></td><td class="libre">Obligatorio. Obliga a justificar el gasto antes de hacerlo.</td></tr>
+          <tr><td><code>rollback</code></td><td class="libre">Obligatorio sólo en <code>pendiente</code> y <code>en_curso</code>: si no sabes escribir cómo se revierte, el ítem no está listo. Un valor en blanco cuenta como ausente.</td></tr>
+          <tr><td><code>resultado</code></td><td class="libre">Se exige en el momento de cerrar. Un <code>hecho</code> sin <code>resultado</code> es un <code>hecho</code> optimista con otro nombre.</td></tr>
+          <tr><td><code>verificacion_comando</code></td><td class="libre">Opcional, y lo que convierte la verificación en mecánica: se ejecuta al cerrar, fuera de la sesión.</td></tr>
+          <tr><td><code>bloqueado_por</code></td><td class="libre">Opcional. El id del ítem que lo bloquea.</td></tr>
+          <tr><td><code>bloquea</code>, <code>origen</code>, <code>archivos</code>, <code>commit</code>, <code>fecha</code>, <code>advertencia_de_coste</code>, <code>razon_del_descarte</code></td><td class="libre">Opcionales y <strong>parte del esquema</strong>: no disparan el aviso de campo desconocido, y varios se leen y se enseñan en el anuncio previo del ítem.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col nota-ref">Este aviso <strong>no aparece al lanzar un ítem</strong>: <code>arnes</code> sólo enseña la salida del validador cuando el validador falla, y esto es un aviso de una corrida que pasa. Para verlo hay que pedirlo: <code>arnes validar</code>, o esperar a que el hook lo saque al cerrar un ítem.</p>
+    <p class="col">Un campo que el arnés no conoce <strong>no es un error</strong> —el fichero es del proyecto, no del arnés—, pero se avisa, porque un nombre inventado en una sesión no lo lee ni lo valida nadie después. Un guion bajo delante silencia el aviso, y es la vía para las notas deliberadas. <code>arnes ver</code> los muestra todos igualmente, al pie de cada ficha.</p>
+    <p class="col nota-ref">El campo <code>schema_version</code> declara la forma del fichero. Sólo el número mayor manda: uno menor más alto significa campos añadidos, que una versión antigua ignora sin romperse.</p>
+  </section>
+
+  <section id="ver">
+    <p class="when">Después · consultar sin gastar</p>
+    <h2>El estado del plan se mira, no se pregunta</h2>
+    <p class="col"><code>arnes ver</code> genera una página con el avance de cada ola, sus criterios de entrada y salida, y la ficha de cada ítem: qué se hizo, cómo se verificó y cómo se revierte. Sale del fichero de estado con Python, así que consultarla no cuesta una llamada al modelo. <code>arnes ver --live</code> además la recarga al cambiar el fichero, y la propia página se guarda como un HTML autocontenido para adjuntarla donde haga falta.</p>
+  </section>
+
+  <section id="cierre">
     <p class="when">En una frase</p>
     <div class="closing">
       <p>El arnés no hace el trabajo mejor. Hace que sea imposible dar por bueno un trabajo que no se ha demostrado.</p>
@@ -424,7 +716,7 @@ stateDiagram-v2
 
   <footer>
     arnes-plan · plugin de Claude Code · MIT<br>
-    Los dos diagramas son Mermaid: el mismo código fuente se puede pegar en el README del repositorio.
+    <a href="https://github.com/DanielWueno/arnes-plan">Repositorio</a> · Instalación: <code>claude plugin install arnes-plan@arnes-plan</code>
   </footer>
 
 </div>

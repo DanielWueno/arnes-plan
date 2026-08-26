@@ -39,10 +39,9 @@ Dos dibujos y se entiende entero. GitHub los renderiza aquí mismo; la misma fue
 página de presentación (`docs/index.html`), y `tests/prueba.sh` falla si las dos copias dejan de
 coincidir.
 
-**Para enseñárselo a alguien sin cuenta ni instalación:** esa misma página se publica con GitHub
-Pages en **<https://danielwueno.github.io/arnes-plan/>**. Renderiza sola —trae su propio motor de
-Mermaid— así que sirve para un correo, una reunión o un proyector. Sin red los diagramas se leen
-como texto: degradación, no error.
+La documentación completa —comandos, modos, guardas, mensajes y campos del ledger— está publicada
+en **<https://danielwueno.github.io/arnes-plan/>**, y `arnes docs` la abre en la versión que tengas
+instalada.
 
 **Una invocación, de principio a fin.** Lo único que hay que mirar es la caja: dentro está lo que
 el agente dice de su propio trabajo, y fuera está lo que decide si el ítem cuenta como cerrado.
@@ -202,6 +201,32 @@ bash "$ARNES/plan-run.sh" ola:5             # el siguiente de una ola
 
 Las banderas van en cualquier orden y se combinan con el id.
 
+### Ver el plan
+
+```bash
+arnes ver          # la vista web del plan, en el navegador
+arnes ver --live   # además la sirve y la recarga al cambiar el ledger
+```
+
+Una página con el avance por ola, los criterios de entrada y salida de cada
+una, y cada ítem con lo que se hizo, cómo se verificó y cómo se revierte. Sale
+del ledger con Python: no gasta una llamada al modelo, a diferencia de
+`/arnes-plan:plan-estado`, que es su equivalente en texto dentro de la sesión.
+
+La página se escribe en un temporal y se abre sola. Para compartirla no hay que
+ir a buscar el archivo: lleva **Guardar copia** —descarga la propia página en un
+solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—,
+**Copiar resumen** —el estado en texto, para pegarlo en un chat— e **Imprimir o
+PDF**. Con `--salida` se escribe donde se quiera.
+
+`--live` no exige haber corrido `arnes ver` antes: si la página no existe o el
+ledger es más reciente, la genera. El archivo del disco se mantiene al día
+mientras el servidor corre, así que lo que se comparte nunca es una foto vieja.
+
+Los campos del ledger que el arnés no conoce salen igual, al pie de cada ficha:
+es donde acaban los hallazgos que no estaban previstos, y perderlos por no
+tener plantilla sería el peor fallo posible en un visor, porque no se nota.
+
 ### Cuánta supervisión
 
 | Modo | Qué cambia | Cuándo |
@@ -225,6 +250,65 @@ Lo de `opus` merece una línea aparte, porque es la guarda que más se nota: ese
 el que el ledger declara *"aquí el CRITERIO es el trabajo"*. Dejar sin nadie delante precisamente
 eso es dejar solo lo único que el arnés dice que no hay que dejar solo. La regla estaba escrita en
 este README y no en el código, que es exactamente cómo una regla deja de cumplirse.
+
+### Qué te puede frenar, de un vistazo
+
+Todo esto lo dice la consola en el momento. La tabla está para lo otro: cuando el mensaje ya se
+fue del scroll, o para decidir antes de lanzar si el ítem va a pasar.
+
+| Antes de gastar | Interactivo y `--auto` | `--desatendido` |
+|---|---|---|
+| La ficha del ítem está incompleta: falta un campo obligatorio, o el `rollback` que se exige a lo que aún va a ejecutarse | **no lanza** | **no lanza** |
+| El ítem está bloqueado (`bloqueado_por`) | pregunta | **se niega** |
+| Pide **más de una hora** de máquina | pregunta | **se niega** |
+| El árbol tiene cambios sin commitear — lo modificado y lo preparado; **un fichero nuevo sin `git add` no la dispara**, aunque un `git add -A` de cierre sí se lo lleve | pregunta | **se niega** |
+| El ítem lleva `multiagente` | sigue | **se niega** |
+| El ledger lo marca `opus` | sigue | **se niega** |
+| El resto del ledger tiene problemas que no afectan a este ítem | avisa y sigue | avisa y sigue |
+
+`--igual` salta la ficha incompleta y la negativa de `--desatendido`, además de las puertas de
+cierre. **Las preguntas del modo interactivo no las salta:** si hay alguien delante, se contestan.
+Responder que no cancela sin gastar, y el proceso sale con código **0**, no con error. Cuando
+`--desatendido` se niega, enumera *todos* los motivos, no sólo el primero.
+
+**`--auto` es sobre permisos, no sobre las guardas.** Es la confusión que más cuesta: se lanza un
+ítem con `--auto` esperando que salga solo y el arnés se detiene igual a preguntar, porque el ítem
+está bloqueado, pide más de una hora o el árbol está sucio. Las tres puertas siguen ahí en los dos
+modos interactivos. El único que no pregunta nunca es `--desatendido`, y por eso es el único que
+*se niega* en vez de preguntar.
+
+### El mensaje que estás viendo
+
+| Dice | Qué pasó, y qué hacer |
+|---|---|
+| `No lanzo <id>: la ficha está incompleta` | Falta un campo obligatorio; el validador dice cuál justo encima. Complétalo, o `--igual`. |
+| `No lanzo <id> desatendido` | Una o más guardas. Debajo van todos los motivos. Córrelo sin `--desatendido`, o con `--igual`. |
+| `Está bloqueado. ¿Ejecutar de todas formas?` | El ítem declara `bloqueado_por`. Responder que no cancela sin gastar nada. |
+| `El árbol tiene cambios sin commitear` | El ítem cierra con commit y se los llevaría. Commitea o guarda lo tuyo antes. |
+| `No encuentro el ledger.` | No hay ledger donde se busca. `arnes arrancar` lo siembra sin pisar nada. Con `PLAN_LEDGER`, revisa la ruta: **no cae de vuelta a la búsqueda normal**, así que una errata da este mismo mensaje aun teniendo un ledger válido en su sitio. |
+| `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. |
+| `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. |
+| `La verificación falla, pero el ítem quedó hecho` | Su criterio no pasa fuera de su sesión. Nada se ha revertido. |
+| `La verificación no terminó en N s` | Se cortó por tiempo. Sube `ARNES_LIMITE_VERIFICACION` si el comando es legítimamente lento. |
+| `'claude' no está en el PATH` | El lanzador necesita el CLI de Claude Code para abrir la sesión. |
+
+Códigos de salida: **1** si la ficha estaba incompleta, si `--desatendido` se negó o si el cierre
+no se sostiene. **0** si el ítem corrió y cerró limpio, y también si se contesta que no a una de las
+preguntas del modo interactivo: eso cancela sin gastar y no es un error. En los demás casos, el
+código que devuelva la sesión.
+
+El aviso de **claves fuera de esquema** no aparece al lanzar: `arnes` sólo muestra la salida del
+validador cuando éste falla, y ese aviso lo emite una corrida que pasa. Para verlo, `arnes validar`.
+
+Qué ítem toma `arnes`: el **primero en orden de fichero** cuyo estado sea `pendiente` o `en_curso`.
+Un ítem a medias no se adelanta por estarlo — si quedó abierto más abajo, se lanza por su id. La
+línea que aparece al abrir una sesión sí antepone los `en_curso`, de modo que ambas pueden
+discrepar; `arnes ver` muestra la del lanzador y señala aparte los que quedaron abiertos.
+
+Todo esto, y los campos que valida el ledger, está también en la página del arnés: `arnes docs` la
+abre en la versión instalada. `arnes validar` —entero, `--item 5.0` o `--al-cerrar 5.0`— responde
+si una ficha va a pasar **antes** de gastar nada; `arnes --solo-anunciar` muestra la ficha y el
+coste, pero termina antes de validarla.
 
 ### La ficha tiene que estar completa antes de gastar
 
@@ -257,14 +341,22 @@ los modos— `plan-run.sh` comprueba dos cosas que no dependen de su palabra:
 | **Rastro** | El ítem cerrado trae `resultado`: qué se hizo y qué evidencia lo prueba. | Es el único rastro del cierre que otro puede leer y comprobar. Un `hecho` sin `resultado` es un `hecho` optimista con otro nombre. |
 | **Criterio mecánico** | Si la ficha trae `verificacion_comando`, se corre **aquí**, y tiene que salir 0. | Corrido fuera de la sesión que declaró el ítem hecho, es la diferencia entre *"el agente dice que pasa"* y *pasa*. |
 
-El comando corre en la raíz del proyecto, con un límite de tiempo (`ARNES_LIMITE_VERIFICACION`, por
-defecto 900 s) para que un comando colgado no deje una sesión desatendida esperando para siempre.
+El comando corre en la raíz del proyecto con un límite de tiempo, para que uno colgado no deje una
+sesión desatendida esperando indefinidamente. **El límite difiere según la vía:** por
+`plan-run.sh`, `ARNES_LIMITE_VERIFICACION` con 900 s por defecto; por el hook, la misma variable
+con **120 s** por defecto y un techo de **180 s** que impone Claude Code y que subir la variable no
+levanta.
 
-**Corren por cualquier vía.** Un hook asociado a la **escritura del ledger**, y no a un comando
-concreto, comprueba el cierre con independencia de quién lo haga: `plan-run.sh`,
-`/arnes-plan:plan-siguiente` o una edición manual del JSON. El motivo del rechazo llega en el
-momento en que se produce, no varios pasos después. Sólo se evalúan los ítems que **acaban** de
-cerrarse, comparando con la versión del ledger en `HEAD`.
+**Corren por las dos vías, con alcances distintos.** `plan-run.sh` las evalúa al salir la sesión.
+El hook va asociado a la **escritura del ledger** y no a un comando, así que también cubre el
+cierre hecho desde dentro con `/arnes-plan:plan-siguiente`, y el motivo llega en el momento en que
+se produce y no varios pasos después. Tiene dos límites que conviene conocer: sólo dispara cuando
+quien escribe es **Claude Code** —sus herramientas de edición— y sólo si el fichero se llama
+exactamente `ejecucion-plan.estado.json`. Una edición a mano en otro editor no lo dispara, y un
+ledger apuntado con `PLAN_LEDGER` con otro nombre se queda sin esa puerta. El hook además **nunca
+falla**: escribe el motivo para que el modelo lo lea, y el código de salida distinto de 0 es cosa
+sólo de `plan-run.sh`. Sólo se evalúan los ítems que **acaban** de cerrarse, comparando con la
+versión del ledger en `HEAD`.
 
 Si alguna puerta falla, el script sale distinto de 0 y enseña las últimas líneas del comando. **No
 revierte nada**: el commit ya existe, y deshacerlo es una decisión tuya con el `rollback` de la
@@ -467,6 +559,8 @@ scripts/
   arrancar.sh                deja el proyecto listo e instala el lanzador `arnes`
   ayuda.sh                   lo que contesta `arnes --help`
   plan-run.sh                lanza un ítem en sesión limpia
+  ver.py                     la vista web del plan (`arnes ver`), y su servidor --live
+  docs.py                    abre la documentación (`arnes docs`)
   plan-siguiente-linea.py    el hook SessionStart
   ledger_path.py             localiza el ledger (PLAN_LEDGER manda)
   validar-ledger.py          valida el ledger (o una ficha, con --item); sale 1 y dice qué falta

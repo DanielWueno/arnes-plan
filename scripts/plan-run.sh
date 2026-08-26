@@ -72,6 +72,34 @@ else
 fi
 LEDGER="$(cd "$ROOT" && "$PY" "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
 
+# ── El verbo `ver` ─────────────────────────────────────────────────────────
+# Se despacha AQUÍ y no en el lanzador de ~/.local/bin a propósito: ese archivo
+# se escribe una vez, al arrancar, y `claude plugin update` no lo reescribe. Un
+# verbo que sólo viviera allí no le llegaría a quien instaló el arnés antes de
+# que existiera — contestaría "Bandera desconocida" y a buscar por qué. Aquí lo
+# hereda todo el mundo con la actualización del plugin.
+# Va antes del bucle de banderas porque `ver` trae las suyas (--live, --puerto)
+# y ese bucle rechaza lo que no conoce.
+if [[ "${1:-}" == "ver" ]]; then
+  shift
+  exec "$PY" "$SCRIPT_DIR/ver.py" "$@"
+fi
+
+if [[ "${1:-}" == "docs" ]]; then
+  shift
+  exec "$PY" "$SCRIPT_DIR/docs.py" "$@"
+fi
+
+# El validador ya existía, pero sólo se podía invocar por su ruta — y la ruta de
+# un plugin instalado lleva la versión dentro. Ofrecerla en la ayuda contradice
+# la regla que este mismo arnés aplica en el hook: una ruta con la versión
+# clavada se copia, sobrevive a la actualización y acaba ejecutando código
+# viejo. Con verbo, se resuelve en cada ejecución y no se queda atrás.
+if [[ "${1:-}" == "validar" ]]; then
+  shift
+  exec "$PY" "$SCRIPT_DIR/validar-ledger.py" "$@"
+fi
+
 # Las banderas se aceptan en cualquier posición: el primer argumento que no
 # empiece por "--" es el id o el ola:N.
 ARG=""; SOLO_ANUNCIAR=0; MODO="interactivo"; PRESUPUESTO=5; FORZAR=0
