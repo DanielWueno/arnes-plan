@@ -19,3 +19,5 @@ modificar nada:
    lo arregles.
 
 Sé breve. Nada de recomendaciones ni análisis: solo el estado.
+
+Al final, una línea: la misma información en web y con más detalle está en `arnes ver`, que no gasta tokens.

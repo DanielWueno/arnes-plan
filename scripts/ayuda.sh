@@ -33,6 +33,16 @@ ${B}EJECUTAR${N}
   arnes ola:5                  el siguiente pendiente de esa ola
   arnes --solo-anunciar        la ficha y el coste. No ejecuta ni gasta nada.
 
+${B}VER EL PLAN${N}
+  arnes ver                    la vista web del plan: avance, criterios de cada
+                               ola, qué se solventó y qué falta. Sin inferencia.
+  arnes ver --live             además la sirve y la recarga sola al cambiar el
+                               ledger. No hace falta haber corrido \`ver\` antes.
+  ${D}Para compartirla no hay que buscar el archivo: la propia página trae
+  "Guardar copia", "Copiar resumen" e "Imprimir o PDF".${N}
+  arnes docs                   la documentación completa: modos, guardas, qué
+                               significa cada mensaje y qué campos valida.
+
 ${B}CUÁNTA SUPERVISIÓN${N}
   ${D}(nada)${N}                       interactivo: apruebas tú. Es el correcto casi siempre.
   --auto                       el clasificador resuelve los permisos rutinarios;
@@ -64,9 +74,12 @@ ${B}VARIABLES DE ENTORNO${N}
   CLAUDE_PROJECT_DIR           raíz del proyecto. Si no está, se usa la del repo.
 
 ${B}COMPROBAR${N}
-  "$PY" "\$ARNES/validar-ledger.py"              todo el ledger
-  "$PY" "\$ARNES/validar-ledger.py" --item 5.0   ¿está listo para ejecutarse?
-  "$PY" "\$ARNES/validar-ledger.py" --al-cerrar 5.0   ¿quedó bien cerrado?
+  arnes validar                todo el ledger: campos que faltan, ids repetidos,
+                               claves fuera de esquema.
+  arnes validar --item 5.0     ¿está esa ficha lista para ejecutarse?
+                               ${D}\`arnes --solo-anunciar\` NO lo comprueba: enseña la
+                               ficha y el coste, pero sale antes de validarla.${N}
+  arnes validar --al-cerrar 5.0   ¿quedó bien cerrado?
 AYUDA
 
 # ── Estado real, que es lo que convierte esto en algo consultable ───────────

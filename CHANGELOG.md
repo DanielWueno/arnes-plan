@@ -6,6 +6,95 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.10.0] — 2026-08-26
+
+### Añadido
+- **`arnes ver`: vista web del plan.** Página generada desde el ledger con
+  Python, sin llamadas al modelo, con el avance por ola, los criterios de
+  entrada y salida de cada una y la ficha completa de cada ítem —qué se hizo,
+  cómo se verificó, cómo se revierte—. Los campos que el arnés no conoce se
+  vuelcan al pie de cada ficha en lugar de descartarse: el esquema del ledger es
+  abierto y ahí es donde acaban los hallazgos no previstos.
+- **`arnes ver --live`.** Sirve la página en local y la recarga al cambiar el
+  ledger. No requiere una ejecución previa de `arnes ver`: genera la página si
+  no existe o si el ledger es más reciente, y mantiene el archivo en disco al
+  día mientras corre. Un ledger a medio escribir devuelve un aviso en lugar de
+  detener el servidor.
+- **Compartir desde la propia página.** «Guardar copia» descarga la página
+  serializada como un `.html` autocontenido —sin peticiones externas, abrible
+  desde `file://`—; «Copiar resumen» deja el estado en texto en el portapapeles;
+  «Imprimir o PDF» usa el diálogo del navegador, con hoja de estilos propia que
+  omite los controles y despliega los campos plegados. La página se escribe en
+  un directorio temporal, no en el proyecto: un artefacto generado dentro del
+  repositorio obliga a decidir si se versiona.
+- **`arnes docs`.** Abre la documentación en el navegador: por defecto la copia
+  que acompaña a la versión instalada, y con `--web` la publicada. La dirección
+  publicada se imprime siempre, para compartirla con quien no tiene el plugin.
+- **`arnes validar`.** El validador del ledger deja de invocarse por su ruta.
+  Acepta `--item` y `--al-cerrar`. Elimina el único punto donde la ayuda repartía
+  una ruta con la versión dentro, que es la clase de ruta que sobrevive a una
+  actualización y acaba ejecutando código anterior.
+- **La página de presentación pasa a ser también referencia**, con índice de
+  navegación y seis secciones nuevas: primeros pasos, comandos y variables de
+  entorno, modos de supervisión, guardas, mensajes de consola y campos del
+  ledger. El objetivo es poder usar el arnés sin abrir el repositorio.
+- **Tablas de guardas y de mensajes en el README.** La información ya estaba en
+  prosa; faltaba la forma consultable.
+- **Aviso de ítems abiertos en `arnes ver`.** Los `en_curso` que no son el
+  elegido se señalan aparte, con el comando para retomarlos.
+
+### Corregido
+- **La vista web elegía un ítem distinto del que ejecuta el lanzador.**
+  Reproducía la regla del hook de arranque, que antepone cualquier `en_curso` a
+  cualquier `pendiente`, mientras que `plan-run.sh` toma el primero en orden de
+  fichero. Con un pendiente por delante de un ítem a medias, la página anunciaba
+  uno y el lanzador ejecutaba otro. La vista pasa a reproducir la regla del
+  lanzador.
+- **La ayuda imprimía `$ARNES` sin resolver**, una variable que sólo existe en
+  la cabecera de los scripts: copiar esas líneas devolvía «No such file or
+  directory».
+- **Documentación que no correspondía al comportamiento real.** Se corrigen diez
+  afirmaciones, verificadas contra el código: `--igual` no salta las preguntas
+  del modo interactivo, sólo la ficha incompleta, la negativa de
+  `--desatendido` y las puertas de cierre; cancelar en una de esas preguntas
+  sale con código 0 y no 1; la guarda de árbol sucio no cuenta los ficheros sin
+  rastrear; el límite de la verificación es 900 s por el lanzador pero 120 s por
+  defecto y 180 s de techo por el hook; el hook sólo dispara con las
+  herramientas de edición de Claude Code y sólo sobre un fichero llamado
+  `ejecucion-plan.estado.json`, y nunca devuelve código distinto de 0;
+  `PLAN_LEDGER` no cae de vuelta a la búsqueda por rutas convencionales; el
+  aviso de claves fuera de esquema no aparece al lanzar un ítem; y la tabla de
+  campos omitía siete que sí son parte del esquema.
+- **Registro de la documentación.** Se retiran de la página y del README los
+  pasajes que narraban cómo se descubrió algo o para qué podía servir, en favor
+  de la descripción del comportamiento.
+
+### Cambiado
+- Se documenta explícitamente que **`--auto` actúa sobre los permisos, no sobre
+  las guardas**: un ítem lanzado así sigue deteniéndose a preguntar si está
+  bloqueado, pide más de una hora de máquina o el árbol tiene cambios sin
+  commitear. El comportamiento no cambia; faltaba enunciarlo.
+
+### Notas de implementación
+- La paleta de estados de la vista se validó con el comprobador de la guía de
+  visualización en los dos temas: banda de luminosidad, croma, separación bajo
+  daltonismo y contraste sobre la superficie. `pendiente` es neutro por diseño
+  —es la pista sin rellenar de la barra, no un color de serie—. La separación
+  bajo tritanopía queda bajo el umbral recomendado, lo que exige codificación
+  secundaria: cada estado lleva punto y palabra, cada barra su fracción, y los
+  segmentos van separados 2 px.
+- El bloque de JavaScript de la vista vive en una cadena literal de Python. En
+  una cadena normal, su `\n` se expandía a un salto de línea real dentro de un
+  literal de JavaScript y rompía el script completo —los tres botones y el
+  plegado— sin error visible en la página. Se usa cadena en bruto, y la suite
+  comprueba tanto el escape como que el JavaScript compila.
+- La suite comprueba que la documentación no se desincronice del código: cuenta
+  las guardas declaradas en `plan-run.sh` y exige que la página y el README
+  nombren cada una; verifica que toda cadena citada como salida de consola
+  exista literalmente en el script; que los dos límites de verificación estén
+  documentados; que ningún enlace del índice apunte a una sección inexistente; y
+  que ninguna ruta ofrecida lleve la versión dentro.
+
 ## [1.8.2] — 2026-08-26
 
 ### Corregido

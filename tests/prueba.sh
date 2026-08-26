@@ -501,6 +501,171 @@ check "ningún ledger versionado en el plugin" "0" "$COLADOS"
 check "la plantilla sí sigue estando"         "si" \
       "$(test -f "$ARNES/plantillas/ledger.plantilla.json" && echo si || echo no)"
 
+echo '17. La vista web sale del ledger y no toca el proyecto'
+# El proyecto de prueba de la sección 1 sigue montado y tiene su ledger.
+cd "$PROY"
+export CLAUDE_PROJECT_DIR="$PROY"
+VISTA="$TMP/vista.html"
+SALIDA_VER="$(bash "$ARNES/scripts/plan-run.sh" ver --no-abrir --salida "$VISTA" 2>&1)"
+check "el verbo \`ver\` sale por plan-run.sh" "si" \
+      "$(test -f "$VISTA" && echo si || echo no)"
+# Un artefacto generado dentro del repositorio obliga a decidir si se versiona.
+# Por eso el destino por defecto es un temporal, y por eso esto se comprueba:
+# el fallo sería silencioso hasta que alguien lo commiteara.
+check "no deja nada en el árbol de trabajo" "" "$(git status --porcelain)"
+for pieza in 'btn-guardar' 'btn-resumen' 'btn-pdf' 'ítem de prueba' 'Lo siguiente que toca'; do
+  check "la página trae: $pieza" "si" "$(grep -qF -- "$pieza" "$VISTA" && echo si || echo no)"
+done
+# La página tiene que abrirse sin red: ni CDN, ni fuentes, ni imágenes remotas.
+check "no pide nada al exterior" "0" \
+      "$(grep -coE '(src|href)="https?://' "$VISTA" || true)"
+# Regresión exacta de un fallo real: el bloque de JavaScript vivía en una cadena
+# normal de Python, así que su `\n` se convirtió en un salto de línea DENTRO de
+# un literal JavaScript y rompió el script entero — con él, los tres botones y
+# el plegado, sin un solo error visible en la página. Se comprueba que el escape
+# sigue siendo un escape.
+check "el escape del JS no se ha expandido" "si" \
+      "$(grep -qF "'<!doctype html>\\n'+doc.outerHTML" "$VISTA" && echo si || echo no)"
+if command -v node >/dev/null 2>&1; then
+  python3 - "$VISTA" "$TMP/pagina.js" <<'PY'
+import re, sys
+h = open(sys.argv[1], encoding='utf-8').read()
+open(sys.argv[2], 'w', encoding='utf-8').write(re.search(r'<script>(.*?)</script>', h, re.S).group(1))
+PY
+  check "y el JavaScript compila" "si" \
+        "$(node --check "$TMP/pagina.js" >/dev/null 2>&1 && echo si || echo no)"
+fi
+
+echo '18. --live no exige haber corrido `ver` antes, y se mantiene al día'
+# El contrato que se pidió: --live genera la página si no está o si el ledger es
+# más nuevo. Si no, el archivo que alguien comparte puede ser de anteayer.
+DEST_LIVE="$(python3 -c "
+import sys; sys.path.insert(0, '$ARNES/scripts')
+import ver; print(ver.destino_temporal('$PROY'))")"
+rm -rf "$(dirname "$DEST_LIVE")"
+python3 "$ARNES/scripts/ver.py" --live --puerto 7399 --no-abrir >"$TMP/live.log" 2>&1 &
+PID_LIVE=$!
+PIDE() { python3 -c "
+import sys, urllib.request
+try:
+    print(urllib.request.urlopen('http://127.0.0.1:7399/' + sys.argv[1], timeout=5).read().decode('utf-8'))
+except Exception as exc:
+    print('ERROR %s' % exc)" "$1"; }
+for _ in $(seq 1 40); do [[ "$(PIDE __cambio)" == ERROR* ]] || break; sleep 0.25; done
+check "--live generó la página que no existía" "si" \
+      "$(test -f "$DEST_LIVE" && echo si || echo no)"
+check "y la sirve" "si" "$(PIDE '' | grep -q 'Plan de ingeniería' && echo si || echo no)"
+M1="$(PIDE __cambio)"
+python3 - "$PROY/docs/plan/ejecucion-plan.estado.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
+d['olas'][0]['items'][0]['titulo'] = 'CENTINELA-EN-CALIENTE'
+json.dump(d, open(sys.argv[1], 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+sleep 1
+check "el ledger cambiado se nota"      "si" "$([[ "$M1" != "$(PIDE __cambio)" ]] && echo si || echo no)"
+check "y la página servida se regenera" "si" "$(PIDE '' | grep -q 'CENTINELA-EN-CALIENTE' && echo si || echo no)"
+# El archivo del disco es el que se comparte: tiene que ir al día él también, no
+# sólo lo que se ve en el navegador.
+check "y el archivo del disco también"  "si" \
+      "$(grep -q 'CENTINELA-EN-CALIENTE' "$DEST_LIVE" && echo si || echo no)"
+# Un ledger a medio escribir es el estado normal mientras alguien lo edita: si
+# tumbara el servidor, --live sería inservible justo cuando más se mira.
+cp "$PROY/docs/plan/ejecucion-plan.estado.json" "$TMP/ledger-bueno.json"
+printf '{ roto' > "$PROY/docs/plan/ejecucion-plan.estado.json"
+check "un ledger roto no tumba el servidor" "si" \
+      "$(PIDE '' | grep -q 'no se puede leer' && echo si || echo no)"
+cp "$TMP/ledger-bueno.json" "$PROY/docs/plan/ejecucion-plan.estado.json"
+check "y se recupera al arreglarlo"         "si" \
+      "$(PIDE '' | grep -q 'CENTINELA-EN-CALIENTE' && echo si || echo no)"
+kill $PID_LIVE 2>/dev/null; wait $PID_LIVE 2>/dev/null
+rm -rf "$(dirname "$DEST_LIVE")"
+cd "$ARNES"
+
+echo '19. La documentación cuenta lo mismo que hace el código'
+SALIDA_DOCS="$(bash "$ARNES/scripts/plan-run.sh" docs --no-abrir 2>&1)"
+check "el verbo \`docs\` sale por plan-run.sh" "si" \
+      "$(grep -q 'index.html' <<<"$SALIDA_DOCS" && echo si || echo no)"
+# La copia local es la que corresponde a la versión instalada; la publicada es
+# la de `main` y puede no coincidir. Se ofrecen las dos, distinguidas.
+check "ofrece también la publicada"          "si" \
+      "$(grep -q 'github.io' <<<"$SALIDA_DOCS" && echo si || echo no)"
+check "y avisa de que puede no ser la misma" "si" \
+      "$(grep -q 'puede no ser' <<<"$SALIDA_DOCS" && echo si || echo no)"
+# El índice de la página no puede prometer secciones que no existen.
+ROTOS="$(python3 - "$ARNES/docs/index.html" <<'PY'
+import re, sys
+h = open(sys.argv[1], encoding='utf-8').read()
+ids = set(re.findall(r'id="([a-z-]+)"', h))
+print(' '.join(a for a in re.findall(r'href="#([a-z-]+)"', h) if a not in ids))
+PY
+)"
+check "ningún enlace del índice apunta a la nada" "" "$ROTOS"
+
+# Anti-deriva. La documentación de las guardas es una copia en prosa de una
+# lista que vive en el código: si alguien añade una sexta guarda y no la
+# documenta, nadie se entera hasta que a un usuario le frena algo que la página
+# no menciona. Esta cuenta obliga a pasar por aquí.
+GUARDAS="$(grep -c 'RAZONES+=(' "$ARNES/scripts/plan-run.sh")"
+check "siguen siendo 5 las guardas de --desatendido" "5" "$GUARDAS"
+for pieza in 'multiagente' 'opus' 'bloqueado' 'sin commitear' 'más de una hora'; do
+  check "la página nombra la guarda: $pieza" "si" \
+        "$(grep -qF -- "$pieza" "$ARNES/docs/index.html" && echo si || echo no)"
+  check "y el README también: $pieza"        "si" \
+        "$(grep -qF -- "$pieza" "$ARNES/README.md" && echo si || echo no)"
+done
+# Los valores que el validador acepta también están copiados en la página.
+for v in haiku sonnet opus low medium high xhigh max \
+         pendiente en_curso hecho bloqueado descartado; do
+  check "la página lista el valor válido: $v" "si" \
+        "$(grep -qF -- "<code>$v</code>" "$ARNES/docs/index.html" && echo si || echo no)"
+done
+
+echo '20. La documentación no promete lo que la consola no dice'
+cd "$PROY"
+export CLAUDE_PROJECT_DIR="$PROY"
+check "\`arnes validar\` sale 0 con un ledger bueno" "0" \
+      "$(bash "$ARNES/scripts/plan-run.sh" validar >/dev/null 2>&1; echo $?)"
+check "y sale 1 con uno roto"                        "1" \
+      "$(PLAN_LEDGER=/dev/null bash "$ARNES/scripts/plan-run.sh" validar >/dev/null 2>&1; echo $?)"
+check "y contesta por ítem"                          "si" \
+      "$(bash "$ARNES/scripts/plan-run.sh" validar --item 1.1 2>&1 | grep -q 'listo para ejecutarse' && echo si || echo no)"
+# La tabla de mensajes de la página cita cadenas de la consola. Si alguien
+# reescribe un mensaje del script, la tabla queda citando algo que ya nadie ve,
+# y quien busque la cadena literal no la encontrará. Se comprueba la cita.
+FALSAS="$(python3 - "$ARNES" <<'PY'
+import html, io, re, sys
+raiz = sys.argv[1]
+pag = io.open(raiz + '/docs/index.html', encoding='utf-8').read()
+src = io.open(raiz + '/scripts/plan-run.sh', encoding='utf-8').read()
+citas = [html.unescape(c) for c in re.findall(r'<code class="dice">(.*?)</code>', pag)]
+print(' | '.join(c for c in citas if c not in src))
+PY
+)"
+check "toda cadena citada existe en el script" "" "$FALSAS"
+check "y hay cadenas citadas"                  "si" \
+      "$(grep -q 'class="dice"' "$ARNES/docs/index.html" && echo si || echo no)"
+# Los dos límites de la verificación son distintos según la vía. Documentar sólo
+# uno hace que alguien suba la variable a 900 y el hook se la corte a 180.
+for n in 900 120 180; do
+  check "la página nombra el límite $n" "si" \
+        "$(grep -qF -- "$n" "$ARNES/docs/index.html" && echo si || echo no)"
+done
+# Lo que se imprime para copiar tiene que ser ejecutable tal cual: un `$ARNES`
+# sin definir da "No such file or directory" a quien copie la línea.
+AYUDA_TXT="$(CLAUDE_PROJECT_DIR="$PROY" bash "$ARNES/scripts/ayuda.sh" 2>&1)"
+check "la ayuda no imprime \$ARNES sin resolver" "0" \
+      "$(grep -c '\$ARNES' <<<"$AYUDA_TXT" || true)"
+# Y ninguna ruta puede llevar la versión dentro: se copia, sobrevive a la
+# actualización y acaba ejecutando código viejo. Es la regla que ya cumple el hook.
+for f in README.md docs/index.html scripts/ayuda.sh commands/plan-siguiente.md; do
+  check "sin rutas con la versión dentro en $f" "0" \
+        "$(grep -cE 'arnes-plan/[0-9]+\.[0-9]+\.[0-9]+' "$ARNES/$f" || true)"
+done
+check "ni la ayuda las imprime" "0" \
+      "$(grep -cE 'arnes-plan/[0-9]+\.[0-9]+\.[0-9]+' <<<"$AYUDA_TXT" || true)"
+cd "$ARNES"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1
