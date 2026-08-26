@@ -428,8 +428,24 @@ check "y sigue diciendo qué ejecutar"    "si" \
       "$(grep -qE 'arnes|plan-arrancar' <<<"$LINEA" && echo si || echo no)"
 
 # Y la red por si alguien ya tiene una ruta vieja copiada: correrla avisa.
-SALIDA="$(bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
+# Con un HOME propio: el aviso compara contra installed_plugins.json, que en una
+# máquina sin el plugin instalado no existe. Depender del entorno hacía que esta
+# comprobación pasara en el portátil del autor y fallara en el runner, señalando
+# una diferencia de máquina en vez de un cambio de comportamiento.
+CASA_AVISO="$TMP/casa-aviso"
+mkdir -p "$CASA_AVISO/.claude/plugins/cache/arnes-plan/arnes-plan/9.9.9/scripts"
+cat > "$CASA_AVISO/.claude/plugins/installed_plugins.json" <<AVISO_FIN
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"$CASA_AVISO/.claude/plugins/cache/arnes-plan/arnes-plan/9.9.9",
+   "version":"9.9.9"}]}}
+AVISO_FIN
+SALIDA="$(HOME="$CASA_AVISO" bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
 check "correr una copia no instalada avisa" "si" \
+      "$(grep -q 'NO es la copia instalada' <<<"$SALIDA" && echo si || echo no)"
+# Y sin registro de instalación no debe inventarse un aviso.
+CASA_VACIA="$TMP/casa-vacia"; mkdir -p "$CASA_VACIA"
+SALIDA="$(HOME="$CASA_VACIA" bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
+check "sin plugin instalado, no avisa"      "no" \
       "$(grep -q 'NO es la copia instalada' <<<"$SALIDA" && echo si || echo no)"
 
 echo '13. arnes --help contesta desde la terminal, sin ir al README'
