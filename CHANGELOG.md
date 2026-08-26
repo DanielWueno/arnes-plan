@@ -6,6 +6,20 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.8.2] — 2026-08-26
+
+### Corregido
+- **La página publicada anunciaba la versión anterior.** El número no se
+  actualizó al publicar la 1.8.1. La comprobación introducida en esa misma
+  versión lo detectaba, pero el cambio se integró sin revisar su resultado.
+- **Una comprobación de la suite dependía del entorno.** El aviso de "copia no
+  instalada" se contrasta con `installed_plugins.json`, que no existe en una
+  máquina sin el plugin instalado: la comprobación pasaba en un equipo de
+  desarrollo y fallaba en integración continua, señalando una diferencia de
+  entorno en lugar de un cambio de comportamiento. Se ejecuta ahora contra un
+  `HOME` propio, y se añade el caso complementario: sin registro de instalación
+  no debe emitirse aviso alguno.
+
 ## [1.8.1] — 2026-08-26
 
 ### Cambiado
