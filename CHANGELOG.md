@@ -9,282 +9,193 @@ tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 ## [1.8.0] — 2026-08-25
 
 ### Corregido
-- **El arnés daba consejos de macOS en Windows.** Se escribió aquí y lo daba
-  por supuesto. Un compañero lo instaló en Windows/PowerShell: el núcleo
-  funcionó —el ledger se sembró— pero la última milla le dijo tres cosas falsas:
-  que el lanzador iba a `~/.local/bin`, que lo pusiera en el PATH con
-  `export PATH=...`, y que validara con `python3`. Ninguna vale ahí. Un consejo
-  equivocado es peor que ninguno: se sigue, no funciona, y parece culpa de quien
-  lo siguió.
+- **Instrucciones específicas de Unix en sistemas Windows.** Tras sembrar el
+  ledger, el arnés indicaba instalar el lanzador en `~/.local/bin`, añadirlo al
+  PATH con `export PATH=...` y validar con `python3`; ninguna de las tres es
+  aplicable en PowerShell. `scripts/entorno.sh` centraliza ahora lo que varía
+  entre sistemas —intérprete de Python y sintaxis de PATH— y el resto de scripts
+  lo consulta. En Windows se instala además `arnes.cmd`, ya que PowerShell y
+  `cmd` no ejecutan scripts de bash. El hook deja de fijar el intérprete.
 
-  Ahora `scripts/entorno.sh` resuelve lo que cambia entre sistemas y los demás
-  scripts lo consultan: el intérprete (`python3` o `python`), y el consejo de
-  PATH en la sintaxis del shell que toca. En Windows se escribe además un
-  `arnes.cmd`, porque PowerShell y `cmd` no saben ejecutar un script de bash.
-  El hook tampoco clava ya el intérprete.
-
-  **No está probado en Windows de punta a punta**, y el README lo dice en vez de
-  prometerlo: hoy hemos visto tres veces que lo que no se ejecuta está roto.
-- **`arnes --help` no tenía un código de salida definido.** Lo decidía el
-  último comando ejecutado, que cambia según la rama que se tome y según el
-  sistema: el CI de Ubuntu la vio salir 1 donde en macOS salía 0. Una pantalla
-  de ayuda que a veces falla no tiene sentido, así que ahora sale 0 siempre —
-  eso no es tapar el síntoma, es escribir el contrato que faltaba. La prueba
-  vuelca además la salida completa cuando falla, para que el log de otra
-  máquina sirva para algo en vez de obligar a adivinar desde aquí.
-- **La página desplegada anunciaba una versión falsa.** El número está escrito a
-  mano en el HTML, así que era una copia del manifiesto — y dos copias del mismo
-  dato divergen solas: la web decía `v1.1.0` con el plugin en la 1.8.0. Una
-  carta de presentación que miente sobre su propia versión es peor que no
-  llevarla. La suite falla ahora si el número de la página no es el del
-  manifiesto.
+  El soporte de Windows depende de git-bash o WSL y no está verificado de
+  extremo a extremo; el README lo indica.
+- **Código de salida indeterminado en `arnes --help`.** Lo definía el último
+  comando ejecutado, que varía según la rama del script y el sistema operativo,
+  con fallos intermitentes en integración continua. Devuelve 0 explícitamente.
+- **Versión desactualizada en la página de presentación.** El número está
+  escrito en el HTML y no se sincronizaba con el manifiesto. La suite verifica
+  ahora que ambos coincidan.
 
 ## [1.7.0] — 2026-08-25
 
 ### Añadido
-- **La página de presentación se publica sola**, con su propio motor de Mermaid.
-  Antes sólo renderizaba dentro del visor de artifacts: en GitHub no se ve
-  —GitHub no renderiza HTML, enseña el código— y con un doble clic los dos
-  diagramas salían como texto plano. Ahora vale para GitHub Pages, para un
-  adjunto y para un proyector, sin pedirle cuenta a nadie.
-
-  El mismo fichero sirve en los dos sitios: dentro del visor la CSP bloquea esa
-  carga a propósito y los diagramas los renderiza el visor. Sin red se leen como
-  texto, que es degradación y no error.
+- **La página de presentación se renderiza fuera del visor de artifacts.**
+  Incluye su propio motor de Mermaid, por lo que es publicable en GitHub Pages y
+  legible como adjunto. Dentro del visor la carga externa queda bloqueada por
+  CSP y los diagramas los renderiza el propio visor; sin conectividad se
+  degradan a texto.
 
 ### Cambiado
-- `docs/como-funciona.html` pasa a `docs/index.html`, para que el enlace que se
-  reparte sea la raíz del sitio y no lleve un nombre de fichero detrás. Es la
-  diferencia entre mandar una URL y mandar una ruta.
+- `docs/como-funciona.html` pasa a `docs/index.html`, para que la URL publicada
+  sea la raíz del sitio.
 
 ## [1.6.1] — 2026-08-25
 
 ### Corregido
-- **El hook de arranque repartía una ruta con la versión clavada dentro.**
-  Imprimía `bash …/arnes-plan/1.2.0/scripts/plan-run.sh`, y Claude Code conserva
-  las versiones viejas: una consola abierta antes de actualizar seguía ofreciendo
-  un camino directo a código obsoleto, que se copia y se ejecuta. Pasó de verdad,
-  con un `plan-run.sh` de cinco versiones atrás lanzando un comando ya inválido —
-  y el fallo aparecía dentro de la sesión nueva, lejos de su causa. Ahora ofrece
-  `arnes`, que resuelve la instalación en cada ejecución; y si no está instalado,
-  la línea para instalarlo.
-
-  Era el último sitio del arnés que clavaba una versión: la enfermedad que este
-  plugin lleva toda la 1.4 y la 1.5 curando, en el rincón donde quedaba.
-- `plan-run.sh` avisa cuando la copia que se ejecuta no es la instalada. No
-  bloquea —correr una copia a propósito es legítimo— pero deja de ser silencioso.
+- **El hook de arranque publicaba una ruta con la versión fijada.** Claude Code
+  conserva las versiones anteriores del plugin, por lo que una sesión abierta
+  antes de una actualización seguía ofreciendo una ruta ejecutable a código
+  obsoleto. Ahora indica el lanzador `arnes`, que resuelve la instalación en
+  cada ejecución, o el comando para instalarlo.
+- `plan-run.sh` advierte cuando la copia en ejecución no es la instalada. No
+  bloquea: ejecutar una copia concreta es un caso legítimo.
 
 ## [1.6.0] — 2026-08-25
 
 ### Añadido
-- **`arnes --help`**, que ahora contesta de verdad. Antes reenviaba a la
-  cabecera de `plan-run.sh`: documentaba sus banderas, pero enseñaba la forma
-  larga que el atajo existe para sustituir, y no mencionaba ni los verbos de
-  `arnes`, ni las variables de entorno, ni los slash commands. Todo eso vivía
-  sólo en el README, que es documentación — hay que ir a buscarla, y en una
-  terminal nadie la busca.
-
-  La ayuda cabe en una pantalla y termina con **el estado real**: proyecto,
-  ledger y el ítem que toca. Una ayuda que además contesta "¿y dónde estoy?" se
-  consulta; una que recita banderas, no. Vive en el plugin y no en el lanzador,
-  así que se actualiza con él; el lanzador cae a `plan-run.sh --help` si el
-  plugin instalado es más viejo que el atajo, en vez de contestar con un error
-  de bash.
+- **`arnes --help`.** Antes delegaba en la cabecera de `plan-run.sh`, que
+  documenta sus banderas pero no los verbos del lanzador, las variables de
+  entorno ni los slash commands. La ayuda ocupa una pantalla y termina con el
+  proyecto, el ledger y el ítem siguiente. Reside en el plugin, de modo que se
+  actualiza con él; el lanzador recurre a `plan-run.sh --help` si el plugin
+  instalado es anterior.
 
 ## [1.5.3] — 2026-08-25
 
 ### Corregido
-- **El propio protocolo le enseñaba al usuario un comando que no existe.** El
-  paso 6 pedía "el comando exacto para continuar" sin decir cuál era, así que el
-  agente se lo inventaba en su forma corta, el usuario lo copiaba y se estrellaba
-  con `Unknown command`. Ahora el comando va escrito literal en el protocolo.
-
-  Es la cuarta vez que muerde el mismo patrón —texto que da por sabido el espacio
-  de nombres del plugin—, así que en vez de arreglar la cuarta se cubre la clase
-  entera: la suite falla si CUALQUIER fichero de `commands/`, `scripts/`,
-  `hooks/` o `plantillas/` enseña la forma corta. El patrón distingue el comando
-  de una ruta, para no confundirse con `scripts/plan-siguiente-linea.py`.
+- **El protocolo indicaba un comando inexistente.** El paso 6 pedía "el comando
+  exacto para continuar" sin especificarlo, y se resolvía con la forma corta. El
+  comando figura ahora literal. La suite falla si cualquier fichero de
+  `commands/`, `scripts/`, `hooks/` o `plantillas/` documenta la forma corta; el
+  patrón distingue el comando de una ruta.
 
 ## [1.5.2] — 2026-08-25
 
 ### Corregido
-- **`--desatendido` abría la sesión y no hacía nada.** Pedía
-  `--permission-mode acceptEdits`, que sólo aprueba EDICIONES; pero el protocolo
-  empieza leyendo el ledger con un script, y en modo `-p` esa llamada de Bash se
-  quedaba esperando una aprobación que nadie podía dar. Ahora usa
-  `bypassPermissions`, que es el único modo con el que la cadena se completa
-  —`dontAsk` tampoco basta, medido contra un `claude` real—. Es una escalada de
-  permisos de verdad, y queda documentada junto a las guardas que la justifican:
-  este modo se niega ante más de una hora de máquina, multiagente, `opus`, un
-  ítem bloqueado o un árbol sucio, y exige techo de gasto.
-
-Con esto el arnés completa un ítem de principio a fin por primera vez desde que
-se extrajo a plugin: trabajo hecho, ítem cerrado con `resultado`, un solo commit
-con trabajo y ledger, y las dos puertas de cierre disparando.
+- **`--desatendido` no completaba la ejecución.** Usaba
+  `--permission-mode acceptEdits`, que sólo aprueba ediciones; la lectura del
+  ledger es una llamada de shell que quedaba a la espera de una aprobación
+  imposible en modo `-p`. Usa `bypassPermissions`, el único modo con el que la
+  cadena se completa. Es una elevación de permisos real, y justifica que este
+  modo mantenga las guardas más estrictas —más de una hora de máquina,
+  multiagente, `opus`, ítem bloqueado o árbol sucio— y techo de gasto
+  obligatorio.
 
 ## [1.5.1] — 2026-08-25
 
 ### Corregido
-- **`plan-run.sh` arrancaba la sesión nueva con un comando que no existe.** Los
-  slash commands de un plugin viven en el espacio de nombres del plugin, así que
-  `/plan-siguiente` responde `Unknown command`: la sesión se abría y no hacía
-  nada. Es la función principal del arnés, y estuvo rota desde que se extrajo a
-  plugin. El nombre se lee ahora del manifiesto, para que renombrar el plugin no
-  vuelva a romperlo en silencio.
+- **La sesión nueva se lanzaba con un comando inexistente.** Los slash commands
+  de un plugin residen en su propio espacio de nombres, por lo que
+  `/plan-siguiente` responde `Unknown command` y la sesión se abría sin efecto.
+  El nombre se lee del manifiesto, de modo que renombrar el plugin no reintroduce
+  el fallo.
 
-  Lo tapaba la propia suite: sus pruebas sustituyen `claude` por un doble que
-  acepta cualquier cadena, así que el comando inválido pasaba verde. La
-  regresión ahora comprueba **la cadena que se le pasa**, no que no reviente —
-  un doble de prueba sólo verifica lo que se le pide verificar.
-- La línea del hook de arranque y toda la documentación anunciaban también la
-  forma corta, que era el primer tropiezo de cualquiera que llegara nuevo.
+  La suite no lo detectaba: sustituye `claude` por un doble que acepta cualquier
+  cadena. La regresión verifica ahora la cadena que se pasa, no la ausencia de
+  error.
+- La línea del hook y la documentación indicaban también la forma corta.
 
 ## [1.5.0] — 2026-08-25
 
-Las puertas de cierre de la 1.1.0 sólo corrían por una de las dos entradas.
-Vivían en `plan-run.sh`, pero el flujo diario es `/plan-siguiente` dentro de una
-sesión, y por ahí el protocolo se limitaba a PEDIRLE al agente que se
-autoevaluara — el fallo exacto que esa versión decía haber cerrado,
-sobreviviendo en la otra puerta. Se vio en el único consumidor real:
-`verificacion_comando` estaba en 0 de 57 fichas y cuatro ítems llegaron a
-`hecho` sin `resultado`, parcheados a posteriori.
-
 ### Añadido
-- **La puerta de cierre como hook `PostToolUse`**, enganchada a la escritura del
-  ledger y no a un comando. Da igual quién cierre el ítem: si acaba de pasar a
-  `hecho`, se comprueba que dejó `resultado` y que su `verificacion_comando`
-  sale 0 corriéndolo ahí. El motivo le llega a Claude en el momento de la
-  infracción, no tres pasos después con el commit ya escrito. Sólo mira lo que
-  ACABA de cerrarse, comparando con el ledger en `HEAD`: nada retroactivo.
-- **Aviso de campos fuera del esquema**, en el validador y en la puerta. No
-  falla —el ledger es del proyecto— pero lo que se escribe en un campo
-  inventado no lo lee nadie: en el consumidor real eran 53 nombres, la mitad
-  usados una sola vez, con el validador diciendo `✓ Ledger válido`. Un `_`
-  delante exime del aviso.
-- La plantilla explica qué escribir en `rollback` cuando revertir no es
-  posible: nombrar la mitigación, o por qué no aplica. `n/a` a secas no.
+- **Puerta de cierre como hook `PostToolUse`**, asociada a la escritura del
+  ledger en lugar de a un comando concreto. Con independencia de la vía por la
+  que se cierre un ítem, si acaba de pasar a `hecho` se comprueba que tenga
+  `resultado` y que su `verificacion_comando` devuelva 0. Sólo evalúa los ítems
+  recién cerrados, comparando con el ledger en `HEAD`.
+
+  Hasta esta versión las comprobaciones sólo se ejecutaban desde `plan-run.sh`,
+  mientras que el flujo habitual es `/plan-siguiente`, donde el protocolo se
+  limitaba a solicitar la autoevaluación del agente.
+- **Aviso de campos fuera del esquema**, en el validador y en la puerta de
+  cierre. No invalida el ledger, pero un campo no documentado no lo lee ninguna
+  herramienta. Un prefijo `_` exime del aviso.
+- La plantilla documenta qué escribir en `rollback` cuando la reversión no es
+  posible: la mitigación, o el motivo por el que no aplica.
 
 ### Corregido
-- **El plugin publicaba un ledger propio.** Probar `arrancar.sh` con este
-  repositorio como raíz sembró `docs/plan/ejecucion-plan.estado.json` aquí
-  dentro, y un `git add -A` lo publicó en la 1.4.0. Eliminado, con `.gitignore`
-  y una comprobación en la suite, porque un `.gitignore` protege del descuido
-  pero no de un `git add -f`.
-- El protocolo pedía añadir los ítems nuevos al final de su ola. Medido: los
-  cierres simultáneos fusionan solos incluso entre ítems contiguos, y lo único
-  que hace chocar el ledger de verdad es justo eso — dos personas añadiendo al
-  mismo final. Ahora dice que se inserte por orden de id.
+- **El plugin publicaba un ledger propio.** Ejecutar `arrancar.sh` con este
+  repositorio como raíz sembraba `docs/plan/ejecucion-plan.estado.json` en él.
+  Eliminado, con `.gitignore` y comprobación en la suite.
+- El protocolo indicaba añadir los ítems nuevos al final de su ola. Los cierres
+  simultáneos se fusionan sin conflicto incluso entre ítems contiguos; el
+  conflicto real se produce al añadir al mismo final. Se inserta por orden de id.
 
 ## [1.4.0] — 2026-08-25
 
-La 1.3.0 arregló que la instalación pudiera destruir un plan, pero seguía
-pidiéndole al recién llegado que resolviera una ruta a mano y la guardara en
-una variable de entorno. Eso no es instalar: es trabajo manual con otro nombre,
-y encima caduca en cada actualización.
-
 ### Añadido
-- **`/plan-arrancar`**, la puesta en marcha sin rutas ni variables. Dentro de
-  una sesión el plugin ya sabe dónde está, así que funciona recién instalado.
-- **El lanzador `arnes`**, que `arrancar.sh` deja en `~/.local/bin` —donde vive
-  el propio `claude`, así que ya está en el PATH de quien tiene Claude Code—.
-  No clava ninguna ruta: resuelve la instalación en cada ejecución y sobrevive
-  a los `claude plugin update` sin tocarlo. No sobrescribe un `arnes` ajeno que
-  ya estuviera en el PATH, y `--sin-atajo` lo omite.
+- **`/arnes-plan:plan-arrancar`**, puesta en marcha sin rutas ni variables de
+  entorno.
+- **Lanzador `arnes`** en `~/.local/bin`, el directorio del propio ejecutable
+  `claude`. No fija ninguna ruta: resuelve la instalación en cada ejecución. No
+  sobrescribe un `arnes` preexistente; `--sin-atajo` omite su instalación.
 
 ### Corregido
-- **El lanzador podía ejecutar una versión que no era la instalada.** El
-  respaldo para cuando `claude` no está en el PATH elegía la versión más alta
-  del cache, y ahí quedan tanto las instalaciones viejas como versiones que
-  nunca llegaron a activarse. Ahora lee `installed_plugins.json`, que es lo que
-  el propio CLI escribe. Correr en silencio código que no está activo es justo
-  el fallo que este arnés existe para no cometer.
+- **El lanzador podía ejecutar una versión no instalada.** El respaldo para
+  cuando `claude` no está en el PATH elegía la versión más alta del cache, que
+  incluye instalaciones anteriores y versiones nunca activadas. Ahora lee
+  `installed_plugins.json`.
 
 ## [1.3.0] — 2026-08-25
 
 ### Corregido
-- **El arranque documentado podía destruir el plan de otro.** Decía
-  `cp plantilla docs/plan/ejecucion-plan.estado.json`: el segundo miembro del
-  equipo clonaba el repositorio, seguía el README al pie de la letra, y le
-  pasaba por encima al ledger del primero. Sin preguntar, y sobre el único
-  fichero que registra el avance. Ahora el arranque es `arrancar.sh`, que
-  detecta si ya hay plan y **nunca sobrescribe**: si lo hay, valida el que hay
-  y anuncia el ítem que toca; si no, siembra. Correrlo dos veces no hace daño.
-  Un README que avisara "si ya existe, no lo copies" habría sido la misma clase
-  de regla que este proyecto lleva moviendo al código desde el principio.
-- **El README mandaba a `claude plugin list` a buscar la ruta de instalación,
-  y ese comando no la da.** Sólo nombre, versión, scope y estado; hace falta
-  `claude plugin list --json`, que sí trae `installPath`. Queda documentada la
-  línea que resuelve `$ARNES` preguntándole al CLI, en vez de clavar un número
-  de versión que caduca en cada `plugin update` — que es exactamente cómo se
-  quedó obsoleta la ruta que la gente tenía copiada.
-- Documentado que `claude plugin update` exige el nombre cualificado
-  (`arnes-plan@arnes-plan`); a secas falla con "Plugin not found".
+- **La puesta en marcha documentada podía sobrescribir un ledger existente.**
+  Indicaba copiar la plantilla sobre `ejecucion-plan.estado.json`, de modo que
+  un segundo desarrollador que siguiera el README reemplazaba el plan del
+  primero. `arrancar.sh` detecta si ya existe un plan y nunca sobrescribe: lo
+  valida y anuncia el ítem siguiente. Es idempotente.
+- **El README indicaba obtener la ruta de instalación con `claude plugin list`**,
+  que no la proporciona; requiere `--json`. Se documenta la resolución de
+  `$ARNES` mediante el CLI en lugar de fijar un número de versión.
+- Documentado que `claude plugin update` requiere el nombre cualificado
+  (`arnes-plan@arnes-plan`).
 
 ### Añadido
-- `scripts/arrancar.sh`, y con él una puesta en marcha de un solo comando que
-  se explica sola: imprime al terminar la línea de `export ARNES` ya resuelta,
-  para no tener que volver al README a buscarla.
+- `scripts/arrancar.sh`: puesta en marcha en un solo comando, que imprime al
+  finalizar la línea de `export ARNES` ya resuelta.
 
 ## [1.2.0] — 2026-08-25
 
 ### Añadido
-- **Los dos diagramas del arnés en el README**, que GitHub renderiza solo: una
-  invocación de principio a fin —con las puertas de cierre dibujadas fuera de
-  la sesión que hizo el trabajo— y el ciclo de vida de un ítem con la condición
-  escrita en cada arista. Es la explicación que antes costaba tres párrafos.
-- `docs/como-funciona.html`, la misma explicación como página, para proyectar
-  en una reunión o imprimir a PDF.
-- `scripts/validar-diagramas.py`, y con él la razón de que las dos cosas
-  anteriores puedan convivir: el mismo Mermaid tiene que vivir en dos sitios
-  porque cada uno sirve a un público distinto, y dos copias del mismo texto se
-  desincronizan solas. El script falla si dejan de coincidir, así que un
-  diagrama viejo no llega a proyectarse. Compara el diagrama, no el documento:
-  la página tiene prosa propia y reescribirla no pone el CI en rojo.
+- **Diagramas del arnés en el README**, renderizados por GitHub: la secuencia de
+  una invocación, con las puertas de cierre fuera de la sesión que ejecuta el
+  trabajo, y el ciclo de vida de un ítem con la condición de cada transición.
+- `docs/como-funciona.html`, la misma explicación como página.
+- `scripts/validar-diagramas.py`: el mismo Mermaid reside en dos ficheros porque
+  cada uno sirve a un público distinto, y dos copias divergen. La suite falla si
+  dejan de coincidir. Compara los diagramas, no el documento: la página tiene
+  prosa propia.
 
 ## [1.1.0] — 2026-08-25
 
-Un ítem volvía marcado `hecho` porque lo marcaba el mismo agente que lo había
-hecho, y el arnés se lo creía. Esta versión añade las dos comprobaciones de
-cierre que no dependen de su palabra.
+El estado `hecho` lo escribe el mismo agente que ejecuta el ítem, por lo que no
+constituye evidencia por sí solo. Esta versión añade dos comprobaciones de
+cierre independientes de esa declaración.
 
-El esquema del ledger sigue en la versión 1: `verificacion_comando` es un campo
-que un lector viejo ignora. Con la contrapartida de que lo ignora *en silencio*
-— un arnés 1.0.x sobre un ledger que lo usa no correrá la verificación y no
-dirá nada. Si repartes el ledger, reparte la versión del plugin con él.
+El esquema del ledger permanece en la versión 1: `verificacion_comando` es un
+campo que un lector anterior ignora. Con la salvedad de que lo ignora en
+silencio: un arnés 1.0.x sobre un ledger que lo use no ejecutará la verificación.
 
 ### Añadido
-- **`verificacion_comando`**, campo opcional del ítem. Es la parte de
-  `verificacion` que una máquina puede decidir sola, y `plan-run.sh` la corre
-  **él**, en la raíz del proyecto, después de que la sesión haya terminado.
-  Corrido fuera de la sesión que declaró el ítem hecho, es la diferencia entre
-  "el agente dice que pasa" y "pasa". Lleva perro guardián propio
-  (`ARNES_LIMITE_VERIFICACION`, 900 s por defecto): sin él, un comando colgado
-  dejaría una sesión `--desatendido` esperando para siempre.
-- **`resultado` obligatorio al cerrar.** Un ítem que pasa a `hecho` sin decir
-  qué se hizo y qué evidencia lo prueba no cuenta como cerrado. Se reclama en
-  el momento del cierre (`validar-ledger.py --al-cerrar`) y no en el barrido
-  general, por la misma razón que `rollback` sólo se le pide a lo que aún se va
-  a ejecutar: reclamárselo a lo ya cerrado sería ruido permanente.
-- **Techo de reintentos y parada por hueco de ficha**, en el protocolo del
-  comando. Tres intentos sobre una verificación en rojo son depuración; el
-  cuarto es prueba y error. Y una ambigüedad que viene de la ficha —no de la
-  implementación— para al instante y se pregunta, sin intentos previos: ningún
-  número de intentos rellena un hueco del plan. Eran las dos únicas reglas que
-  el arnés no tenía de un flujo de trabajo anterior al ledger; el resto de
-  aquel flujo (estado, changelog, elección de modelo, no borrar sin traza,
-  criterio de cierre) ya vivía aquí como campo validado en vez de como prosa.
-- Ninguna de las dos puertas revierte nada. El commit ya existe y deshacerlo es
-  decisión de quien mira, con el `rollback` de la ficha delante; el script se
-  limita a salir distinto de 0 y a enseñar por qué.
+- **`verificacion_comando`**, campo opcional del ítem: la parte de
+  `verificacion` que puede decidirse mecánicamente. `plan-run.sh` la ejecuta en
+  la raíz del proyecto una vez finalizada la sesión, con límite de tiempo
+  configurable (`ARNES_LIMITE_VERIFICACION`, 900 s por defecto).
+- **`resultado` obligatorio al cerrar.** Se exige en el momento del cierre
+  (`validar-ledger.py --al-cerrar`) y no en la validación general, por el mismo
+  criterio que `rollback`: no se reclama a trabajo ya cerrado.
+- Ninguna de las dos puertas revierte cambios: el script devuelve un código
+  distinto de 0 y muestra el motivo.
+- **Techo de reintentos y parada por ficha incompleta** en el protocolo del
+  comando: tres intentos sobre una verificación en rojo; una ambigüedad
+  originada en la ficha detiene la ejecución sin intentos previos.
 
 ### Corregido
-- **`--desatendido` aceptaba ítems marcados `opus`.** Las guardas miraban las
-  horas, el multiagente y el bloqueo, pero no el modelo — justo el campo con el
-  que el ledger declara "aquí el CRITERIO es el trabajo". La regla estaba
-  escrita en el README y no en el código, que es como una regla deja de
-  cumplirse. `--igual` la salta, como las demás.
-- La plantilla del ledger apuntaba a `infra/arnes/`, la ruta de cuando el arnés
-  vivía vendorizado dentro del proyecto.
+- **`--desatendido` aceptaba ítems marcados `opus`.** Las guardas evaluaban
+  horas de máquina, multiagente y bloqueo, pero no el modelo. `--igual` la
+  omite, como las demás.
+- La plantilla del ledger referenciaba `infra/arnes/`, ruta anterior a la
+  distribución como plugin.
 
 ## [1.0.0] — 2026-08-24
 
