@@ -6,6 +6,60 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.12.0] — 2026-08-31
+
+### Añadido
+- **`arnes --version`.** Una línea: `arnes 1.12.0 (8952ea2)`. Hasta ahora la
+  bandera no existía y caía en el "Bandera desconocida" de `plan-run.sh` con
+  salida 1; `-V` y `version` era peor, se interpretaban como id de ítem y
+  contestaban "No hay ítem que encaje con: -V". El número sólo se podía leer
+  dentro de `--help`, entre cuarenta líneas de banderas. Las tres formas se
+  aceptan, y contestan aunque no haya ledger, aunque `claude` no esté en el PATH
+  y aunque no haya plugin registrado: es lo primero que se teclea cuando algo va
+  mal, y no puede depender de que el entorno esté bien.
+  El sha va con el número porque es identidad, no ubicación: dos 1.12.0 con
+  distinto commit son código distinto. Sale de git cuando hay repositorio —la
+  verdad sobre el código que corre, con sufijo `-sucio` si el árbol lo está— y
+  del registro sólo si la copia que se ejecuta es la registrada. Si no se puede
+  saber, se calla en vez de inventarlo.
+- **`arnes doctor`.** El diagnóstico de la instalación, separado de `--version` a
+  propósito: son dos preguntas distintas, y un `--version` de ocho líneas rompe
+  tanto la costumbre como `arnes --version | ...`. Pone en una pantalla las
+  cuatro identidades que en este arnés pueden discrepar sin avisar — la copia
+  registrada, la que de verdad se está ejecutando, la versión del lanzador de
+  `~/.local/bin` y el esquema del ledger del proyecto — más los requisitos y si
+  hay una versión ya descargada sin instalar. Sale 1 sólo si algo está roto; la
+  deriva informativa sale 0, porque un doctor que se pone rojo por lo normal deja
+  de leerse.
+- **`arnes doctor --limpiar` quita las copias viejas del cache.** El barrido de
+  Claude Code descarta plugins que ya no se usan, no versiones antiguas de uno en
+  uso: se acumula una por cada `plugin update`, para siempre. En la máquina donde
+  se escribió esto había 15. El disco no es el problema —son unos megas—; lo es
+  que cada copia sigue siendo un arnés entero y ejecutable, con una ruta
+  plausible que alguien pudo pegar en un README o dejar en su historial, y correr
+  una vieja es el fallo que `plan-run.sh` sabe avisar pero no puede impedir.
+  Conserva la instalada, no toca nada que no lleve el manifiesto del plugin, y no
+  borra la copia desde la que se está ejecutando. No hace falta confirmarlo: el
+  `doctor` a secas ya lista lo que borraría, así que él es el ensayo en seco.
+- **El lanzador se sella con la versión que lo escribió** (`# arnes-lanzador:`).
+  `claude plugin update` no reescribe ese fichero —se escribe una vez y sobrevive
+  a todas las actualizaciones, que es su virtud y también la única forma de que
+  se quede atrás sin que nadie se entere—. Sin marca, la pregunta "¿mi lanzador
+  es el de esta versión?" no tenía respuesta comprobable.
+
+### Cambiado
+- La consulta al registro de instalación vive en `entorno.sh` (`arnes_registro`)
+  y ya no duplicada en `plan-run.sh`, para que `--version`, `doctor` y el aviso
+  de "no es la copia instalada" no puedan contestar cosas distintas. El lanzador
+  conserva la suya: se ejecuta solo, sin incluir ese fichero.
+
+### Notas de actualización
+- Nada que migrar. El esquema del ledger no cambia.
+- Los lanzadores escritos antes de esta versión no llevan sello y `doctor` los
+  informa como "sin marca". No es un fallo: el lanzador sólo resuelve dónde está
+  el plugin y delega, así que quedarse atrás casi nunca se nota. Para alinearlo,
+  `arnes arrancar` — no pisa el ledger.
+
 ## [1.11.0] — 2026-08-31
 
 ### Añadido

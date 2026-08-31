@@ -230,7 +230,8 @@ check "dice cuántos hay en cada sitio"   "si" "$(grep -q 'diagrama(s) y' <<<"$S
 
 
 echo "8. Arrancar en un repo que ya tiene plan no puede pisarlo"
-ARRANCAR="bash $ARNES/scripts/arrancar.sh"
+CASA8="$TMP/casa8"; mkdir -p "$CASA8"
+ARRANCAR="env HOME=$CASA8 bash $ARNES/scripts/arrancar.sh"
 
 # Usuario 1: repositorio virgen. Siembra.
 NUEVO="$TMP/usuario1"; mkdir -p "$NUEVO"; cd "$NUEVO"
@@ -637,7 +638,9 @@ FALSAS="$(python3 - "$ARNES" <<'PY'
 import html, io, re, sys
 raiz = sys.argv[1]
 pag = io.open(raiz + '/docs/index.html', encoding='utf-8').read()
-src = io.open(raiz + '/scripts/plan-run.sh', encoding='utf-8').read()
+import glob
+src = ''.join(io.open(f, encoding='utf-8').read()
+              for f in sorted(glob.glob(raiz + '/scripts/*.sh')))
 citas = [html.unescape(c) for c in re.findall(r'<code class="dice">(.*?)</code>', pag)]
 print(' | '.join(c for c in citas if c not in src))
 PY
@@ -725,6 +728,132 @@ check "bloqueante ya cerrado: pasa" "0" \
 CERRADO="$($V "$FIX/cerrado.json" 2>&1 || true)"
 check "y lo informa" "si" \
       "$(grep -q '1.2-b esperaba a 1.1-a' <<<"$CERRADO" && echo si || echo no)"
+
+echo "22. \`--version\` contesta siempre, y \`doctor\` mira lo que puede discrepar"
+cd "$ARNES"
+VERSION_MANIFIESTO="$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")"
+
+SALIDA="$(bash "$ARNES/scripts/plan-run.sh" --version 2>/dev/null)"; CODE=$?
+check "\`--version\` sale 0"                  "0" "$CODE"
+check "y trae la versión del manifiesto"      "si" \
+      "$(grep -qF "$VERSION_MANIFIESTO" <<<"$SALIDA" && echo si || echo no)"
+# UNA línea en stdout, siempre: es lo que hace que `arnes --version | ...` sirva.
+# Un aviso, si hay que darlo, va por stderr — de ahí el 2>/dev/null de arriba.
+check "y es UNA sola línea"                   "1" "$(wc -l <<<"$SALIDA" | tr -d ' ')"
+# El contrato de las dos puertas: `--version` es identidad, no ubicación. Si un
+# día alguien le añade la ruta "porque ya que estamos", esto lo frena.
+check "sin rutas: la ubicación es cosa de \`doctor\`" "0" \
+      "$(grep -cE '/|\\\\' <<<"$SALIDA" || true)"
+# Las tres formas, porque las tres se teclean. Hasta 1.11.0 `--version` salía 1
+# con "Bandera desconocida" y `-V` y `version` se tomaban por un id de ítem.
+for forma in -V version; do
+  check "\`$forma\` contesta lo mismo" "$SALIDA" \
+        "$(bash "$ARNES/scripts/plan-run.sh" "$forma" 2>/dev/null)"
+done
+# Y tiene que contestar cuando NADA más funciona: sin ledger, sin `claude` en el
+# PATH y con un HOME sin plugin instalado. Es lo primero que se teclea cuando
+# algo va mal, y un `--version` que falla por el estado del entorno no sirve
+# para diagnosticar ese estado.
+CASA22="$TMP/casa22"; mkdir -p "$CASA22"
+check "contesta sin ledger, sin claude y sin registro" "0" \
+      "$(cd "$TMP" && env HOME="$CASA22" PATH=/usr/bin:/bin \
+         bash "$ARNES/scripts/plan-run.sh" --version >/dev/null 2>&1; echo $?)"
+
+# ── doctor ──────────────────────────────────────────────────────────────────
+# Instalación coherente: el registro apunta a la copia que se está ejecutando.
+CASA_OK="$TMP/casa-doctor-ok"; mkdir -p "$CASA_OK/.claude/plugins"
+cat > "$CASA_OK/.claude/plugins/installed_plugins.json" <<DOC_FIN
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"$ARNES","version":"$VERSION_MANIFIESTO"}]}}
+DOC_FIN
+cd "$PROY"
+SALIDA="$(HOME="$CASA_OK" CLAUDE_PROJECT_DIR="$PROY" bash "$ARNES/scripts/doctor.sh" 2>&1)"; CODE=$?
+check "\`doctor\` sale 0 con una instalación coherente" "0" "$CODE"
+[[ $CODE -ne 0 ]] && { echo "        ── salida completa de doctor.sh ──"; sed 's/^/        /' <<<"$SALIDA"; }
+check "dice que corre la copia registrada"    "si" \
+      "$(grep -q 'es la copia registrada' <<<"$SALIDA" && echo si || echo no)"
+check "y nombra el esquema del ledger"        "si" \
+      "$(grep -q 'esquema' <<<"$SALIDA" && echo si || echo no)"
+
+# El escenario de riesgo, no el benigno: una copia que NO es la instalada y que
+# tampoco es un clon de desarrollo. Sin `.git`, así que no hay sha que la avale.
+COPIA="$TMP/copia-suelta"
+mkdir -p "$COPIA" && cp -R "$ARNES/scripts" "$ARNES/.claude-plugin" "$COPIA/"
+SALIDA="$(HOME="$CASA_OK" CLAUDE_PROJECT_DIR="$PROY" bash "$COPIA/scripts/doctor.sh" 2>&1)"
+check "una copia suelta sale 1"               "1" \
+      "$(HOME="$CASA_OK" CLAUDE_PROJECT_DIR="$PROY" bash "$COPIA/scripts/doctor.sh" >/dev/null 2>&1; echo $?)"
+check "y lo dice"                             "si" \
+      "$(grep -q 'NO es la copia instalada' <<<"$SALIDA" && echo si || echo no)"
+
+# Un esquema de ledger que este arnés no sabe leer. Es el fallo que no existía
+# mientras el arnés vivía dentro del proyecto: herramienta y ledger viajaban en
+# el mismo commit. Como plugin pueden desincronizarse, y en silencio.
+PROY22="$TMP/proyecto22"; mkdir -p "$PROY22/docs/plan"
+cp "$ARNES/plantillas/ledger.plantilla.json" "$PROY22/docs/plan/ejecucion-plan.estado.json"
+python3 - "$PROY22/docs/plan/ejecucion-plan.estado.json" <<'ESQ_FIN'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p, encoding='utf-8'))
+d['schema_version'] = 99
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+ESQ_FIN
+SALIDA="$(HOME="$CASA_OK" CLAUDE_PROJECT_DIR="$PROY22" bash "$ARNES/scripts/doctor.sh" 2>&1 || true)"
+check "un esquema de ledger no soportado sale 1" "1" \
+      "$(HOME="$CASA_OK" CLAUDE_PROJECT_DIR="$PROY22" bash "$ARNES/scripts/doctor.sh" >/dev/null 2>&1; echo $?)"
+check "y dice qué esquema esperaba"           "si" \
+      "$(grep -q 'este arnés lee el' <<<"$SALIDA" && echo si || echo no)"
+
+# ── doctor --limpiar ────────────────────────────────────────────────────────
+# El cache acumula una copia por `plugin update`: el barrido de Claude Code
+# descarta plugins que ya no se usan, no versiones viejas de uno en uso. Cada
+# copia sigue siendo un arnés ejecutable con ruta plausible.
+CASA_LIM="$TMP/casa-limpiar"
+CACHE_LIM="$CASA_LIM/.claude/plugins/cache/arnes-plan/arnes-plan"
+for v in 1.0.0 1.5.0 9.9.9; do
+  mkdir -p "$CACHE_LIM/$v/scripts" "$CACHE_LIM/$v/.claude-plugin"
+  echo '{"name":"arnes-plan","version":"'"$v"'"}' > "$CACHE_LIM/$v/.claude-plugin/plugin.json"
+done
+mkdir -p "$CASA_LIM/.claude/plugins"
+cat > "$CASA_LIM/.claude/plugins/installed_plugins.json" <<LIM_FIN
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"$CACHE_LIM/9.9.9","version":"9.9.9"}]}}
+LIM_FIN
+SALIDA="$(HOME="$CASA_LIM" CLAUDE_PROJECT_DIR="$PROY" bash "$ARNES/scripts/doctor.sh" 2>&1 || true)"
+check "\`doctor\` a secas cuenta las copias viejas y NO borra" "si" \
+      "$(grep -q '2 versiones anteriores' <<<"$SALIDA" && test -d "$CACHE_LIM/1.0.0" && echo si || echo no)"
+HOME="$CASA_LIM" CLAUDE_PROJECT_DIR="$PROY" bash "$ARNES/scripts/doctor.sh" --limpiar >/dev/null 2>&1 || true
+check "\`--limpiar\` quita las viejas"        "no" \
+      "$(test -d "$CACHE_LIM/1.0.0" -o -d "$CACHE_LIM/1.5.0" && echo si || echo no)"
+check "y conserva la instalada"               "si" \
+      "$(test -d "$CACHE_LIM/9.9.9" && echo si || echo no)"
+
+# El escenario de riesgo de este verbo: correrlo DESDE una copia vieja. Borrar
+# el suelo que se está pisando dejaría el proceso a medias sobre ficheros que ya
+# no existen — y quien corre una copia vieja es exactamente quien más necesita
+# que esto no explote.
+CASA_PIE="$TMP/casa-pie"
+CACHE_PIE="$CASA_PIE/.claude/plugins/cache/arnes-plan/arnes-plan"
+mkdir -p "$CACHE_PIE/9.9.9/.claude-plugin" "$CASA_PIE/.claude/plugins"
+echo '{"name":"arnes-plan","version":"9.9.9"}' > "$CACHE_PIE/9.9.9/.claude-plugin/plugin.json"
+mkdir -p "$CACHE_PIE/1.0.0" && cp -R "$ARNES/scripts" "$ARNES/.claude-plugin" "$CACHE_PIE/1.0.0/"
+cat > "$CASA_PIE/.claude/plugins/installed_plugins.json" <<PIE_FIN
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"$CACHE_PIE/9.9.9","version":"9.9.9"}]}}
+PIE_FIN
+HOME="$CASA_PIE" CLAUDE_PROJECT_DIR="$PROY" bash "$CACHE_PIE/1.0.0/scripts/doctor.sh" --limpiar >/dev/null 2>&1 || true
+check "no borra la copia desde la que se ejecuta" "si" \
+      "$(test -f "$CACHE_PIE/1.0.0/scripts/doctor.sh" && echo si || echo no)"
+
+# El sello del lanzador: sin él, "¿mi lanzador es el de esta versión?" no tiene
+# respuesta comprobable, y `claude plugin update` no reescribe ese fichero nunca.
+CASA_SELLO="$TMP/casa-sello"; mkdir -p "$CASA_SELLO"
+cd "$PROY"
+HOME="$CASA_SELLO" bash "$ARNES/scripts/arrancar.sh" >/dev/null 2>&1
+check "arrancar sella el lanzador con su versión" "si" \
+      "$(grep -q "^# arnes-lanzador: $VERSION_MANIFIESTO$" "$CASA_SELLO/.local/bin/arnes" && echo si || echo no)"
+check "y el lanzador sigue ejecutándose"          "0" \
+      "$(bash -n "$CASA_SELLO/.local/bin/arnes" >/dev/null 2>&1; echo $?)"
+cd "$ARNES"
 
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi

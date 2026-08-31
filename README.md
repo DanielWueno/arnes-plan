@@ -227,6 +227,44 @@ Los campos del ledger que el arnés no conoce salen igual, al pie de cada ficha:
 es donde acaban los hallazgos que no estaban previstos, y perderlos por no
 tener plantilla sería el peor fallo posible en un visor, porque no se nota.
 
+### Qué versión corro, y está sana
+
+```bash
+arnes --version    # arnes 1.12.0 (8952ea2)  — una línea, y nada más
+arnes doctor       # el cuadro completo: rutas, lanzador, esquema, cache
+```
+
+Son dos preguntas distintas y por eso son dos comandos. `--version` contesta
+*qué código corro* en una sola línea, con el commit —dos 1.12.0 de ramas
+distintas son código distinto— y sin rutas: se pega en un informe de fallo y se
+puede meter en una tubería. Contesta aunque no haya ledger, aunque `claude` no
+esté en el PATH y aunque no haya plugin registrado, porque es lo primero que se
+teclea cuando algo va mal.
+
+`arnes doctor` contesta *si la instalación es coherente*, que en un plugin no es
+una sola versión sino cuatro que se quedan atrás por su cuenta:
+
+| Puede discrepar | Por qué se entera nadie |
+|---|---|
+| La copia **registrada** y la que de verdad se **ejecuta** | Una ruta del cache copiada de una consola vieja sigue siendo ejecutable meses después. |
+| El **lanzador** de `~/.local/bin` | `arrancar` lo escribe una vez; `claude plugin update` no lo reescribe nunca. Desde 1.12.0 lleva sello de versión. |
+| El **esquema del ledger** del proyecto | Viaja en otro repositorio. Mientras el arnés vivía dentro del proyecto no podían desincronizarse; como plugin, sí. |
+| La versión **descargada** y la instalada | El clon del marketplace se actualiza por su cuenta y puede ir por delante días. |
+
+Sale **1** sólo si algo está roto —una copia que no es la instalada, un esquema
+que este arnés no sabe leer, un requisito que falta—. La deriva informativa sale
+0: un doctor que se pone rojo por lo normal deja de leerse.
+
+Al final informa de las **copias viejas del cache**. El barrido de Claude Code
+descarta plugins que ya no se usan, no versiones antiguas de uno en uso, así que
+se acumula una por cada `plugin update` para siempre. El disco no es el problema
+—son unos megas—; lo es que cada copia es un arnés entero y ejecutable con una
+ruta plausible, y correr una vieja es el fallo del que el arnés avisa pero que no
+puede impedir. `arnes doctor --limpiar` las quita: conserva la instalada, no toca
+nada que no lleve el manifiesto del plugin, y no borra la copia desde la que se
+está ejecutando. No pide confirmación porque el `doctor` a secas ya lista lo que
+borraría — él es el ensayo en seco.
+
 ### Cuánta supervisión
 
 | Modo | Qué cambia | Cuándo |
@@ -287,6 +325,7 @@ modos interactivos. El único que no pregunta nunca es `--desatendido`, y por es
 | `El árbol tiene cambios sin commitear` | El ítem cierra con commit y se los llevaría. Commitea o guarda lo tuyo antes. |
 | `No encuentro el ledger.` | No hay ledger donde se busca. `arnes arrancar` lo siembra sin pisar nada. Con `PLAN_LEDGER`, revisa la ruta: **no cae de vuelta a la búsqueda normal**, así que una errata da este mismo mensaje aun teniendo un ledger válido en su sitio. |
 | `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. |
+| `No hay ítem que encaje con: -V` | Un arnés anterior a 1.12.0, donde `-V` se tomaba por un id. Actualiza: `claude plugin update arnes-plan`. |
 | `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. |
 | `La verificación falla, pero el ítem quedó hecho` | Su criterio no pasa fuera de su sesión. Nada se ha revertido. |
 | `La verificación no terminó en N s` | Se cortó por tiempo. Sube `ARNES_LIMITE_VERIFICACION` si el comando es legítimamente lento. |
@@ -578,6 +617,9 @@ hooks/
 scripts/
   arrancar.sh                deja el proyecto listo e instala el lanzador `arnes`
   ayuda.sh                   lo que contesta `arnes --help`
+  version.sh                 lo que contesta `arnes --version`: una línea
+  doctor.sh                  el diagnóstico de la instalación (`arnes doctor`)
+  entorno.sh                 lo que cambia entre sistemas, y quién es la copia instalada
   plan-run.sh                lanza un ítem en sesión limpia
   ver.py                     la vista web del plan (`arnes ver`), y su servidor --live
   docs.py                    abre la documentación (`arnes docs`)

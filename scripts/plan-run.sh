@@ -85,6 +85,18 @@ if [[ "${1:-}" == "ver" ]]; then
   exec "$PY" "$SCRIPT_DIR/ver.py" "$@"
 fi
 
+# `--version` tiene que contestar aunque no haya ledger, aunque `claude` no
+# esté en el PATH y aunque se corra desde fuera de un proyecto: es lo primero
+# que se teclea cuando algo no cuadra, y un `--version` que falla por el estado
+# del entorno no sirve para diagnosticar ese estado. Por eso va antes de todo.
+# Se aceptan las tres formas porque las tres se teclean: hasta 1.11.0 `--version`
+# contestaba "Bandera desconocida" y `-V` y `version` se tomaban por un id de
+# ítem — "No hay ítem que encaje con: -V".
+case "${1:-}" in
+  --version|-V|version) exec bash "$SCRIPT_DIR/version.sh" ;;
+  doctor)               shift; exec bash "$SCRIPT_DIR/doctor.sh" "$@" ;;
+esac
+
 if [[ "${1:-}" == "docs" ]]; then
   shift
   exec "$PY" "$SCRIPT_DIR/docs.py" "$@"
@@ -126,20 +138,14 @@ command -v claude >/dev/null || { echo -e "${RED}✗${NC} 'claude' no está en e
 # (probar una rama, comparar); pero en silencio no: la versión vieja puede
 # lanzar un comando que ya no existe, y el fallo aparece dentro de la sesión
 # nueva, lejos de su causa.
-INSTALADO="$("$PY" -c 'import json, os, sys
-r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
-try: d = json.load(open(r, encoding="utf-8"))
-except Exception: sys.exit(0)
-for k, v in d.get("plugins", {}).items():
-    if k.startswith("arnes-plan"):
-        for e in v:
-            if e.get("installPath"): print(e["installPath"]); sys.exit(0)' 2>/dev/null || true)"
+INSTALADO="$(arnes_registro | cut -f1)"
 if [[ -n "$INSTALADO" && "$SCRIPT_DIR" != "$INSTALADO/scripts" ]]; then
   echo -e "${YELLOW}⚠${NC}  Esta NO es la copia instalada del arnés."
   echo -e "${DIM}   corriendo:  $SCRIPT_DIR${NC}"
   echo -e "${DIM}   instalada:  $INSTALADO/scripts${NC}"
   echo -e "${DIM}   Si copiaste la ruta de una consola vieja, usa \`arnes\` en su lugar:${NC}"
   echo -e "${DIM}   resuelve la instalación en cada ejecución y no se queda atrás.${NC}"
+  echo -e "${DIM}   El cuadro completo:  arnes doctor${NC}"
   echo
 fi
 if [[ -z "$LEDGER" || ! -f "$LEDGER" ]]; then

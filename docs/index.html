@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.11.0</p>
+    <p class="eyebrow">arnes-plan · v1.12.0</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -392,6 +392,7 @@
       <li><a href="#guardas">Qué te puede frenar</a></li>
       <li><a href="#mensajes">Si algo no arranca</a></li>
       <li><a href="#ver">Ver el plan</a></li>
+      <li><a href="#version">Qué estoy ejecutando</a></li>
       <li><a href="#ledger">El fichero de estado</a></li>
     </ul>
   </nav>
@@ -578,6 +579,8 @@ stateDiagram-v2
           <tr><td><code>arnes validar</code></td><td class="libre">Comprueba el fichero de estado entero. Con <code>--item 5.0</code>, si esa ficha está lista para ejecutarse; con <code>--al-cerrar 5.0</code>, si quedó bien cerrada. Sale 1 y dice qué falta.</td></tr>
           <tr><td><code>arnes docs</code></td><td class="libre">Esta página, en la versión que tengas instalada. Con <code>--web</code>, la publicada.</td></tr>
           <tr><td><code>arnes arrancar</code></td><td class="libre">Deja el proyecto listo e instala el lanzador. <strong>Nunca pisa un fichero de estado que ya exista.</strong></td></tr>
+          <tr><td><code>arnes --version</code></td><td class="libre">La versión y el commit, en <strong>una línea</strong> y sin rutas: <code>arnes 1.12.0 (8952ea2)</code>. Se puede meter en una tubería, y contesta aunque no haya fichero de estado, aunque <code>claude</code> no esté en el PATH y aunque no haya plugin registrado. También como <code>-V</code> y <code>version</code>.</td></tr>
+          <tr><td><code>arnes doctor</code></td><td class="libre">Si la instalación es coherente: qué copia se está ejecutando, qué versión tiene el lanzador, qué esquema el fichero de estado, si hay una versión descargada sin instalar. Sale 1 sólo si algo está <em>roto</em>. Con <code>--limpiar</code>, quita las copias viejas del cache.</td></tr>
           <tr><td><code>arnes --help</code></td><td class="libre">La ayuda, y al final el estado real: proyecto, fichero de estado y siguiente ítem.</td></tr>
         </tbody>
       </table>
@@ -664,11 +667,30 @@ stateDiagram-v2
           <tr><td class="libre"><code class="dice">La verificación falla (código</code>…</td><td class="libre">Su propio criterio no pasa fuera de su sesión. Salen las últimas 20 líneas del comando <strong>y sólo ahí</strong>: el registro temporal se borra al terminar. Cópialas antes de cerrar la terminal.</td></tr>
           <tr><td class="libre"><code class="dice">La verificación no terminó en</code>…</td><td class="libre">Se cortó por tiempo. Sube <code>ARNES_LIMITE_VERIFICACION</code> si el comando es legítimamente lento — recordando que por la vía del hook el techo son 180 s.</td></tr>
           <tr><td class="libre"><code class="dice">pero no lo demuestra.</code></td><td class="libre">Resumen del cierre en rojo. El commit ya existe; nada se ha revertido.</td></tr>
+          <tr><td class="libre"><code class="dice">este arnés lee el</code>…</td><td class="libre">De <code>arnes doctor</code>: el fichero de estado declara un <code>schema_version</code> que esta versión del arnés no sabe leer. Es el desajuste que no podía existir mientras el arnés vivía dentro del proyecto — herramienta y fichero de estado viajaban en el mismo commit — y que como plugin sí puede. Actualiza el plugin, o el fichero.</td></tr>
           <tr><td class="libre"><code class="dice">'claude' no está en el PATH.</code></td><td class="libre">El lanzador necesita el CLI de Claude Code para abrir la sesión.</td></tr>
         </tbody>
       </table>
     </div>
     <p class="col nota-ref">Códigos de salida: <strong>1</strong> si la ficha estaba incompleta, si <code>--desatendido</code> se negó, o si el cierre no se sostiene. <strong>0</strong> si el ítem corrió y cerró limpio — <em>y también</em> si contestaste que no a una de las preguntas del modo interactivo, que cancela sin gastar y no es un error. En los demás casos, el código que devolviera la sesión.</p>
+  </section>
+
+  <section id="version">
+    <p class="when">Referencia · qué estoy ejecutando</p>
+    <h2>Cuatro versiones que pueden discrepar sin avisar</h2>
+    <p class="col">Mientras el arnés vivía dentro del proyecto había una sola versión: la del commit. Distribuido como plugin hay cuatro, cada una se queda atrás por su cuenta, y las cuatro fallan tarde y lejos de su causa. <code>arnes doctor</code> las pone en la misma pantalla; <code>arnes --version</code> contesta la otra pregunta —qué código corro— en una línea, porque son preguntas distintas y un <code>--version</code> de ocho líneas no se puede pegar en una tubería.</p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>Qué se queda atrás</th><th>Por qué no se entera nadie</th></tr></thead>
+        <tbody>
+          <tr><td class="libre">La copia <strong>registrada</strong> frente a la que de verdad se <strong>ejecuta</strong></td><td class="libre">Una ruta del cache con la versión dentro, copiada de una consola vieja, sigue siendo ejecutable meses después. No se bloquea —correr una copia a propósito es legítimo— pero tampoco en silencio.</td></tr>
+          <tr><td class="libre">El <strong>lanzador</strong> de <code>~/.local/bin</code></td><td class="libre"><code>arnes arrancar</code> lo escribe una vez y la actualización del plugin no lo reescribe nunca: eso es justo su virtud, y también la única forma de que se quede atrás. Desde la 1.12.0 lleva sello de versión, que es lo que hace la pregunta comprobable.</td></tr>
+          <tr><td class="libre">El <strong>esquema del fichero de estado</strong></td><td class="libre">Viaja en el repositorio del proyecto, no en el del plugin. Sólo el mayor manda: un menor más alto son campos añadidos que un lector viejo ignora sin romperse.</td></tr>
+          <tr><td class="libre">La versión <strong>descargada</strong> frente a la instalada</td><td class="libre">El clon del marketplace se actualiza por su cuenta y puede ir por delante días sin que nada lo diga.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col nota-ref">Al final, <code>arnes doctor</code> informa de las <strong>copias viejas del cache</strong>. El barrido de Claude Code descarta plugins que ya no se usan, no versiones antiguas de uno en uso, así que se acumula una por cada actualización, para siempre. El disco no es el problema —son unos megas—: lo es que cada copia es un arnés entero y ejecutable con una ruta plausible. <code>arnes doctor --limpiar</code> las quita, conserva la instalada, no toca nada que no lleve el manifiesto del plugin y no borra la copia desde la que se está ejecutando. No pide confirmación porque el <code>doctor</code> a secas ya lista lo que borraría.</p>
   </section>
 
   <section id="ledger">
