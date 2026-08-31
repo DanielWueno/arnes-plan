@@ -128,9 +128,23 @@ if [[ -e "$ATAJO_RUTA" ]] && ! grep -q "$FIRMA" "$ATAJO_RUTA" 2>/dev/null; then
 fi
 
 mkdir -p "$BIN"
-cat > "$ATAJO_RUTA" <<'ATAJO_FIN'
+
+# El sello de versión va en una cabecera aparte —heredoc SIN comillas, para que
+# `$VER_ATAJO` se sustituya— y el cuerpo sigue entrecomillado, que es lo que
+# mantiene intactos sus propios `$`.
+#
+# Por qué se sella: `claude plugin update` NO reescribe este fichero. Se escribe
+# una vez, aquí, y sobrevive a todas las actualizaciones — que es justo su virtud
+# y también la única forma de que se quede atrás sin que nadie se entere. Sin
+# marca, la pregunta "¿mi lanzador es el de esta versión?" no tiene respuesta
+# comprobable; con ella, `arnes doctor` la contesta en una línea.
+VER_ATAJO="$(arnes_version_plugin "$SCRIPT_DIR")"
+cat > "$ATAJO_RUTA" <<ATAJO_CABECERA
 #!/bin/bash
 # arnes-plan:atajo — lanzador del arnés de plan.
+# arnes-lanzador: $VER_ATAJO
+ATAJO_CABECERA
+cat >> "$ATAJO_RUTA" <<'ATAJO_FIN'
 # No clava ninguna ruta: resuelve la instalación en cada ejecución, así que
 # sigue funcionando después de cada `claude plugin update`. Si lo borras, se
 # vuelve a crear con `/arnes-plan:plan-arrancar`.
@@ -211,6 +225,7 @@ echo -e "  ${BOLD}arnes --solo-anunciar${NC}    qué toca, sin ejecutar ni gasta
 echo -e "  ${BOLD}arnes 5.0 --auto${NC}         uno concreto, con menos prompts"
 echo -e "  ${BOLD}arnes arrancar${NC}           esto mismo, en otro proyecto"
 echo -e "  ${BOLD}arnes --help${NC}             todos los comandos, y dónde estás ahora"
+echo -e "  ${BOLD}arnes doctor${NC}             ¿está sana la instalación? rutas, lanzador, esquema"
 echo
 
 if ! command -v arnes >/dev/null 2>&1; then

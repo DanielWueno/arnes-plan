@@ -40,3 +40,60 @@ else
   CONSEJO_PATH='Añade a tu ~/.zshrc o ~/.bashrc:
      export PATH="$HOME/.local/bin:$PATH"'
 fi
+
+# ── Quién es la copia instalada ─────────────────────────────────────────────
+# Lo dice el registro que escribe el propio CLI. Esta consulta estaba duplicada
+# en plan-run.sh y en el lanzador de ~/.local/bin. El lanzador tiene que seguir
+# con su copia —se ejecuta solo, sin incluir este fichero— pero dentro del
+# plugin hay un solo dueño, y así `--version`, `doctor` y el aviso de "no es la
+# copia instalada" no pueden contestar cosas distintas.
+#
+# Imprime  installPath<TAB>version<TAB>sha_corto  y nada si no está instalado.
+arnes_registro() {
+  "$PY" - <<'PY' 2>/dev/null || true
+import json, os, sys
+r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
+try:
+    d = json.load(open(r, encoding="utf-8"))
+except Exception:
+    sys.exit(0)
+for clave, entradas in d.get("plugins", {}).items():
+    if clave.startswith("arnes-plan"):
+        for e in entradas:
+            if e.get("installPath"):
+                print("\t".join((e["installPath"], e.get("version") or "",
+                                 (e.get("gitCommitSha") or "")[:7])))
+                sys.exit(0)
+PY
+}
+
+# ── La versión del código que se está ejecutando ────────────────────────────
+# La del manifiesto que está AL LADO de los scripts que corren, que no siempre
+# es la registrada como instalada: correr una copia del cache a propósito es
+# legítimo, y en ese caso la respuesta honesta es la de la copia. Recibe el
+# directorio de scripts.
+arnes_version_plugin() {
+  "$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' \
+      "$1/../.claude-plugin/plugin.json" 2>/dev/null || echo '?'
+}
+
+# ── El sha del código que se está ejecutando ────────────────────────────────
+# Se prefiere git a lo que diga el registro: el registro anota el commit del
+# clon del marketplace EN EL MOMENTO DE INSTALAR, así que sobre una copia
+# editada a mano —o sobre el propio clon de desarrollo, donde `main` ya avanzó—
+# mentiría. Sobre la copia instalada no hay `.git` y entonces sí manda el
+# registro. Si no se puede saber, no se inventa: se calla.
+#
+# El toplevel tiene que traer el manifiesto del plugin. Sin esa comprobación,
+# un arnés vendorizado dentro de otro proyecto contestaría el commit DE ESE
+# proyecto, que es un sha real y de otra cosa: la peor clase de respuesta.
+arnes_sha_git() {
+  local raiz top
+  raiz="$1"
+  top="$(git -C "$raiz" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [[ -f "$top/.claude-plugin/plugin.json" ]] || return 1
+  local sha
+  sha="$(git -C "$raiz" rev-parse --short HEAD 2>/dev/null)" || return 1
+  [[ -n "$(git -C "$raiz" status --porcelain 2>/dev/null)" ]] && sha="$sha-sucio"
+  printf '%s' "$sha"
+}

@@ -21,8 +21,7 @@ set -uo pipefail
 B=$'\033[1m'; D=$'\033[2m'; G=$'\033[0;32m'; Y=$'\033[1;33m'; N=$'\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/entorno.sh"
-VERSION="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' \
-           "$SCRIPT_DIR/../.claude-plugin/plugin.json" 2>/dev/null || echo '?')"
+VERSION="$(arnes_version_plugin "$SCRIPT_DIR")"
 
 cat <<AYUDA
 ${B}arnes${N} ${D}— ejecuta un plan de ingeniería un ítem por sesión.  v$VERSION${N}
@@ -80,6 +79,11 @@ ${B}COMPROBAR${N}
                                ${D}\`arnes --solo-anunciar\` NO lo comprueba: enseña la
                                ficha y el coste, pero sale antes de validarla.${N}
   arnes validar --al-cerrar 5.0   ¿quedó bien cerrado?
+  arnes --version              la versión y el commit, en una línea. Nada más.
+  arnes doctor                 ¿está sana la instalación? qué copia corre, qué
+                               versión tiene el lanzador, qué esquema el ledger,
+                               y qué copias viejas quedaron en el cache.
+  arnes doctor --limpiar       quita esas copias viejas. Conserva la instalada.
 AYUDA
 
 # ── Estado real, que es lo que convierte esto en algo consultable ───────────
