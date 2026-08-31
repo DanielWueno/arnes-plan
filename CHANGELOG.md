@@ -10,6 +10,36 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.12.1] — 2026-08-31
+
+### Corregido
+- **Un bloqueo cuyo bloqueante ya cerró dejaba de frenar.** `bloqueado_por`
+  documenta la arista, no su vigencia: nadie limpia el campo cuando el
+  bloqueante pasa a `hecho`. Las tres puertas preguntaban por la **presencia**
+  del campo, así que un ítem desbloqueado hacía semanas seguía pidiendo
+  confirmación en interactivo, era rechazado por `--desatendido` y se anunciaba
+  como bloqueado en cada sesión nueva. Ahora se consulta el **estado del
+  destino**. El validador ya sabía la respuesta —la informaba al final, como
+  "ítem(s) con el bloqueo ya cerrado"—, pero lo hacía en un sitio donde no
+  decidía nada, y `plan-run.sh` sólo vuelca esa salida cuando la validación
+  falla, que es precisamente cuando no es este caso.
+
+  Una guarda que salta cuando no toca se acaba saltando con `--igual`, la misma
+  bandera que desactiva las guardas legítimas. Ése era el daño real.
+
+  Un `bloqueado_por` que apunta a un id **inexistente** cuenta como bloqueo
+  vivo: el validador ya lo reporta como error aparte, y ante un id que nadie
+  puede resolver, frenar es lo conservador. Una errata en el campo no desactiva
+  la guarda en silencio.
+
+### Cambiado
+- **La ficha dice por qué un bloqueo no frena** (`esperaba a <id>, que ya está
+  hecho: no bloquea`) en vez de callarse. El campo sigue en el ledger y quien lo
+  lea lo va a ver; sin la línea, parecería que el arnés se comió un aviso.
+- **El visor marca la arista cerrada** junto a "Bloqueado por", en lugar de
+  presentarla igual que una vigente. Se marca y no se oculta: la arista es
+  cierta y su historia importa.
+
 ## [1.12.0] — 2026-08-31
 
 ### Añadido
@@ -422,6 +452,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.12.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.0...arnes-plan--v1.12.1
 [1.12.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.11.0...arnes-plan--v1.12.0
 [1.11.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.10.0...arnes-plan--v1.11.0
 [1.10.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.8.2...arnes-plan--v1.10.0

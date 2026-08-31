@@ -855,6 +855,100 @@ check "y el lanzador sigue ejecutándose"          "0" \
       "$(bash -n "$CASA_SELLO/.local/bin/arnes" >/dev/null 2>&1; echo $?)"
 cd "$ARNES"
 
+echo "23. Un bloqueo cuyo bloqueante ya cerró no frena a nadie"
+# `bloqueado_por` documenta la arista, no su vigencia: nadie limpia el campo al
+# cerrarse el bloqueante. Las puertas preguntaban por la PRESENCIA del campo, así
+# que un ítem desbloqueado hacía semanas seguía pidiendo confirmación en
+# interactivo y era rechazado en `--desatendido`, para siempre. Se prueban los
+# dos lados: el bloqueo vivo tiene que seguir frenando.
+cd "$PROY"
+fixture_bloqueo() { # fixture_bloqueo <estado del bloqueante>
+  python3 - "$1" <<'PY2'
+import json, sys
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+molde = dict(d['olas'][0]['items'][0])
+for nota in ('verificacion_comando', '_resultado', 'bloqueado_por'):
+    molde.pop(nota, None)
+molde.update(id='1.0-bloqueante', titulo='el bloqueante', modelo='haiku',
+             esfuerzo='low', horas_maquina=0, verificacion='n/a', rollback='n/a',
+             multiagente=False, por_que_este_modelo='prueba', estado=sys.argv[1])
+if sys.argv[1] == 'hecho':
+    molde['resultado'] = 'Cerrado en el fixture.'
+    molde.pop('rollback', None)
+dependiente = dict(molde, id='1.1-prueba', titulo='ítem de prueba',
+                   estado='pendiente', rollback='n/a',
+                   bloqueado_por='1.0-bloqueante')
+dependiente.pop('resultado', None)
+d['olas'][0]['items'] = [molde, dependiente]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY2
+  # El fixture se commitea: el árbol lo dejaron sucio las secciones anteriores y
+  # esa guarda dispararía primero, tapando justo lo que aquí se mide.
+  git add -A && git commit -qm "fixture de bloqueo ($1)"
+}
+
+fixture_bloqueo hecho
+SALIDA="$(bash "$ARNES/scripts/plan-run.sh" 1.1 --desatendido </dev/null 2>&1)"; CODE=$?
+check "bloqueante hecho: desatendido lanza"        "0"  "$CODE"
+check "y llegó a invocar a claude"                 "si" \
+      "$(grep -q 'claude-falso' <<<"$SALIDA" && echo si || echo no)"
+check "sin decir que está bloqueado"               "0"  \
+      "$(grep -c 'BLOQUEADO POR' <<<"$SALIDA")"
+# No basta con callarse: el campo sigue en la ficha y quien lea el ledger lo va
+# a ver. Si el arnés no dice por qué no frena, parece que se lo comió.
+check "y diciendo por qué no frena"                "si" \
+      "$(grep -q 'ya está hecho: no bloquea' <<<"$SALIDA" && echo si || echo no)"
+# Los otros dos consumidores del campo, que leen el mismo ledger y sacaban la
+# misma conclusión equivocada. El hook es el que más duele: abría CADA sesión
+# nueva declarando bloqueado un ítem que no lo está.
+LINEA_B="$(python3 "$ARNES/scripts/plan-siguiente-linea.py" 2>/dev/null \
+           | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' 2>/dev/null || true)"
+check "el hook no anuncia el bloqueo cerrado"      "0"  "$(grep -c 'BLOQUEADO POR' <<<"$LINEA_B")"
+check "y sigue diciendo qué ítem toca"             "si" \
+      "$(grep -q '1.1-prueba' <<<"$LINEA_B" && echo si || echo no)"
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/ver-bloqueo.html" --no-abrir >/dev/null 2>&1
+check "el visor marca la arista ya cerrada"        "si" \
+      "$(grep -q 'ya cerrado: no bloquea' "$TMP/ver-bloqueo.html" && echo si || echo no)"
+# Marcada, no borrada: la arista es cierta y su historia importa.
+check "y no la borra de la ficha"                  "si" \
+      "$(grep -q 'Bloqueado por' "$TMP/ver-bloqueo.html" && echo si || echo no)"
+# El escenario de riesgo: la guarda tiene que seguir existiendo.
+fixture_bloqueo pendiente
+SALIDA="$(bash "$ARNES/scripts/plan-run.sh" 1.1 --desatendido </dev/null 2>&1)"; CODE=$?
+check "bloqueante abierto: desatendido se niega"   "1"  "$CODE"
+check "y nombra el bloqueante"                     "si" \
+      "$(grep -q 'bloqueado por 1.0-bloqueante' <<<"$SALIDA" && echo si || echo no)"
+check "y no gastó nada"                            "0"  "$(grep -c 'claude-falso' <<<"$SALIDA")"
+# Para ver el aviso del hook, el bloqueante no puede ser él mismo elegible: el
+# hook coge el PRIMER pendiente por orden de documento, y ése sería el
+# bloqueante. `bloqueado` lo deja abierto —no cierra la arista— y fuera de la
+# elección, que es justo el caso en el que el aviso hace falta.
+fixture_bloqueo bloqueado
+LINEA_B="$(python3 "$ARNES/scripts/plan-siguiente-linea.py" 2>/dev/null \
+           | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' 2>/dev/null || true)"
+check "y el hook sí anuncia el bloqueo vivo"       "si" \
+      "$(grep -q 'BLOQUEADO POR: 1.0-bloqueante' <<<"$LINEA_B" && echo si || echo no)"
+# Un destino que no está en el ledger cuenta como bloqueo VIVO: ante un id que
+# nadie puede resolver, frenar es lo conservador. Sin esto, una errata en el
+# campo desactivaría la guarda en silencio, que es peor que el fallo original.
+python3 - <<'PY2'
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['olas'][0]['items'][1]['bloqueado_por'] = '1.0-bloqueannte'
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY2
+SALIDA="$(bash "$ARNES/scripts/plan-run.sh" 1.1 --desatendido --igual </dev/null 2>&1)"
+check "un id que no existe cuenta como bloqueo vivo" "si" \
+      "$(grep -q 'BLOQUEADO POR' <<<"$SALIDA" && echo si || echo no)"
+# El criterio de "cerrado" vive en dos sitios que no se pueden importar entre
+# sí: la constante del validador y el literal del resolutor de `plan-run.sh`. Si
+# alguien añade un estado a CERRADOS, esto falla y señala dónde está el gemelo.
+check "los dos criterios de cerrado no han divergido" "{'hecho'}" \
+      "$(sed -n "s/^CERRADOS = //p" "$ARNES/scripts/validar-ledger.py")"
+cd "$ARNES"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1

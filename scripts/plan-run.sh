@@ -19,8 +19,9 @@
 #                   habiendo alguien para confirmar una corrida larga.
 #   --desatendido   sin sesión interactiva (claude -p). Para los ítems mecánicos.
 #                   Se NIEGA si el ítem pide más de 1 hora de máquina, si lleva
-#                   multiagente o si está bloqueado: en modo -p no hay a quién
-#                   preguntar, y el protocolo exige preguntar en esos casos.
+#                   multiagente o si arrastra un bloqueo VIGENTE —el bloqueante
+#                   sigue abierto—: en modo -p no hay a quién preguntar, y el
+#                   protocolo exige preguntar en esos casos.
 #                   --igual salta esas guardas bajo tu responsabilidad, y
 #                   también la comprobación de que la ficha esté completa.
 #                   Acepta un techo de gasto: --desatendido=3  (dólares, def. 5)
@@ -184,6 +185,21 @@ if not elegido:
     print('ERROR\tNo hay ítem que encaje con: ' + (arg or '(siguiente pendiente)'))
     raise SystemExit(0)
 
+# Una arista de `bloqueado_por` bloquea sólo mientras su destino siga abierto.
+# El campo NO se limpia al cerrarse el bloqueante —el ledger documenta la
+# arista, no su vigencia—, así que preguntar por su presencia hacía que un ítem
+# ya desbloqueado siguiera pidiendo confirmación para siempre, y que
+# `--desatendido` lo rechazara. El validador ya sabía la respuesta y la
+# informaba al final; aquí, que es donde decide una puerta, se preguntaba otra
+# cosa. `hecho` es el mismo criterio que CERRADOS en validar-ledger.py, y la
+# suite fija que no diverjan. Un destino que no está en el ledger cuenta como
+# bloqueo VIVO: el validador lo reporta como error aparte, y ante un id que
+# nadie puede resolver, frenar es lo conservador.
+estados = {it['id']: it.get('estado')
+           for o in d['olas'] for it in o['items'] if 'id' in it}
+bloqueo = ' '.join(str(elegido.get('bloqueado_por') or '').split())
+bloqueo_cerrado = bloqueo if bloqueo and estados.get(bloqueo) == 'hecho' else ''
+
 campos = {
     'id': elegido['id'],
     'titulo': ' '.join(elegido['titulo'].split()),
@@ -196,7 +212,8 @@ campos = {
     'ola_nombre': ola_elegida['nombre'],
     'verificacion': ' '.join(elegido['verificacion'].split()),
     'bloquea': ' '.join(elegido.get('bloquea', '').split()),
-    'bloqueado_por': ' '.join(elegido.get('bloqueado_por', '').split()),
+    'bloqueado_por': '' if bloqueo_cerrado else bloqueo,
+    'bloqueo_cerrado': bloqueo_cerrado,
     'aviso_item': ' '.join(elegido.get('advertencia_de_coste', '').split()),
     'aviso_ola': ' '.join(ola_elegida.get('advertencia_de_coste', '').split()),
     'verif_cmd': ' '.join((elegido.get('verificacion_comando') or '').split()),
@@ -215,7 +232,8 @@ ID=$(campo id);         TITULO=$(campo titulo);   MODELO=$(campo modelo)
 ESFUERZO=$(campo esfuerzo); HORAS=$(campo horas);  ESTADO=$(campo estado)
 MULTI=$(campo multiagente); OLA=$(campo ola);      OLA_NOMBRE=$(campo ola_nombre)
 VERIF=$(campo verificacion); BLOQUEA=$(campo bloquea)
-BLOQ_POR=$(campo bloqueado_por); AVISO_I=$(campo aviso_item); AVISO_O=$(campo aviso_ola)
+BLOQ_POR=$(campo bloqueado_por); BLOQ_CERRADO=$(campo bloqueo_cerrado)
+AVISO_I=$(campo aviso_item); AVISO_O=$(campo aviso_ola)
 VERIF_CMD=$(campo verif_cmd)
 
 # ── Anuncio ─────────────────────────────────────────────────────────────────
@@ -238,6 +256,10 @@ echo -e "  ${DIM}verificación:${NC} $VERIF" | fold -s -w 76 | sed '2,$s/^/     
 # a medir al cerrar, y verlo antes es lo que evita discutirlo después.
 [[ -n "$VERIF_CMD" ]] && echo -e "  ${DIM}al cerrar:   ${NC} ${BOLD}$VERIF_CMD${NC}"
 [[ -n "$BLOQ_POR" ]] && { echo; echo -e "  ${RED}BLOQUEADO POR:${NC} $BLOQ_POR" | fold -s -w 76 | sed '2,$s/^/    /'; }
+# El bloqueo que ya cerró se dice, en vez de callarse: el campo sigue en la
+# ficha y quien lea el ledger lo va a ver. Decir por qué NO frena es lo que
+# evita que la próxima persona lo lea como un aviso que el arnés se comió.
+[[ -n "$BLOQ_CERRADO" ]] && { echo; echo -e "  ${DIM}esperaba a $BLOQ_CERRADO, que ya está hecho: no bloquea${NC}" | fold -s -w 76 | sed '2,$s/^/    /'; }
 [[ -n "$BLOQUEA"  ]] && { echo; echo -e "  ${YELLOW}ESTE ÍTEM BLOQUEA:${NC} $BLOQUEA" | fold -s -w 76 | sed '2,$s/^/    /'; }
 [[ -n "$AVISO_O"  ]] && { echo; echo -e "  ${YELLOW}COSTE (ola):${NC} $AVISO_O" | fold -s -w 76 | sed '2,$s/^/    /'; }
 [[ -n "$AVISO_I"  ]] && { echo; echo -e "  ${YELLOW}COSTE (ítem):${NC} $AVISO_I" | fold -s -w 76 | sed '2,$s/^/    /'; }
