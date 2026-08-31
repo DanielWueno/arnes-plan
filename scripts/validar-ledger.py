@@ -164,6 +164,55 @@ def revisar_item(it, donde, errores, ids=None, exigir_cierre=False):
         errores.append(f'{donde} ({iid}): horas_maquina debe ser un número')
 
 
+def revisar_bloqueos(orden, errores):
+    """Las aristas de `bloqueado_por`, contra el orden del documento.
+
+    El arnés elige el siguiente ítem con una regla lineal —el primero cuyo
+    estado sea `pendiente` o `en_curso`— y NO consulta `bloqueado_por`. O sea:
+    el ledger no planifica, ordena. La posición en el fichero ES el calendario,
+    y `bloqueado_por` sólo lo documenta.
+
+    Esa regla es correcta mientras se cumpla un invariante: toda arista apunta
+    hacia atrás. Si un ítem depende de otro que viene después, el arnés propone
+    el bloqueado —avisa, pero no lo salta—, y eso es lo que pasa por defecto
+    cuando un hallazgo nuevo se añade al final y algo anterior pasa a depender
+    de él.
+
+    Se comprueba sólo en los ítems que aún van a ejecutarse, por la misma razón
+    que `rollback`: un ítem ya cerrado no se va a mover de sitio, y reclamárselo
+    sería ruido permanente.
+    """
+    posicion = {it['id']: i for i, (it, _) in enumerate(orden) if 'id' in it}
+    estado = {it['id']: it.get('estado') for it, _ in orden if 'id' in it}
+
+    for i, (it, donde) in enumerate(orden):
+        destino = it.get('bloqueado_por')
+        if not destino or not str(destino).strip():
+            continue
+        iid = it.get('id', '?')
+        destino = str(destino).strip()
+
+        if destino not in posicion:
+            errores.append(
+                f'{donde} ({iid}): bloqueado_por "{destino}" no es el id de '
+                f'ningún ítem. Tiene que ser el id literal, no una frase: si '
+                f'nadie puede resolverlo, no lo comprueba nadie.')
+            continue
+
+        # Sólo para lo que aún va a ejecutarse: mover un ítem cerrado no es
+        # una opción, así que exigirle la dirección no arregla nada.
+        if it.get('estado') in EJECUTABLES and posicion[destino] > i:
+            errores.append(
+                f'{donde} ({iid}): bloqueado_por "{destino}" apunta a un ítem '
+                f'POSTERIOR. El arnés elige por orden de documento y no lee '
+                f'este campo, así que llegaría a {iid} con su bloqueo sin '
+                f'cerrar. Mueve {iid} después de {destino}.')
+            continue
+
+        if estado.get(destino) in CERRADOS:
+            it['_desbloqueado'] = destino
+
+
 def informar(errores, ruta):
     print(f'✗ {len(errores)} problema(s) en {ruta}:', file=sys.stderr)
     for e in errores:
@@ -241,7 +290,7 @@ def main():
         return 1
 
     # ── Ledger completo ─────────────────────────────────────────────────────
-    ids, numeros = {}, []
+    ids, numeros, orden = {}, [], []
     for n, o in enumerate(data['olas']):
         donde = f"olas[{n}]"
         faltan = CAMPOS_OLA - set(o)
@@ -254,9 +303,12 @@ def main():
         numeros.append(o['ola'])
         for m, it in enumerate(o['items']):
             revisar_item(it, sitio(o, n, m), errores, ids)
+            orden.append((it, sitio(o, n, m)))
 
     if len(set(numeros)) != len(numeros):
         errores.append(f'Números de ola repetidos: {numeros}')
+
+    revisar_bloqueos(orden, errores)
 
     if errores:
         return informar(errores, ruta)
@@ -277,6 +329,19 @@ def main():
         print(f'  ⚠ {len(derivadas)} campos fuera del esquema: {muestra}')
         print(f'    El arnés no los lee. Si son rastro del cierre, van en '
               f'`resultado`; con `_` delante se ignoran.')
+
+    # Informe, no error: que el bloqueo de un ítem haya cerrado es lo que pasa
+    # cada vez que se cierra algo. Convertirlo en error haría fallar el ledger
+    # en el caso más normal, y un validador que grita cuando todo está bien se
+    # deja de leer. Pero sin decirlo, un ítem se queda ejecutable y nadie se
+    # entera: el campo no cambia al cerrarse su bloqueante.
+    listos = [(it.pop('_desbloqueado'), it['id']) for o in data['olas']
+              for it in o['items']
+              if '_desbloqueado' in it and it['estado'] in EJECUTABLES]
+    if listos:
+        print(f'  → {len(listos)} ítem(s) con el bloqueo ya cerrado:')
+        for destino, iid in listos:
+            print(f'    {iid} esperaba a {destino}, que está hecho.')
     return 0
 
 

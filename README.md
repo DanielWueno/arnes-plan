@@ -105,7 +105,7 @@ Los comandos van **cualificados con el nombre del plugin**. La forma corta
 espacio de nombres. Escribiendo `/plan` el autocompletado ya te ofrece la forma correcta.
 | `scripts/plan-run.sh` | Lanza un ítem en una **sesión nueva** de Claude Code: contexto limpio de verdad, no un `/clear`. Anuncia el ítem antes y frena si algo no cuadra. |
 | Hook `SessionStart` | Cada sesión arranca sabiendo qué ítem toca. Lo resuelve un script, así que averiguarlo cuesta cero tokens. |
-| `scripts/validar-ledger.py` | Comprueba que el ledger está bien formado. Un campo mal escrito no rompe nada visiblemente: sólo hace que la próxima invocación elija mal. Con `--item ID` juzga una sola ficha, que es como lo llama `plan-run.sh` antes de gastar. |
+| `scripts/validar-ledger.py` | Comprueba que el ledger está bien formado, y que las aristas de `bloqueado_por` son honrables por el orden del documento. Un campo mal escrito no rompe nada visiblemente: sólo hace que la próxima invocación elija mal. Con `--item ID` juzga una sola ficha, que es como lo llama `plan-run.sh` antes de gastar. |
 
 ---
 
@@ -438,6 +438,26 @@ Cada ítem lleva estos campos, y todos son obligatorios:
 Opcionales que valen su peso: `archivos` (qué toca — evita que el ítem se desborde), `rollback`
 (cómo se revierte; si no lo sabes escribir, el ítem no está listo), `bloquea` / `bloqueado_por`,
 y `origen` (por qué existe este ítem).
+
+#### `bloqueado_por` apunta hacia atrás, siempre
+
+El arnés elige el siguiente ítem con una regla lineal —el primero cuyo estado sea `pendiente` o
+`en_curso`— y **no lee `bloqueado_por`**. Dicho de otro modo: el ledger no planifica, ordena. La
+posición en el fichero *es* el calendario, y `bloqueado_por` sólo lo documenta.
+
+Eso funciona mientras se cumpla un invariante: **toda arista apunta hacia atrás**. Si un ítem
+depende de otro que viene después, el arnés llega antes al bloqueado y lo propone; avisa, pero no lo
+salta. Y no es un caso raro: es lo que pasa por defecto cuando un hallazgo nuevo se añade al final y
+algo anterior pasa a depender de él.
+
+El validador lo comprueba, y dice dónde mover el ítem. Dos matices deliberados:
+
+- Sólo se exige a los ítems `pendiente` y `en_curso`. Uno ya cerrado no se va a mover de sitio, así
+  que reclamárselo sería ruido permanente — la misma razón por la que `rollback` tampoco se pide
+  hacia atrás.
+- Que el bloqueante ya esté `hecho` **no es un error**, es lo que pasa cada vez que se cierra algo.
+  Se informa al final de la validación, porque el campo no cambia solo y si no se dice, un ítem se
+  queda ejecutable sin que nadie se entere.
 
 Y dos que sostienen las puertas de cierre:
 

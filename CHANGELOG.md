@@ -6,6 +6,36 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+## [1.11.0] — 2026-08-31
+
+### Añadido
+- **El validador comprueba las aristas de `bloqueado_por`.** El arnés elige el
+  siguiente ítem por orden de documento y no lee ese campo: el ledger no
+  planifica, ordena, y la posición en el fichero es el calendario. Eso sólo es
+  correcto mientras toda arista apunte hacia atrás. Ahora se rechazan las dos
+  formas de romperlo: un `bloqueado_por` que no es el id de ningún ítem —una
+  frase en prosa, que ninguna comprobación puede resolver— y uno que apunta a un
+  ítem posterior, que llevaría al arnés a proponer el bloqueado con su
+  precondición sin cerrar. El error dice dónde mover el ítem.
+- **Informe de ítems con el bloqueo ya cerrado.** Al final de una validación que
+  pasa, junto al aviso de campos fuera de esquema. Deliberadamente **no** es un
+  error: que el bloqueante esté `hecho` es lo que ocurre cada vez que se cierra
+  algo, y hacerlo fallar convertiría el caso normal en rojo — un validador que
+  grita cuando todo está bien deja de leerse. Pero callarlo tampoco sirve: el
+  campo no cambia al cerrarse su bloqueante, así que un ítem se queda ejecutable
+  y no se entera nadie. En el consumidor real había dos así, encontrados por
+  casualidad en revisiones que iban de otra cosa.
+
+### Notas de actualización
+- La comprobación de dirección se aplica **sólo** a los ítems `pendiente` y
+  `en_curso`, por la misma razón que `rollback` no se reclama hacia atrás: un
+  ítem cerrado no se va a mover de sitio y exigírselo sería ruido permanente.
+  Aun así, un ledger en uso con una arista hacia adelante en un ítem por
+  ejecutar pasará a fallar la validación. La corrección es mover el ítem después
+  de su bloqueante, que es lo que el orden ya tenía que reflejar.
+- El formato del ledger no cambia: no hay campos nuevos ni renombrados, así que
+  `schema_version` sigue en 1.
+
 ## [1.10.0] — 2026-08-26
 
 ### Añadido
