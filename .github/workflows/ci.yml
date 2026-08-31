@@ -14,7 +14,11 @@ jobs:
   prueba:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Fijada al commit, no a la etiqueta: `@v7` es un puntero que su
+      # dueño puede mover, así que quien controle esa etiqueta decide qué
+      # código corre aquí. El sha no se mueve. El comentario lleva la
+      # versión legible, porque un sha a pelo no dice a qué corresponde.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Sintaxis de los scripts
         run: |
