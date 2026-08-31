@@ -230,7 +230,7 @@ tener plantilla sería el peor fallo posible en un visor, porque no se nota.
 ### Qué versión corro, y está sana
 
 ```bash
-arnes --version    # arnes 1.12.0 (8952ea2)  — una línea, y nada más
+arnes --version    # arnes 1.12.0 (12fc26a)  — una línea, y nada más
 arnes doctor       # el cuadro completo: rutas, lanzador, esquema, cache
 ```
 

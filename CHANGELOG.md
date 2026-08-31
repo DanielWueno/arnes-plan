@@ -6,10 +6,14 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 El **mayor** cambia cuando cambia el formato del ledger, porque eso obliga a
 tocar los ledgers en uso. Un menor añade campos que un lector viejo ignora.
 
+Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
+el número de cada entrada enlaza con lo que cambió respecto a la anterior.
+No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
+
 ## [1.12.0] — 2026-08-31
 
 ### Añadido
-- **`arnes --version`.** Una línea: `arnes 1.12.0 (8952ea2)`. Hasta ahora la
+- **`arnes --version`.** Una línea: `arnes 1.12.0 (12fc26a)`. Hasta ahora la
   bandera no existía y caía en el "Bandera desconocida" de `plan-run.sh` con
   salida 1; `-V` y `version` era peor, se interpretaban como id de ítem y
   contestaban "No hay ítem que encaje con: -V". El número sólo se podía leer
@@ -417,3 +421,22 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
 - `instalar.sh`. Copiaba los archivos al repositorio destino, que es el modelo
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
+
+[1.12.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.11.0...arnes-plan--v1.12.0
+[1.11.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.10.0...arnes-plan--v1.11.0
+[1.10.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.8.2...arnes-plan--v1.10.0
+[1.8.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.8.1...arnes-plan--v1.8.2
+[1.8.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.8.0...arnes-plan--v1.8.1
+[1.8.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.7.0...arnes-plan--v1.8.0
+[1.7.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.6.1...arnes-plan--v1.7.0
+[1.6.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.6.0...arnes-plan--v1.6.1
+[1.6.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.5.3...arnes-plan--v1.6.0
+[1.5.3]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.5.2...arnes-plan--v1.5.3
+[1.5.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.5.1...arnes-plan--v1.5.2
+[1.5.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.5.0...arnes-plan--v1.5.1
+[1.5.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.4.0...arnes-plan--v1.5.0
+[1.4.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.3.0...arnes-plan--v1.4.0
+[1.3.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.2.0...arnes-plan--v1.3.0
+[1.2.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.1.0...arnes-plan--v1.2.0
+[1.1.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.0.0...arnes-plan--v1.1.0
+[1.0.0]: https://github.com/DanielWueno/arnes-plan/tree/arnes-plan--v1.0.0
