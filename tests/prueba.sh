@@ -666,6 +666,66 @@ check "ni la ayuda las imprime" "0" \
       "$(grep -cE 'arnes-plan/[0-9]+\.[0-9]+\.[0-9]+' <<<"$AYUDA_TXT" || true)"
 cd "$ARNES"
 
+echo "21. Una arista de bloqueo que el orden lineal no puede honrar"
+# El arnés elige por orden de documento y NO lee `bloqueado_por`: la posición
+# ES el calendario. Una arista hacia adelante lo lleva a proponer un ítem con
+# el bloqueo sin cerrar, avisando pero sin saltarlo.
+cd "$ARNES"
+FIX="$TMP/bloqueos"; mkdir -p "$FIX"
+python3 - "$ARNES" "$FIX" <<'PY'
+import json, sys
+plantilla, destino = sys.argv[1] + '/plantillas/ledger.plantilla.json', sys.argv[2]
+base = json.load(open(plantilla, encoding='utf-8'))
+molde = base['olas'][0]['items'][0]
+
+def item(iid, estado, bloqueado_por=None):
+    it = dict(molde, id=iid, estado=estado)
+    it.pop('resultado', None)
+    if estado == 'hecho':
+        it['resultado'] = 'Cerrado en el fixture.'
+    if bloqueado_por:
+        it['bloqueado_por'] = bloqueado_por
+    return it
+
+def escribir(nombre, items):
+    d = json.loads(json.dumps(base))
+    d['olas'] = [dict(base['olas'][0], items=items)]
+    json.dump(d, open(f'{destino}/{nombre}.json', 'w', encoding='utf-8'),
+              indent=2, ensure_ascii=False)
+
+escribir('fantasma',  [item('1.1-a', 'pendiente', '4.2 (ver el campo bloquea)')])
+escribir('adelante',  [item('1.1-a', 'pendiente', '1.2-b'), item('1.2-b', 'pendiente')])
+escribir('atras',     [item('1.1-a', 'pendiente'), item('1.2-b', 'pendiente', '1.1-a')])
+escribir('cerrado',   [item('1.1-a', 'hecho'),     item('1.2-b', 'pendiente', '1.1-a')])
+escribir('historico', [item('1.1-a', 'hecho', '1.2-b'), item('1.2-b', 'pendiente')])
+PY
+for caso in fantasma adelante; do
+  check "\`$caso\`: se niega" "1" \
+        "$($V "$FIX/$caso.json" >/dev/null 2>&1; echo $?)"
+done
+# `pipefail` está activo y el validador sale 1 a propósito, así que la salida se
+# captura antes de mirarla: en una tubería, el 1 del validador sería el estado.
+FANTASMA="$($V "$FIX/fantasma.json" 2>&1 || true)"
+ADELANTE="$($V "$FIX/adelante.json" 2>&1 || true)"
+check "el id inexistente se nombra en el error" "si" \
+      "$(grep -q 'no es el id de' <<<"$FANTASMA" && echo si || echo no)"
+check "y el error de dirección dice dónde mover" "si" \
+      "$(grep -q 'Mueve 1.1-a despu' <<<"$ADELANTE" && echo si || echo no)"
+check "arista hacia atrás: pasa" "0" \
+      "$($V "$FIX/atras.json" >/dev/null 2>&1; echo $?)"
+# La dirección sólo se exige a lo que aún va a ejecutarse. Un ítem cerrado no se
+# va a mover de sitio, así que reclamársela sería ruido permanente — la misma
+# razón por la que `rollback` no se pide hacia atrás.
+check "arista hacia adelante en un ítem cerrado: pasa" "0" \
+      "$($V "$FIX/historico.json" >/dev/null 2>&1; echo $?)"
+# Que el bloqueo haya cerrado NO es un error: pasa cada vez que se cierra algo.
+# Pero sin decirlo, el ítem se queda ejecutable y nadie se entera.
+check "bloqueante ya cerrado: pasa" "0" \
+      "$($V "$FIX/cerrado.json" >/dev/null 2>&1; echo $?)"
+CERRADO="$($V "$FIX/cerrado.json" 2>&1 || true)"
+check "y lo informa" "si" \
+      "$(grep -q '1.2-b esperaba a 1.1-a' <<<"$CERRADO" && echo si || echo no)"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1

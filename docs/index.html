@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.10.0</p>
+    <p class="eyebrow">arnes-plan · v1.11.0</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -627,7 +627,7 @@ stateDiagram-v2
           <tr><td class="libre">El árbol tiene cambios sin commitear, y el ítem cierra con commit: se los llevaría por delante. Cuenta lo modificado y lo preparado; <strong>los ficheros nuevos sin <code>git add</code> no lo disparan</strong>, aunque un <code>git add -A</code> de cierre sí se los lleve.</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
           <tr><td class="libre">El ítem lleva <code>multiagente</code>, que el fichero de estado reserva para lo supervisado.</td><td><span class="marca sigue">sigue</span></td><td><span class="marca para">se niega</span></td></tr>
           <tr><td class="libre">El fichero de estado lo marca <code>opus</code>: donde el criterio <em>es</em> el trabajo.</td><td><span class="marca sigue">sigue</span></td><td><span class="marca para">se niega</span></td></tr>
-          <tr><td class="libre">El resto del fichero de estado tiene problemas que no afectan a este ítem —un id repetido, un número de ola escrito como texto—.</td><td><span class="marca sigue">avisa y sigue</span></td><td><span class="marca sigue">avisa y sigue</span></td></tr>
+          <tr><td class="libre">El resto del fichero de estado tiene problemas que no afectan a este ítem —un id repetido, un número de ola escrito como texto, un <code>bloqueado_por</code> que no resuelve o que apunta hacia adelante—.</td><td><span class="marca sigue">avisa y sigue</span></td><td><span class="marca sigue">avisa y sigue</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -690,7 +690,7 @@ stateDiagram-v2
           <tr><td><code>rollback</code></td><td class="libre">Obligatorio sólo en <code>pendiente</code> y <code>en_curso</code>: si no sabes escribir cómo se revierte, el ítem no está listo. Un valor en blanco cuenta como ausente.</td></tr>
           <tr><td><code>resultado</code></td><td class="libre">Se exige en el momento de cerrar. Un <code>hecho</code> sin <code>resultado</code> es un <code>hecho</code> optimista con otro nombre.</td></tr>
           <tr><td><code>verificacion_comando</code></td><td class="libre">Opcional, y lo que convierte la verificación en mecánica: se ejecuta al cerrar, fuera de la sesión.</td></tr>
-          <tr><td><code>bloqueado_por</code></td><td class="libre">Opcional. El id del ítem que lo bloquea.</td></tr>
+          <tr><td><code>bloqueado_por</code></td><td class="libre">Opcional. El <strong>id literal</strong> del ítem que lo bloquea; una frase no la resuelve nadie. Tiene que apuntar a un ítem <strong>anterior</strong> en el fichero: el arnés elige por orden de documento y no lee este campo, así que una arista hacia adelante le hace proponer el bloqueado. Se exige sólo en <code>pendiente</code> y <code>en_curso</code>. Que el bloqueante ya esté <code>hecho</code> no es un error: se informa al final.</td></tr>
           <tr><td><code>bloquea</code>, <code>origen</code>, <code>archivos</code>, <code>commit</code>, <code>fecha</code>, <code>advertencia_de_coste</code>, <code>razon_del_descarte</code></td><td class="libre">Opcionales y <strong>parte del esquema</strong>: no disparan el aviso de campo desconocido, y varios se leen y se enseñan en el anuncio previo del ítem.</td></tr>
         </tbody>
       </table>
