@@ -297,7 +297,7 @@ fue del scroll, o para decidir antes de lanzar si el ítem va a pasar.
 | Antes de gastar | Interactivo y `--auto` | `--desatendido` |
 |---|---|---|
 | La ficha del ítem está incompleta: falta un campo obligatorio, o el `rollback` que se exige a lo que aún va a ejecutarse | **no lanza** | **no lanza** |
-| El ítem está bloqueado (`bloqueado_por`) | pregunta | **se niega** |
+| El ítem arrastra un bloqueo **vigente**: `bloqueado_por` apunta a un ítem que no está `hecho` | pregunta | **se niega** |
 | Pide **más de una hora** de máquina | pregunta | **se niega** |
 | El árbol tiene cambios sin commitear — lo modificado y lo preparado; **un fichero nuevo sin `git add` no la dispara**, aunque un `git add -A` de cierre sí se lo lleve | pregunta | **se niega** |
 | El ítem lleva `multiagente` | sigue | **se niega** |
@@ -321,7 +321,8 @@ modos interactivos. El único que no pregunta nunca es `--desatendido`, y por es
 |---|---|
 | `No lanzo <id>: la ficha está incompleta` | Falta un campo obligatorio; el validador dice cuál justo encima. Complétalo, o `--igual`. |
 | `No lanzo <id> desatendido` | Una o más guardas. Debajo van todos los motivos. Córrelo sin `--desatendido`, o con `--igual`. |
-| `Está bloqueado. ¿Ejecutar de todas formas?` | El ítem declara `bloqueado_por`. Responder que no cancela sin gastar nada. |
+| `Está bloqueado. ¿Ejecutar de todas formas?` | El ítem declara un `bloqueado_por` cuyo destino sigue abierto. Responder que no cancela sin gastar nada. |
+| `esperaba a <id>, que ya está hecho: no bloquea` | El ítem declara `bloqueado_por`, pero el bloqueante cerró. No frena, y se dice en voz alta porque el campo sigue en la ficha: si no, parecería que el arnés se comió un aviso. |
 | `El árbol tiene cambios sin commitear` | El ítem cierra con commit y se los llevaría. Commitea o guarda lo tuyo antes. |
 | `No encuentro el ledger.` | No hay ledger donde se busca. `arnes arrancar` lo siembra sin pisar nada. Con `PLAN_LEDGER`, revisa la ruta: **no cae de vuelta a la búsqueda normal**, así que una errata da este mismo mensaje aun teniendo un ledger válido en su sitio. |
 | `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. |
@@ -481,8 +482,9 @@ y `origen` (por qué existe este ítem).
 #### `bloqueado_por` apunta hacia atrás, siempre
 
 El arnés elige el siguiente ítem con una regla lineal —el primero cuyo estado sea `pendiente` o
-`en_curso`— y **no lee `bloqueado_por`**. Dicho de otro modo: el ledger no planifica, ordena. La
-posición en el fichero *es* el calendario, y `bloqueado_por` sólo lo documenta.
+`en_curso`— y **no lee `bloqueado_por` para elegir**: lo lee después, para decidir si frena. Dicho
+de otro modo: el ledger no planifica, ordena. La posición en el fichero *es* el calendario, y
+`bloqueado_por` documenta la arista.
 
 Eso funciona mientras se cumpla un invariante: **toda arista apunta hacia atrás**. Si un ítem
 depende de otro que viene después, el arnés llega antes al bloqueado y lo propone; avisa, pero no lo
@@ -497,6 +499,22 @@ El validador lo comprueba, y dice dónde mover el ítem. Dos matices deliberados
 - Que el bloqueante ya esté `hecho` **no es un error**, es lo que pasa cada vez que se cierra algo.
   Se informa al final de la validación, porque el campo no cambia solo y si no se dice, un ítem se
   queda ejecutable sin que nadie se entere.
+
+#### El campo documenta la arista; el estado del destino dice si sigue viva
+
+Nadie limpia `bloqueado_por` cuando el bloqueante cierra —el ledger registra que la arista existió,
+no que siga vigente—, así que **la presencia del campo no es la respuesta a "¿está bloqueado?"**. La
+respuesta es el estado del ítem al que apunta: mientras no esté `hecho`, la arista frena; en cuanto
+lo está, deja de frenar y así se dice.
+
+Las tres puertas lo consultan igual: la que pregunta en interactivo, la que se niega en
+`--desatendido` y la línea que el hook de arranque escribe en cada sesión nueva. Un destino que
+**no existe en el ledger** cuenta como bloqueo vivo: el validador lo reporta como error aparte, y
+ante un id que nadie puede resolver, frenar es lo conservador — una errata en el campo no debe
+desactivar la guarda en silencio.
+
+En el visor, la arista cerrada se **marca**, no se borra: sigue siendo cierta y su historia importa;
+lo único que cambió es que ya no frena.
 
 Y dos que sostienen las puertas de cierre:
 

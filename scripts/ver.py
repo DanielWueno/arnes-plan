@@ -43,7 +43,8 @@ Lo que este visor NO hace, a propósito: dibujar un grafo de dependencias.
 medición de recall de las olas 5 y 6: ..."), no listas de ids. Sólo
 `bloqueado_por` lleva un id, y sólo cuando ese id existe se convierte en
 enlace. Un grafo inventado a base de adivinar ids dentro de un párrafo sería
-más bonito y menos cierto.
+más bonito y menos cierto. Lo único que sí se deduce de la arista es si sigue
+viva: el destino cerrado se marca, porque nadie limpia el campo al cerrarlo.
 """
 import argparse
 import hashlib
@@ -319,9 +320,18 @@ def tarjeta(it, ids_conocidos):
     cuerpo = []
     for clave, etiqueta in DETALLE:
         if clave in it and it[clave] not in (None, '', [], {}):
-            cuerpo.append('<div class="campo c-%s"><dt>%s</dt><dd>%s</dd></div>' % (
-                e(clave), e(etiqueta),
-                valor_html(it[clave], ids_conocidos, enlazar=(clave == 'bloqueado_por'))))
+            valor = valor_html(it[clave], ids_conocidos,
+                               enlazar=(clave == 'bloqueado_por'))
+            # El campo no se limpia cuando el bloqueante cierra, así que sin esta
+            # marca la ficha de un ítem perfectamente ejecutable sigue diciendo
+            # "Bloqueado por" para siempre. Se marca, no se oculta: la arista es
+            # cierta y su historia importa; lo que cambió es que ya no frena.
+            if (clave == 'bloqueado_por'
+                    and isinstance(ids_conocidos, dict)
+                    and ids_conocidos.get(str(it[clave]).strip()) == 'hecho'):
+                valor += ' <span class="chip">ya cerrado: no bloquea</span>'
+            cuerpo.append('<div class="campo c-%s"><dt>%s</dt><dd>%s</dd></div>'
+                          % (e(clave), e(etiqueta), valor))
 
     # Todo lo que el esquema no previó. Ver el docstring: esto es el punto.
     conocidas = EN_CABECERA | set(k for k, _ in DETALLE)
@@ -403,7 +413,10 @@ def generar(ledger_ruta, version='?', proyecto=None):
     r = resumen(olas)
     sig, sig_ola = elegir_siguiente(olas)
     avisos = avisos_del_validador(ledger_ruta)
-    ids = set(str(i.get('id')) for o in olas for i in o.get('items', []) if i.get('id'))
+    # id -> estado, no un conjunto de ids: `bloqueado_por` necesita saber si su
+    # destino sigue abierto para no pintar como bloqueo uno que ya cerró.
+    ids = {str(i.get('id')): i.get('estado')
+           for o in olas for i in o.get('items', []) if i.get('id')}
     proyecto = proyecto or raiz()
     nombre = os.path.basename(proyecto.rstrip('/')) or 'proyecto'
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M')

@@ -57,8 +57,17 @@ def main():
         f"{elegido['horas_maquina']} h de máquina · {pendientes} ítems pendientes en total.\n"
         f"{titulo}"
     )
-    if elegido.get('bloqueado_por'):
-        linea += f"\nBLOQUEADO POR: {' '.join(elegido['bloqueado_por'].split())}"
+    # `bloqueado_por` documenta la arista, no su vigencia: nadie limpia el campo
+    # cuando el bloqueante cierra. Anunciarlo por presencia hacía que cada sesión
+    # nueva abriera declarando bloqueado un ítem desbloqueado hacía semanas, y un
+    # aviso que miente se deja de leer. Se mira el estado del destino; el que no
+    # está en el ledger se anuncia igual, porque un id que nadie resuelve es
+    # justo lo que hay que ver. El desbloqueo NO se anuncia: el contrato de esta
+    # línea es decir qué toca, y una arista cerrada no cambia qué toca.
+    bloqueo = ' '.join(str(elegido.get('bloqueado_por') or '').split())
+    estados = {i['id']: i.get('estado') for o in olas for i in o['items'] if 'id' in i}
+    if bloqueo and estados.get(bloqueo) != 'hecho':
+        linea += f"\nBLOQUEADO POR: {bloqueo}"
     # NUNCA una ruta con la versión clavada. Se imprimía la del script hermano,
     # que incluye el número de versión del plugin: en cuanto alguien actualiza,
     # la consola que quedó abierta antes sigue ofreciendo un camino directo a

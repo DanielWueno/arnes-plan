@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.12.0</p>
+    <p class="eyebrow">arnes-plan · v1.12.1</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -612,7 +612,7 @@ stateDiagram-v2
         </tbody>
       </table>
     </div>
-    <p class="col"><strong><code>--auto</code> actúa sobre los permisos, no sobre las guardas.</strong> Un ítem lanzado con <code>--auto</code> se detiene igual a preguntar si está bloqueado, si pide más de una hora de máquina o si el árbol tiene cambios sin commitear: las tres puertas siguen activas en los dos modos interactivos. <code>--desatendido</code> es el único que no pregunta, y por eso es el único que <em>se niega</em> en lugar de preguntar.</p>
+    <p class="col"><strong><code>--auto</code> actúa sobre los permisos, no sobre las guardas.</strong> Un ítem lanzado con <code>--auto</code> se detiene igual a preguntar si arrastra un bloqueo vigente, si pide más de una hora de máquina o si el árbol tiene cambios sin commitear: las tres puertas siguen activas en los dos modos interactivos. <code>--desatendido</code> es el único que no pregunta, y por eso es el único que <em>se niega</em> en lugar de preguntar.</p>
     <p class="col">Que <code>--desatendido</code> no pida permisos es lo que lo hace funcionar —el protocolo empieza leyendo el fichero de estado con un script, y sin nadie que apruebe esa llamada la sesión abre y no hace nada—, pero es una escalada real de permisos. De ahí que cargue las guardas más duras y un techo de gasto obligatorio.</p>
   </section>
 
@@ -625,7 +625,7 @@ stateDiagram-v2
         <thead><tr><th>Antes de gastar</th><th>Interactivo y <code>--auto</code></th><th><code>--desatendido</code></th></tr></thead>
         <tbody>
           <tr><td class="libre">La ficha del ítem está incompleta: le falta un campo obligatorio, o el <code>rollback</code> que se les exige a los ítems que aún van a ejecutarse.</td><td><span class="marca para">no lanza</span></td><td><span class="marca para">no lanza</span></td></tr>
-          <tr><td class="libre">El ítem está bloqueado (<code>bloqueado_por</code>).</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
+          <tr><td class="libre">El ítem arrastra un bloqueo <strong>vigente</strong>: su <code>bloqueado_por</code> apunta a un ítem que todavía no está <code>hecho</code>.</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
           <tr><td class="libre">El ítem pide <strong>más de una hora</strong> de máquina.</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
           <tr><td class="libre">El árbol tiene cambios sin commitear, y el ítem cierra con commit: se los llevaría por delante. Cuenta lo modificado y lo preparado; <strong>los ficheros nuevos sin <code>git add</code> no lo disparan</strong>, aunque un <code>git add -A</code> de cierre sí se los lleve.</td><td><span class="marca pregunta">pregunta</span></td><td><span class="marca para">se niega</span></td></tr>
           <tr><td class="libre">El ítem lleva <code>multiagente</code>, que el fichero de estado reserva para lo supervisado.</td><td><span class="marca sigue">sigue</span></td><td><span class="marca para">se niega</span></td></tr>
@@ -658,7 +658,8 @@ stateDiagram-v2
         <tbody>
           <tr><td class="libre"><code class="dice">la ficha está incompleta</code></td><td class="libre">Falta un campo obligatorio del ítem. El validador dice cuál justo encima. Complétalo, o añade <code>--igual</code>.</td></tr>
           <tr><td class="libre"><code class="dice">desatendido:</code> y una lista</td><td class="libre">Una o más guardas de la tabla anterior; debajo van <em>todos</em> los motivos. Córrelo sin <code>--desatendido</code>, o con <code>--igual</code> si sabes por qué.</td></tr>
-          <tr><td class="libre"><code class="dice">Está bloqueado.</code></td><td class="libre">El ítem declara <code>bloqueado_por</code>. Responder que no cancela sin gastar nada, y sale con código 0.</td></tr>
+          <tr><td class="libre"><code class="dice">Está bloqueado.</code></td><td class="libre">El ítem declara un <code>bloqueado_por</code> cuyo destino sigue abierto. Responder que no cancela sin gastar nada, y sale con código 0.</td></tr>
+          <tr><td class="libre"><code class="dice">que ya está hecho: no bloquea</code></td><td class="libre">La línea entera nombra el bloqueante: <em>esperaba a &lt;id&gt;, que ya está hecho: no bloquea</em>. El ítem declara <code>bloqueado_por</code>, pero el bloqueante ya cerró: la arista no frena. Se dice en voz alta porque el campo sigue en el fichero de estado y, callándolo, parecería que el arnés se comió un aviso.</td></tr>
           <tr><td class="libre"><code class="dice">No se lanza por iniciativa propia.</code></td><td class="libre">Pide más de una hora de máquina. Es una confirmación, no un rechazo: la decides tú.</td></tr>
           <tr><td class="libre"><code class="dice">El árbol tiene cambios sin commitear.</code></td><td class="libre">El ítem cierra con commit y se los llevaría. Debajo sale el <code>git status</code>. Commitea o guarda lo tuyo antes de seguir.</td></tr>
           <tr><td class="libre"><code class="dice">No encuentro el ledger.</code></td><td class="libre">No hay fichero de estado donde se busca. La consola propone copiar la plantilla; <code>arnes arrancar</code> hace lo mismo y además nunca pisa uno existente. Si usas <code>PLAN_LEDGER</code>, revisa la ruta: una errata da este mismo mensaje.</td></tr>
@@ -712,7 +713,7 @@ stateDiagram-v2
           <tr><td><code>rollback</code></td><td class="libre">Obligatorio sólo en <code>pendiente</code> y <code>en_curso</code>: si no sabes escribir cómo se revierte, el ítem no está listo. Un valor en blanco cuenta como ausente.</td></tr>
           <tr><td><code>resultado</code></td><td class="libre">Se exige en el momento de cerrar. Un <code>hecho</code> sin <code>resultado</code> es un <code>hecho</code> optimista con otro nombre.</td></tr>
           <tr><td><code>verificacion_comando</code></td><td class="libre">Opcional, y lo que convierte la verificación en mecánica: se ejecuta al cerrar, fuera de la sesión.</td></tr>
-          <tr><td><code>bloqueado_por</code></td><td class="libre">Opcional. El <strong>id literal</strong> del ítem que lo bloquea; una frase no la resuelve nadie. Tiene que apuntar a un ítem <strong>anterior</strong> en el fichero: el arnés elige por orden de documento y no lee este campo, así que una arista hacia adelante le hace proponer el bloqueado. Se exige sólo en <code>pendiente</code> y <code>en_curso</code>. Que el bloqueante ya esté <code>hecho</code> no es un error: se informa al final.</td></tr>
+          <tr><td><code>bloqueado_por</code></td><td class="libre">Opcional. El <strong>id literal</strong> del ítem que lo bloquea; una frase no la resuelve nadie. Tiene que apuntar a un ítem <strong>anterior</strong> en el fichero: el arnés elige por orden de documento y no lee este campo <em>para elegir</em>, así que una arista hacia adelante le hace proponer el bloqueado. Se exige sólo en <code>pendiente</code> y <code>en_curso</code>. El campo documenta la <strong>arista</strong>, no su vigencia —nadie lo limpia cuando el bloqueante cierra—, así que lo que deciden las guardas es el <strong>estado del destino</strong>: mientras no esté <code>hecho</code>, frena; en cuanto lo está, deja de frenar y se dice. Un destino que no existe en el fichero cuenta como bloqueo vivo, para que una errata no desactive la guarda en silencio.</td></tr>
           <tr><td><code>bloquea</code>, <code>origen</code>, <code>archivos</code>, <code>commit</code>, <code>fecha</code>, <code>advertencia_de_coste</code>, <code>razon_del_descarte</code></td><td class="libre">Opcionales y <strong>parte del esquema</strong>: no disparan el aviso de campo desconocido, y varios se leen y se enseñan en el anuncio previo del ítem.</td></tr>
         </tbody>
       </table>

@@ -168,9 +168,11 @@ def revisar_bloqueos(orden, errores):
     """Las aristas de `bloqueado_por`, contra el orden del documento.
 
     El arnés elige el siguiente ítem con una regla lineal —el primero cuyo
-    estado sea `pendiente` o `en_curso`— y NO consulta `bloqueado_por`. O sea:
-    el ledger no planifica, ordena. La posición en el fichero ES el calendario,
-    y `bloqueado_por` sólo lo documenta.
+    estado sea `pendiente` o `en_curso`— y NO consulta `bloqueado_por` PARA
+    ELEGIR: lo consulta después, para decidir si frena, y entonces mira el
+    estado del destino y no la presencia del campo. O sea: el ledger no
+    planifica, ordena. La posición en el fichero ES el calendario, y
+    `bloqueado_por` documenta la arista.
 
     Esa regla es correcta mientras se cumpla un invariante: toda arista apunta
     hacia atrás. Si un ítem depende de otro que viene después, el arnés propone
