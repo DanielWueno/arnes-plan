@@ -216,8 +216,32 @@ chmod +x "$ATAJO_RUTA"
 if [[ $ES_WINDOWS -eq 1 ]]; then
   cat > "$BIN/arnes.cmd" <<'CMD_FIN'
 @echo off
+setlocal
 REM arnes-plan:atajo — envoltorio para PowerShell y cmd, que no ejecutan bash.
-bash "%~dp0arnes" %*
+REM
+REM No basta con invocar `bash`: el de Git for Windows no suele estar en el PATH
+REM de Windows —vive en su propia consola— y el que sí puede estar es el de WSL,
+REM que no sabe abrir la ruta de Windows que se le pasa aquí. Se busca el de Git
+REM primero, por instalación y luego junto al `git` que haya en el PATH, y sólo
+REM al final se acepta uno del PATH.
+set "ARNES_BASH="
+for %%B in (
+  "%ProgramFiles%\Git\bin\bash.exe"
+  "%ProgramFiles(x86)%\Git\bin\bash.exe"
+  "%LOCALAPPDATA%\Programs\Git\bin\bash.exe"
+) do if not defined ARNES_BASH if exist %%B set "ARNES_BASH=%%~B"
+if not defined ARNES_BASH for /f "delims=" %%G in ('where git 2^>nul') do (
+  if not defined ARNES_BASH if exist "%%~dpG..\bin\bash.exe" set "ARNES_BASH=%%~dpG..\bin\bash.exe"
+)
+if not defined ARNES_BASH for %%B in (bash.exe) do (
+  if not defined ARNES_BASH if not "%%~$PATH:B"=="" set "ARNES_BASH=%%~$PATH:B"
+)
+if not defined ARNES_BASH (
+  echo arnes: no encuentro bash. Instala Git for Windows, o abre git-bash y usa `arnes` desde ahi. 1>&2
+  exit /b 127
+)
+"%ARNES_BASH%" "%~dp0arnes" %*
+exit /b %ERRORLEVEL%
 CMD_FIN
   echo -e "${GREEN}✓${NC} Envoltorio ${BOLD}arnes.cmd${NC} escrito para PowerShell y cmd."
 fi

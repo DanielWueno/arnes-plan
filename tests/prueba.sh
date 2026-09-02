@@ -428,6 +428,36 @@ check "sin PowerShell devuelve 1" "1" \
          "$ARNES/scripts/entorno.sh" "$VACIO")"
 check "en Unix no toca el PATH"   "1" \
       "$(OSTYPE=darwin24 bash -c 'source "$0"; arnes_registrar_path /x; echo $?' "$ARNES/scripts/entorno.sh")"
+
+echo "16b. El envoltorio de Windows tiene que encontrar bash él solo"
+# `bash "%~dp0arnes"` a secas fallaba con "'bash' is not recognized": el bash de
+# Git for Windows vive en su propia consola y no está en el PATH de Windows. No
+# se puede ejecutar cmd desde aquí, así que se fija el contenido generado.
+CASA16="$TMP/casa16"; mkdir -p "$CASA16"
+REPO16="$TMP/repo16"; mkdir -p "$REPO16"; cd "$REPO16"
+git init -q . && git config user.email t@t && git config user.name t
+HOME="$CASA16" OSTYPE=msys bash "$ARNES/scripts/arrancar.sh" </dev/null >/dev/null 2>&1
+CMD="$CASA16/.local/bin/arnes.cmd"
+check "en Windows se escribe el envoltorio" "si" "$(test -f "$CMD" && echo si || echo no)"
+check "no invoca 'bash' a secas"            "0"  "$(grep -cE '^bash "' "$CMD" || true)"
+check "busca el bash de Git for Windows"    "si" \
+      "$(grep -qF 'Git\bin\bash.exe' "$CMD" && echo si || echo no)"
+check "y lo busca junto al git del PATH"    "si" \
+      "$(grep -q 'where git' "$CMD" && echo si || echo no)"
+# El redirector de un `for /f` se escapa con UN circunflejo; con dos, `where`
+# recibe un `^` literal y la búsqueda no encuentra nada.
+check "el redirector va escapado una vez"   "si" \
+      "$(grep -q "where git 2^>nul" "$CMD" && echo si || echo no)"
+check "si no hay bash, lo dice y sale 127"  "si" \
+      "$(grep -q 'exit /b 127' "$CMD" && echo si || echo no)"
+check "propaga el código de salida"         "si" \
+      "$(grep -q 'exit /b %ERRORLEVEL%' "$CMD" && echo si || echo no)"
+# En Unix ese fichero no se escribe: no estorba, pero tampoco se siembra.
+CASA16N="$TMP/casa16nix"; mkdir -p "$CASA16N"
+HOME="$CASA16N" OSTYPE=darwin24 bash "$ARNES/scripts/arrancar.sh" </dev/null >/dev/null 2>&1
+check "en Unix no se escribe el .cmd"       "no" \
+      "$(test -f "$CASA16N/.local/bin/arnes.cmd" && echo si || echo no)"
+cd "$ARNES"
 # Y que ningún script vuelva a clavar el intérprete.
 CLAVADOS=0
 for f in plan-run.sh arrancar.sh ayuda.sh; do
