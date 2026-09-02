@@ -479,6 +479,12 @@ escaso el que decide qué ítems se lanzan sin preguntar.
 }
 ```
 
+La raíz del ledger admite un campo opcional, fuera de `olas`:
+
+| Campo | Para qué |
+|---|---|
+| `documentacion` | Opcional. La URL de la documentación del proyecto (`http://` o `https://`). Si está y es una URL válida, el visor (`arnes ver`) la enseña como enlace en el pie de página, junto a la de la documentación del arnés — así una copia guardada de la página sigue llevando a ambas aunque se abra en otra máquina, meses después. Sin el campo, el visor no dice nada en su lugar: ausencia de dato es ausencia de línea, no un "no disponible". Un valor que no empiece por `http://` o `https://` tampoco se convierte en enlace, por seguridad. |
+
 Cada ítem lleva estos campos, y todos son obligatorios:
 
 | Campo | Para qué |

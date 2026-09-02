@@ -638,8 +638,15 @@ for pieza in 'btn-guardar' 'btn-resumen' 'btn-pdf' 'ítem de prueba' 'Lo siguien
   check "la página trae: $pieza" "si" "$(grep -qF -- "$pieza" "$VISTA" && echo si || echo no)"
 done
 # La página tiene que abrirse sin red: ni CDN, ni fuentes, ni imágenes remotas.
-check "no pide nada al exterior" "0" \
-      "$(grep -coE '(src|href)="https?://' "$VISTA" || true)"
+# Un enlace normal (`<a href>`) no dispara ninguna carga al abrir la página —
+# el pie de página ahora lleva dos, a propósito (documentación del proyecto y
+# del arnés)—, así que sólo cuenta como "pide algo al exterior" un recurso que
+# SÍ se cargaría solo: `src=` en cualquier etiqueta, o el `href=` de un `<link>`
+# (hoja de estilo, preconexión, etc.).
+check "no carga recursos remotos" "0" \
+      "$(grep -coE 'src="https?://' "$VISTA" || true)"
+check "no enlaza hojas de estilo ni precarga nada del exterior" "0" \
+      "$(grep -coE '<link[^>]*href="https?://' "$VISTA" || true)"
 # Regresión exacta de un fallo real: el bloque de JavaScript vivía en una cadena
 # normal de Python, así que su `\n` se convirtió en un salto de línea DENTRO de
 # un literal JavaScript y rompió el script entero — con él, los tres botones y
@@ -1067,6 +1074,66 @@ check "un id que no existe cuenta como bloqueo vivo" "si" \
 # alguien añade un estado a CERRADOS, esto falla y señala dónde está el gemelo.
 check "los dos criterios de cerrado no han divergido" "{'hecho'}" \
       "$(sed -n "s/^CERRADOS = //p" "$ARNES/scripts/validar-ledger.py")"
+cd "$ARNES"
+
+echo "24. El pie de página nombra la documentación, sin colar un href malicioso"
+cd "$PROY"
+# El contrato de silencio: sin `documentacion` en la raíz del ledger, no se
+# inventa un "no disponible" — sencillamente no hay línea de proyecto.
+python3 -c "
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d.pop('documentacion', None)
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/pie-sin-doc.html" --no-abrir >/dev/null 2>&1
+check "sin \`documentacion\`: no aparece la línea del proyecto" "0" \
+      "$(grep -c 'Documentación del proyecto' "$TMP/pie-sin-doc.html")"
+check "pero sí la del arnés, con su versión y su URL" "si" \
+      "$(grep -q "Documentación del arnés (v$VERSION_MANIFIESTO): <a href=\"https://danielwueno.github.io/arnes-plan/\">" "$TMP/pie-sin-doc.html" && echo si || echo no)"
+
+# Con una URL http(s) válida: se pinta como enlace, y la línea del arnés sigue
+# ahí al lado.
+python3 -c "
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['documentacion'] = 'https://ejemplo.invalid/docs'
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/pie-con-doc.html" --no-abrir >/dev/null 2>&1
+check "con URL https: aparece como enlace" "si" \
+      "$(grep -q '<a href="https://ejemplo.invalid/docs">https://ejemplo.invalid/docs</a>' "$TMP/pie-con-doc.html" && echo si || echo no)"
+check "y también sale la URL del arnés con su versión" "si" \
+      "$(grep -q "Documentación del arnés (v$VERSION_MANIFIESTO): <a href=\"https://danielwueno.github.io/arnes-plan/\">" "$TMP/pie-con-doc.html" && echo si || echo no)"
+
+# Un esquema peligroso, o directamente basura: nunca dentro de un href, aunque
+# sea escapado.
+for MALO in 'javascript:alert(1)' 'no-una-url'; do
+  python3 -c "
+import json, sys
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['documentacion'] = sys.argv[1]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)" "$MALO"
+  python3 "$ARNES/scripts/ver.py" --salida "$TMP/pie-malo.html" --no-abrir >/dev/null 2>&1
+  check "\`$MALO\` no acaba dentro de un href" "0" \
+        "$(grep -c "href=\"$MALO\"" "$TMP/pie-malo.html")"
+done
+python3 -c "
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d.pop('documentacion', None)
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
+git checkout -q docs/plan/ejecucion-plan.estado.json
+
+# El `@media print` no puede tapar las dos líneas nuevas: son justo lo que hace
+# falta para encontrar el proyecto y el arnés desde una copia impresa.
+BLOQUE_IMPRESION="$(sed -n '/@media print{/,/^}/p' "$TMP/pie-sin-doc.html")"
+check "el CSS de impresión no oculta \`.pie-pag\`" "0" \
+      "$(grep -c '\.pie-pag[^{]*{[^}]*display:none' <<<"$BLOQUE_IMPRESION")"
+check "ni las líneas nuevas por su clase" "0" \
+      "$(grep -c '\.linea-doc\|\.linea-arnes' <<<"$BLOQUE_IMPRESION")"
 cd "$ARNES"
 
 echo

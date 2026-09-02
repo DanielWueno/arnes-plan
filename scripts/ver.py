@@ -404,6 +404,44 @@ def crono_html(crono):
         % (total, len(crono), e(crono[0][0]), e(crono[-1][0]), alto, ''.join(cols), filas))
 
 
+URL_DOC_ARNES = 'https://danielwueno.github.io/arnes-plan/'
+
+
+def url_http_valida(v):
+    """True sólo si `v` es una cadena que empieza por http:// o https://.
+
+    Se comprueba el esquema antes de decidir si algo se convierte en enlace:
+    un `javascript:` o cualquier basura no debe acabar nunca dentro de un
+    atributo `href`, ni siquiera escapado."""
+    return isinstance(v, str) and v.strip().lower().startswith(('http://', 'https://'))
+
+
+def pie_pag_html(datos, ledger_ruta, version):
+    """El pie de la página. Dos líneas fijas —de qué ledger salió, y dónde está
+    la documentación del arnés— y una tercera que sólo aparece si el ledger
+    declara `documentacion`: ausencia de dato es ausencia de línea, no un
+    "no disponible" que nadie pidió."""
+    P = ['<p class="linea-fuente">Generada por <code>arnes ver</code> desde <code>%s</code>. '
+         'Se regenera volviendo a ejecutarlo; no se edita a mano.</p>'
+         % e(os.path.basename(ledger_ruta))]
+
+    doc = datos.get('documentacion')
+    if doc not in (None, '', [], {}):
+        if url_http_valida(doc):
+            doc_txt = doc.strip()
+            P.append('<p class="linea-doc">Documentación del proyecto: '
+                      '<a href="%s">%s</a></p>' % (e(doc_txt), e(doc_txt)))
+        else:
+            # No es una URL http(s): se muestra como texto, nunca como enlace
+            # ni dentro de un atributo href.
+            P.append('<p class="linea-doc">Documentación del proyecto: %s</p>' % e(doc))
+
+    P.append('<p class="linea-arnes">Documentación del arnés (v%s): '
+              '<a href="%s">%s</a></p>' % (e(version), e(URL_DOC_ARNES), e(URL_DOC_ARNES)))
+
+    return '<footer class="pie-pag"><div class="ancho">%s</div></footer>' % ''.join(P)
+
+
 def generar(ledger_ruta, version='?', proyecto=None):
     datos = leer(ledger_ruta)
     olas = datos.get('olas')
@@ -589,9 +627,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
         A('</dl></section>')
 
     A('</main>')
-    A('<footer class="pie-pag"><div class="ancho">Generada por <code>arnes ver</code> '
-      'desde <code>%s</code>. Se regenera volviendo a ejecutarlo; no se edita a mano.'
-      '</div></footer>' % e(os.path.basename(ledger_ruta)))
+    A(pie_pag_html(datos, ledger_ruta, version))
     A('<!--VIVO-->')
 
     return PLANTILLA % {
@@ -926,6 +962,8 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
 .notas .campo dd{color:var(--tenue);font-size:13.5px}
 .pie-pag{border-top:1px solid var(--linea);padding:22px 0 44px;color:var(--tenue);
   font-size:12.5px}
+.pie-pag p+p{margin-top:6px}
+.pie-pag a{color:inherit}
 .vacio{padding:34px;text-align:center;color:var(--tenue);font-size:14px;
   border:1px dashed var(--linea);border-radius:var(--r)}
 
@@ -933,8 +971,11 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
 
 @media print{
   /* Un PDF con los filtros aplicados y media página en blanco no es un informe:
-     se imprime el estado completo, sin controles. */
-  .acciones,.barra-control,.pie-pag,.saltar,.cabecera .ayuda{display:none!important}
+     se imprime el estado completo, sin controles. El pie de página no lleva
+     controles —son sólo líneas de texto, y dos de ellas (documentación del
+     proyecto y del arnés) son justo lo que hace falta para encontrar el
+     proyecto desde una copia impresa o exportada— así que se deja legible. */
+  .acciones,.barra-control,.saltar,.cabecera .ayuda{display:none!important}
   .item.oculto{display:block!important}
   .ola{display:block!important}
   body{background:#fff;color:#000}
