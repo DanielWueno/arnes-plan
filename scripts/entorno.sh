@@ -33,8 +33,9 @@ esac
 if [[ $ES_WINDOWS -eq 1 ]]; then
   BIN_DIR="$HOME/.local/bin"
   CONSEJO_PATH='En PowerShell, para dejarlo permanente:
-     $env:Path += ";$HOME\.local\bin"
-     [Environment]::SetEnvironmentVariable("Path", $env:Path, "User")'
+     $usuario = [Environment]::GetEnvironmentVariable("Path", "User")
+     [Environment]::SetEnvironmentVariable("Path", "$usuario;$HOME\.local\bin", "User")
+     $env:Path += ";$HOME\.local\bin"   # y en la consola abierta'
 else
   BIN_DIR="$HOME/.local/bin"
   CONSEJO_PATH='Añade a tu ~/.zshrc o ~/.bashrc:

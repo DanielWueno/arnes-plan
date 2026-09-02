@@ -388,6 +388,13 @@ CONSEJO_WIN="$(OSTYPE=msys     bash -c 'source "$0"; echo "$CONSEJO_PATH"' "$ARN
 CONSEJO_NIX="$(OSTYPE=darwin24 bash -c 'source "$0"; echo "$CONSEJO_PATH"' "$ARNES/scripts/entorno.sh")"
 check "en Windows no dice export"      "0"  "$(grep -c 'export PATH' <<<"$CONSEJO_WIN")"
 check "en Windows habla de PowerShell" "si" "$(grep -q 'env:Path' <<<"$CONSEJO_WIN" && echo si || echo no)"
+# `$env:Path` de un proceso es la PATH de máquina y la de usuario ya fundidas:
+# volcarla en el ámbito "User" copia allí las entradas del sistema para siempre.
+# El consejo tiene que leer el ámbito que va a escribir.
+check "lee la PATH de usuario antes de escribirla" "si" \
+      "$(grep -q 'GetEnvironmentVariable("Path", "User")' <<<"$CONSEJO_WIN" && echo si || echo no)"
+check "y no vuelca la PATH del proceso"            "0"  \
+      "$(grep -c 'SetEnvironmentVariable("Path", $env:Path' <<<"$CONSEJO_WIN" || true)"
 check "en Unix sí dice export"         "si" "$(grep -q 'export PATH' <<<"$CONSEJO_NIX" && echo si || echo no)"
 # Y que ningún script vuelva a clavar el intérprete.
 CLAVADOS=0
