@@ -10,6 +10,33 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.12.2] — 2026-09-02
+
+### Corregido
+- **La página de presentación daba una instalación que no funciona.** El primer
+  paso ofrecía `claude plugin install arnes-plan@arnes-plan` sin registrar antes
+  el marketplace, de modo que quien la seguía tal cual se encontraba con que el
+  plugin no existe. El README traía las dos líneas; la página, sólo la segunda,
+  y el pie repetía la incompleta.
+- **El arranque descrito en la página era circular.** El paso siguiente pedía
+  `arnes arrancar`, pero el lanzador `arnes` lo escribe ese mismo arranque y
+  recién instalado el plugin todavía no existe. El primer arranque de cada
+  máquina va por `/arnes-plan:plan-arrancar`; `arnes arrancar` sirve del segundo
+  proyecto en adelante.
+- **Faltaban los requisitos previos y el fichero que se edita.** La página no
+  declaraba que hacen falta el CLI de Claude Code y un repositorio git, y mandaba
+  sustituir el ítem de ejemplo sin nombrar `docs/plan/ejecucion-plan.estado.json`,
+  que sólo aparecía varias secciones más abajo.
+
+### Cambiado
+- Redacción de la sección de instalación en tono descriptivo, alineada con el
+  resto de la página. Sin cambios de código ni de comportamiento.
+
+### Notas de implementación
+- La suite comprueba que las instrucciones de instalación de la página y del
+  README registren el marketplace, y que el primer arranque se pida por el slash
+  command. Son datos copiados en dos sitios, que es como divergieron.
+
 ## [1.12.1] — 2026-08-31
 
 ### Corregido
@@ -452,6 +479,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.12.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.1...arnes-plan--v1.12.2
 [1.12.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.0...arnes-plan--v1.12.1
 [1.12.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.11.0...arnes-plan--v1.12.0
 [1.11.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.10.0...arnes-plan--v1.11.0

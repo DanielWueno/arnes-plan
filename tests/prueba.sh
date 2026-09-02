@@ -414,6 +414,18 @@ check "con .nojekyll, para que Pages no la toque" "si" \
 V_MANIFIESTO="$(python3 -c "import json;print(json.load(open('$ARNES/.claude-plugin/plugin.json'))['version'])" 2>/dev/null)"
 V_PAGINA="$(grep -oE 'arnes-plan · v[0-9]+\.[0-9]+\.[0-9]+' "$PAG" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 check "la página anuncia la versión real" "$V_MANIFIESTO" "$V_PAGINA"
+# La página es la puerta de entrada de quien todavía no tiene el plugin, y las
+# instrucciones de instalación están copiadas en tres sitios. La página llegó a
+# ofrecer `plugin install` sin registrar antes el marketplace: seguida al pie de
+# la letra, la instalación falla diciendo que el plugin no existe.
+for f in docs/index.html README.md; do
+  check "registra el marketplace antes de instalar: $f" "si" \
+        "$(grep -q 'plugin marketplace add DanielWueno/arnes-plan' "$ARNES/$f" && echo si || echo no)"
+done
+# Y el primer arranque no puede pedirse con `arnes`: ese lanzador lo escribe el
+# propio arranque, así que recién instalado el plugin todavía no existe.
+check "el primer arranque va por el slash command" "si" \
+      "$(grep -q '<b>/arnes-plan:plan-arrancar</b>' "$PAG" && echo si || echo no)"
 
 echo '14. El hook no reparte rutas con la versión clavada dentro'
 # Claude Code conserva las versiones viejas del plugin. Una consola abierta
