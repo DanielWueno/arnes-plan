@@ -10,6 +10,31 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.13.0] — 2026-09-02
+
+### Añadido
+- **El arranque registra `~/.local/bin` en el PATH de Windows.** Allí esa
+  carpeta no está en el PATH y ponerla exige editar el registro, que está fuera
+  del dominio de quien sólo quería instalar un plugin: la última milla eran tres
+  líneas de PowerShell copiadas a mano. Se escribe en el ámbito del **usuario**
+  —el de máquina pide administrador y afecta a todas las cuentas—, leyendo antes
+  ese mismo ámbito, y no se añade si ya estaba. Si no hay PowerShell, se imprime
+  el consejo como hasta ahora en lugar de dar el cambio por hecho. En Unix no
+  hace nada: `~/.local/bin` es donde vive el propio `claude`.
+
+### Corregido
+- **El consejo de PATH para PowerShell copiaba la PATH del sistema en la del
+  usuario.** `$env:Path` de un proceso es la PATH de máquina y la de usuario ya
+  fundidas; escribirla entera en el ámbito `User`, como indicaba el arranque,
+  deja allí una copia permanente de todas las entradas del sistema: se duplican,
+  crecen en cada ejecución y quedan congeladas si el administrador cambia
+  alguna. El consejo pasa a leer el ámbito de usuario, añadirle la carpeta y
+  escribir sólo eso, más la línea que sirve en la consola ya abierta.
+
+### Notas de implementación
+- La suite comprueba que el consejo lea `GetEnvironmentVariable("Path", "User")`
+  y que no vuelque `$env:Path` en el ámbito de usuario.
+
 ## [1.12.2] — 2026-09-02
 
 ### Corregido
@@ -507,6 +532,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.13.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.2...arnes-plan--v1.13.0
 [1.12.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.1...arnes-plan--v1.12.2
 [1.12.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.0...arnes-plan--v1.12.1
 [1.12.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.11.0...arnes-plan--v1.12.0

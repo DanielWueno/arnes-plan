@@ -22,7 +22,9 @@ Después, muéstrame su salida tal cual y resume en dos líneas:
 2. Qué hago ahora: escribir mis ítems si el plan es nuevo, o el comando exacto para ejecutar el
    siguiente si ya había plan.
 
-Si el script avisa de que `~/.local/bin` no está en el PATH, dímelo con la línea que hay que añadir
-al perfil del shell — es lo único que no puede arreglar él solo.
+En Windows el script registra `~/.local/bin` en el PATH de usuario por su cuenta; dime que hay que
+abrir una consola nueva para que surta efecto. Si avisa de que no ha podido —o estás en Unix y la
+carpeta falta en el PATH—, dame la línea que hay que añadir al perfil del shell, que es entonces lo
+único que no puede arreglar él solo.
 
 No ejecutes ningún ítem del plan. Este comando prepara; no trabaja.

@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.12.2</p>
+    <p class="eyebrow">arnes-plan · v1.13.0</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -525,7 +525,7 @@ stateDiagram-v2
         <p>Desde una sesión de Claude Code abierta en el proyecto. Siembra el fichero de estado, instala el lanzador <code>arnes</code> en <code>~/.local/bin</code> —donde vive el propio <code>claude</code>— y no toca nada si el proyecto ya tenía plan.</p>
         <div class="bloque"><b>/arnes-plan:plan-arrancar</b></div>
         <p>El comando de terminal <code>arnes</code> no viene con el plugin: lo escribe este paso. Por eso el primer arranque va por el slash command, y sólo a partir de ahí preparar otro proyecto es <code>arnes arrancar</code>, con <code>--donde docs/analisis-futuro</code> si el fichero de estado debe vivir en otra carpeta.</p>
-        <p>Si <code>arnes</code> responde <em>command not found</em>, el lanzador está escrito pero su carpeta no está en el PATH. El propio arranque imprime la línea que hay que añadir al perfil, distinta en Unix y en PowerShell.</p>
+        <p>La carpeta del lanzador es <code>~/.local/bin</code>, la misma donde vive <code>claude</code>, así que en Unix ya está en el PATH. En Windows no lo está, y el arranque <strong>la registra él</strong> en el PATH de usuario —nunca en el de máquina, que pediría administrador— y sólo si no estaba ya; hay que abrir una consola nueva, porque la abierta no hereda el cambio. Si no puede hacerlo, imprime la línea exacta que falta en vez de darla por hecha.</p>
       </div>
 
       <div class="paso">

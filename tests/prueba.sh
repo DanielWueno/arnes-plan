@@ -388,7 +388,46 @@ CONSEJO_WIN="$(OSTYPE=msys     bash -c 'source "$0"; echo "$CONSEJO_PATH"' "$ARN
 CONSEJO_NIX="$(OSTYPE=darwin24 bash -c 'source "$0"; echo "$CONSEJO_PATH"' "$ARNES/scripts/entorno.sh")"
 check "en Windows no dice export"      "0"  "$(grep -c 'export PATH' <<<"$CONSEJO_WIN")"
 check "en Windows habla de PowerShell" "si" "$(grep -q 'env:Path' <<<"$CONSEJO_WIN" && echo si || echo no)"
+# `$env:Path` de un proceso es la PATH de máquina y la de usuario ya fundidas:
+# volcarla en el ámbito "User" copia allí las entradas del sistema para siempre.
+# El consejo tiene que leer el ámbito que va a escribir.
+check "lee la PATH de usuario antes de escribirla" "si" \
+      "$(grep -q 'GetEnvironmentVariable("Path", "User")' <<<"$CONSEJO_WIN" && echo si || echo no)"
+check "y no vuelca la PATH del proceso"            "0"  \
+      "$(grep -c 'SetEnvironmentVariable("Path", $env:Path' <<<"$CONSEJO_WIN" || true)"
 check "en Unix sí dice export"         "si" "$(grep -q 'export PATH' <<<"$CONSEJO_NIX" && echo si || echo no)"
+# El registro automático del PATH en Windows, con un PowerShell de mentira: la
+# máquina de integración es Linux, así que lo que se comprueba es el contrato.
+STUB="$TMP/stub"; mkdir -p "$STUB"
+cat > "$STUB/powershell.exe" <<'STUB_PS'
+#!/usr/bin/env bash
+{ echo "ARGS: $*"; echo "BIN: ${ARNES_BIN_WIN:-<vacio>}"; } >> "$REGISTRO_STUB"
+STUB_PS
+cat > "$STUB/cygpath" <<'STUB_CP'
+#!/usr/bin/env bash
+printf 'C:\\Users\\prueba\\.local\\bin'
+STUB_CP
+chmod +x "$STUB/powershell.exe" "$STUB/cygpath"
+export REGISTRO_STUB="$TMP/registro-ps.txt"; : > "$REGISTRO_STUB"
+CODE="$(PATH="$STUB:$PATH" OSTYPE=msys bash -c 'source "$0"; arnes_registrar_path "$HOME/.local/bin"; echo $?' "$ARNES/scripts/entorno.sh")"
+check "en Windows registra el PATH y sale 0" "0"  "$CODE"
+check "invoca PowerShell sin perfil"         "si" "$(grep -q -- '-NoProfile' "$REGISTRO_STUB" && echo si || echo no)"
+# La ruta va por el entorno y no dentro del texto del comando: un nombre de
+# usuario con una comilla no puede romper ni ampliar el script que se ejecuta.
+check "la ruta viaja por el entorno"         "si" "$(grep -q 'BIN: C:' "$REGISTRO_STUB" && echo si || echo no)"
+# El ámbito de máquina pide administrador y afecta a todas las cuentas.
+check "nunca escribe el ámbito de máquina"   "0"  "$(grep -c 'Machine' "$ARNES/scripts/entorno.sh" || true)"
+check "y lee el de usuario antes de escribirlo" "si" \
+      "$(grep -q 'GetEnvironmentVariable("Path", "User")' "$ARNES/scripts/entorno.sh" && echo si || echo no)"
+# Sin PowerShell no se inventa nada: se cae al consejo impreso, que sigue ahí.
+# El PATH tiene que estar vacío de verdad: `/usr/bin:/bin` no vale como "sin
+# PowerShell", porque el runner de integración trae `pwsh` instalado.
+VACIO="$TMP/sin-powershell"; mkdir -p "$VACIO"
+check "sin PowerShell devuelve 1" "1" \
+      "$(OSTYPE=msys bash -c 'PATH="$1"; source "$0"; arnes_registrar_path /x; echo $?' \
+         "$ARNES/scripts/entorno.sh" "$VACIO")"
+check "en Unix no toca el PATH"   "1" \
+      "$(OSTYPE=darwin24 bash -c 'source "$0"; arnes_registrar_path /x; echo $?' "$ARNES/scripts/entorno.sh")"
 # Y que ningún script vuelva a clavar el intérprete.
 CLAVADOS=0
 for f in plan-run.sh arrancar.sh ayuda.sh; do
