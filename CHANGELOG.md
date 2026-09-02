@@ -10,6 +10,20 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.13.1] — 2026-09-02
+
+### Corregido
+- **`arnes` no arrancaba desde PowerShell ni `cmd`:** `'bash' is not recognized
+  as an internal or external command`. El envoltorio `arnes.cmd` invocaba `bash`
+  a secas, y el de Git for Windows vive en su propia consola, no en el PATH de
+  Windows. Ahora lo localiza él: primero en las rutas de instalación de Git,
+  después junto al `git` que haya en el PATH, y sólo al final acepta uno del
+  PATH —ese orden importa, porque el `bash` que sí suele estar registrado es el
+  de WSL, que no sabe abrir la ruta de Windows que se le pasa—. Si no encuentra
+  ninguno, lo dice y sale 127 en vez de fallar con el mensaje de `cmd`. Propaga
+  además el código de salida del arnés, que es lo que distingue un cierre limpio
+  de uno que no se sostiene.
+
 ## [1.13.0] — 2026-09-02
 
 ### Añadido
@@ -532,6 +546,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.13.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.0...arnes-plan--v1.13.1
 [1.13.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.2...arnes-plan--v1.13.0
 [1.12.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.1...arnes-plan--v1.12.2
 [1.12.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.0...arnes-plan--v1.12.1
