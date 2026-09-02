@@ -27,6 +27,30 @@ No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
   declaraba que hacen falta el CLI de Claude Code y un repositorio git, y mandaba
   sustituir el ítem de ejemplo sin nombrar `docs/plan/ejecucion-plan.estado.json`,
   que sólo aparecía varias secciones más abajo.
+- **El README repartía comandos con `$ARNES` sin definir.** La sección
+  «Ejecutar», la de «Tu primer ledger» y el primer comando que se le pide a
+  quien llega nuevo usaban la forma larga, cuya variable sólo se define dentro
+  del bloque plegado que documenta la alternativa a instalar el lanzador. Quien
+  siguiera el camino normal recibía `No such file or directory`. Las tres pasan
+  a usar `arnes`; la forma larga queda donde la variable existe.
+- **`arrancar` imprimía esa misma variable sin resolver** en la línea que
+  propone validar el ledger recién sembrado. Pasa a `arnes validar`, que es el
+  verbo equivalente y no lleva ruta.
+- **La tabla de piezas del README estaba partida por un párrafo.** Las tres
+  últimas filas quedaban fuera de la tabla y GitHub las renderizaba como texto.
+- **La tabla de campos contradecía al validador.** `esfuerzo` figuraba con tres
+  valores de los cinco que se aceptan, y `rollback` como opcional siendo
+  obligatorio en todo ítem `pendiente` o `en_curso`.
+- **La respuesta sobre ejecución sin supervisión estaba obsoleta.** Indicaba
+  editar la llamada a `claude` dentro de `plan-run.sh` —una edición que la
+  actualización del plugin descarta— con un modo de permisos que ya no es el que
+  usa el script. El modo tiene bandera propia desde la 1.2.0: `--desatendido[=N]`.
+- **`horas_maquina` se definía de tres maneras.** La plantilla lo describe como
+  tiempo de reloj de la máquina; la página lo negaba («no de reloj») y el README
+  omitía de quién es ese reloj. Se unifica: reloj de la máquina, no de persona
+  ni tokens.
+- **`claude plugin update` aparecía sin cualificar** en la tabla de mensajes del
+  README, contra lo que el propio documento exige desde la 1.3.1.
 
 ### Cambiado
 - Redacción de la sección de instalación en tono descriptivo, alineada con el
@@ -36,6 +60,10 @@ No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 - La suite comprueba que las instrucciones de instalación de la página y del
   README registren el marketplace, y que el primer arranque se pida por el slash
   command. Son datos copiados en dos sitios, que es como divergieron.
+- Comprueba también que el README no cite `$ARNES` antes de definirla, que
+  liste los cinco valores de `esfuerzo` y que ninguna fila de tabla quede sin
+  cabecera; y que la salida de `arrancar` no imprima la variable sin resolver,
+  que es la regla que ya cumplía `ayuda.sh`.
 
 ## [1.12.1] — 2026-08-31
 

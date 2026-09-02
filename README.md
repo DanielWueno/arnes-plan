@@ -10,8 +10,8 @@ deja en tu repositorio es el ledger, un JSON con tu plan. La herramienta se actu
 **Sistemas.** Los scripts son bash y Python 3, así que corren en macOS, Linux y en Windows sobre
 git-bash o WSL —que es lo que Claude Code usa allí—. El intérprete se resuelve solo (`python3` o
 `python`, según el sistema), y en Windows el lanzador se instala además como `arnes.cmd` para que
-PowerShell y `cmd` sepan invocarlo. Lo que **no** está probado en Windows es el recorrido completo:
-si eres el primero, dilo si tropiezas.
+PowerShell y `cmd` sepan invocarlo. El recorrido completo **no** está probado en Windows; los
+informes de fallo son bienvenidos.
 
 ---
 
@@ -35,8 +35,8 @@ memoria de una conversación**, y se ejecuta un ítem por sesión.
 
 ## Cómo funciona
 
-Dos dibujos y se entiende entero. GitHub los renderiza aquí mismo; la misma fuente alimenta la
-página de presentación (`docs/index.html`), y `tests/prueba.sh` falla si las dos copias dejan de
+Dos diagramas describen el mecanismo completo. GitHub los renderiza aquí mismo; la misma fuente
+alimenta la página de presentación (`docs/index.html`), y `tests/prueba.sh` falla si las dos copias dejan de
 coincidir.
 
 La documentación completa —comandos, modos, guardas, mensajes y campos del ledger— está publicada
@@ -99,13 +99,13 @@ stateDiagram-v2
 | `docs/plan/ejecucion-plan.estado.json` | **El ledger.** La fuente de verdad del avance. Sobrevive al reinicio del límite, a `/clear` y a cerrar la terminal. Todo lo demás lo lee. |
 | `/arnes-plan:plan-siguiente` | Ejecuta **un** ítem, lo verifica con su propio criterio, actualiza el ledger, commitea y **se detiene**. Acepta un id o `ola:N`. |
 | `/arnes-plan:plan-estado` | El avance sin ejecutar nada. Corre en el modelo barato; cuesta casi nada. |
-
-Los comandos van **cualificados con el nombre del plugin**. La forma corta
-—`/plan-siguiente`— responde `Unknown command`: los slash commands de un plugin viven en su propio
-espacio de nombres. Escribiendo `/plan` el autocompletado ya te ofrece la forma correcta.
 | `scripts/plan-run.sh` | Lanza un ítem en una **sesión nueva** de Claude Code: contexto limpio de verdad, no un `/clear`. Anuncia el ítem antes y frena si algo no cuadra. |
 | Hook `SessionStart` | Cada sesión arranca sabiendo qué ítem toca. Lo resuelve un script, así que averiguarlo cuesta cero tokens. |
 | `scripts/validar-ledger.py` | Comprueba que el ledger está bien formado, y que las aristas de `bloqueado_por` son honrables por el orden del documento. Un campo mal escrito no rompe nada visiblemente: sólo hace que la próxima invocación elija mal. Con `--item ID` juzga una sola ficha, que es como lo llama `plan-run.sh` antes de gastar. |
+
+Los comandos van **cualificados con el nombre del plugin**. La forma corta
+—`/plan-siguiente`— responde `Unknown command`: los slash commands de un plugin viven en su propio
+espacio de nombres. Escribiendo `/plan` el autocompletado ofrece la forma correcta.
 
 ---
 
@@ -139,7 +139,8 @@ Recién instalado el plugin, dentro de Claude Code:
 
 Sin rutas y sin variables: dentro de una sesión el plugin ya sabe dónde está. Sirve tanto si eres
 el primero que llega como si el plan ya existe, y además instala el lanzador `arnes` para la
-terminal. Desde fuera de Claude Code es `bash "$ARNES/arrancar.sh"`, con el mismo efecto.
+terminal. Fuera de Claude Code hay una forma equivalente, que exige resolver a mano la ruta del plugin: está
+en **Si prefieres no instalar nada en el PATH**, aquí debajo.
 
 - **Repositorio sin plan:** siembra la plantilla y te dice qué escribir.
 - **Repositorio que ya tiene plan** —el caso del segundo que clona— **no toca nada**, valida el
@@ -185,18 +186,29 @@ export ARNES="$(claude plugin list --json \
   | python3 -c 'import json,sys; print(next(p["installPath"] for p in json.load(sys.stdin) if p["id"].startswith("arnes-plan")))')/scripts"
 ```
 
-Ojo con dos cosas que confunden: `claude plugin list` a secas **no** dice la ruta —sólo nombre,
-versión y estado, hace falta `--json`— y para actualizar el nombre tiene que ir cualificado,
+Con la variable definida, cada verbo tiene su forma larga:
+
+```bash
+bash "$ARNES/arrancar.sh"                   # dejar el proyecto listo
+bash "$ARNES/plan-run.sh" --solo-anunciar   # ¿qué toca? (no ejecuta nada)
+bash "$ARNES/plan-run.sh"                   # ejecutar el siguiente, en sesión limpia
+bash "$ARNES/plan-run.sh" 5.0               # ejecutar uno concreto
+bash "$ARNES/plan-run.sh" ola:5             # el siguiente de una ola
+python3 "$ARNES/validar-ledger.py"          # equivale a `arnes validar`
+```
+
+Dos detalles que suelen confundir: `claude plugin list` a secas **no** dice la ruta —sólo nombre,
+versión y estado, hace falta `--json`— y para actualizar, el nombre tiene que ir cualificado:
 `claude plugin update arnes-plan@arnes-plan`.
 </details>
 
 ### Ejecutar
 
 ```bash
-bash "$ARNES/plan-run.sh" --solo-anunciar   # ¿qué toca? (no ejecuta nada)
-bash "$ARNES/plan-run.sh"                   # ejecutar el siguiente, en sesión limpia
-bash "$ARNES/plan-run.sh" 5.0               # ejecutar uno concreto
-bash "$ARNES/plan-run.sh" ola:5             # el siguiente de una ola
+arnes --solo-anunciar   # ¿qué toca? (no ejecuta nada)
+arnes                   # ejecutar el siguiente, en sesión limpia
+arnes 5.0               # ejecutar uno concreto
+arnes ola:5             # el siguiente de una ola
 ```
 
 Las banderas van en cualquier orden y se combinan con el id.
@@ -269,8 +281,8 @@ borraría — él es el ensayo en seco.
 
 | Modo | Qué cambia | Cuándo |
 |---|---|---|
-| *(por defecto)* | Sesión interactiva. Apruebas los permisos y las confirmaciones. | Casi siempre. Es el que no te sorprende. |
-| `--auto` | Interactiva, pero el clasificador de auto mode resuelve los permisos rutinarios. Lo destructivo sigue frenando y tú sigues delante para confirmar una corrida larga. | Ítems con mucho toqueteo de archivos donde aprobar uno por uno sólo cansa. La primera vez, Claude Code pide aceptar el modo. |
+| *(por defecto)* | Sesión interactiva. Apruebas los permisos y las confirmaciones. | Casi siempre. Es el comportamiento predecible. |
+| `--auto` | Interactiva, pero el clasificador de auto mode resuelve los permisos rutinarios. Lo destructivo sigue frenando y tú sigues delante para confirmar una corrida larga. | Ítems con mucha edición de archivos, donde aprobar uno por uno no aporta criterio. La primera vez, Claude Code pide aceptar el modo. |
 | `--desatendido[=N]` | Sin sesión interactiva (`claude -p`) **y sin pedir permisos**, con techo de gasto en dólares (`N`, por defecto 5). | Los ítems mecánicos: `haiku`, cero horas de máquina. Revisas el commit al terminar, no durante. |
 
 Que `--desatendido` no pida permisos no es comodidad, es lo que lo hace funcionar: el protocolo
@@ -280,14 +292,14 @@ este modo carga las guardas más duras del arnés y un techo de gasto obligatori
 
 `--desatendido` **se niega** —y dice por qué— si el ítem pide más de una hora de máquina, lleva
 `multiagente`, **el ledger lo marca `opus`**, está bloqueado, o el árbol tiene cambios sin
-commitear. No es celo: en modo `-p` no hay a quién preguntar, y el protocolo exige preguntar justo
-en esos casos. Una pregunta que nadie puede responder no es una puerta, es un cuelgue. `--igual`
-salta las guardas bajo tu responsabilidad.
+commitear. No es una restricción arbitraria: en modo `-p` no hay a quién preguntar, y el protocolo
+exige preguntar justo en esos casos. Una pregunta que nadie puede responder no es una puerta, es un
+cuelgue. `--igual` salta las guardas bajo tu responsabilidad.
 
-Lo de `opus` merece una línea aparte, porque es la guarda que más se nota: ese campo es justo con
-el que el ledger declara *"aquí el CRITERIO es el trabajo"*. Dejar sin nadie delante precisamente
-eso es dejar solo lo único que el arnés dice que no hay que dejar solo. La regla estaba escrita en
-este README y no en el código, que es exactamente cómo una regla deja de cumplirse.
+La guarda de `opus` merece un párrafo propio, porque es la que más se nota. Ese campo es con el que
+el ledger declara que en ese ítem el criterio *es* el trabajo, y dejarlo sin nadie delante es dejar
+solo justamente lo que el arnés sostiene que no debe quedarse solo. Desde la 1.1.0 la regla vive en
+el código; mientras vivió sólo en este README, su cumplimiento dependía de que alguien la recordara.
 
 ### Qué te puede frenar, de un vistazo
 
@@ -309,10 +321,10 @@ cierre. **Las preguntas del modo interactivo no las salta:** si hay alguien dela
 Responder que no cancela sin gastar, y el proceso sale con código **0**, no con error. Cuando
 `--desatendido` se niega, enumera *todos* los motivos, no sólo el primero.
 
-**`--auto` es sobre permisos, no sobre las guardas.** Es la confusión que más cuesta: se lanza un
-ítem con `--auto` esperando que salga solo y el arnés se detiene igual a preguntar, porque el ítem
-está bloqueado, pide más de una hora o el árbol está sucio. Las tres puertas siguen ahí en los dos
-modos interactivos. El único que no pregunta nunca es `--desatendido`, y por eso es el único que
+**`--auto` actúa sobre los permisos, no sobre las guardas.** Es la confusión más frecuente: un ítem
+lanzado con `--auto` se detiene igual a preguntar si arrastra un bloqueo, si pide más de una hora o
+si el árbol tiene cambios sin commitear. Las tres puertas siguen activas en los dos modos
+interactivos. El único que no pregunta nunca es `--desatendido`, y por eso es el único que
 *se niega* en vez de preguntar.
 
 ### El mensaje que estás viendo
@@ -326,7 +338,7 @@ modos interactivos. El único que no pregunta nunca es `--desatendido`, y por es
 | `El árbol tiene cambios sin commitear` | El ítem cierra con commit y se los llevaría. Commitea o guarda lo tuyo antes. |
 | `No encuentro el ledger.` | No hay ledger donde se busca. `arnes arrancar` lo siembra sin pisar nada. Con `PLAN_LEDGER`, revisa la ruta: **no cae de vuelta a la búsqueda normal**, así que una errata da este mismo mensaje aun teniendo un ledger válido en su sitio. |
 | `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. |
-| `No hay ítem que encaje con: -V` | Un arnés anterior a 1.12.0, donde `-V` se tomaba por un id. Actualiza: `claude plugin update arnes-plan`. |
+| `No hay ítem que encaje con: -V` | Un arnés anterior a 1.12.0, donde `-V` se tomaba por un id. Actualiza: `claude plugin update arnes-plan@arnes-plan`. |
 | `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. |
 | `La verificación falla, pero el ítem quedó hecho` | Su criterio no pasa fuera de su sesión. Nada se ha revertido. |
 | `La verificación no terminó en N s` | Se cortó por tiempo. Sube `ARNES_LIMITE_VERIFICACION` si el comando es legítimamente lento. |
@@ -424,15 +436,19 @@ si sigues. Nada avanza sin que lo pidas.
 
 ## Tu primer ledger
 
-El ledger es tuyo y vive en tu repositorio; el plugin no se lleva nada a otro sitio. Lo siembra
-`bash "$ARNES/arrancar.sh"` —que **no sobrescribe** si ya hay uno— y a partir de ahí escribir los
-ítems es cosa tuya: es lo único que no se puede automatizar.
+El ledger es tuyo y vive en tu repositorio; el plugin no se lleva nada a otro sitio. Lo siembra el
+arranque —que **no sobrescribe** si ya hay uno— y a partir de ahí escribir los ítems es cosa tuya:
+es lo único que no se puede automatizar.
 
 ```bash
-/arnes-plan:plan-arrancar                          # o: arnes arrancar
+/arnes-plan:plan-arrancar                     # la primera vez, desde Claude Code
+arnes arrancar                                # del segundo proyecto en adelante
 arnes arrancar --donde docs/analisis-futuro   # otra carpeta
-python3 "$ARNES/validar-ledger.py"      # cuando hayas escrito tus ítems
+arnes validar                                 # cuando hayas escrito tus ítems
 ```
+
+El primer arranque va por el slash command porque el lanzador `arnes` lo instala ese mismo
+arranque: antes de correrlo no existe.
 
 No hace falta que el otro proyecto sea .NET, ni que use las mismas carpetas: el ledger se busca en
 `docs/plan/`, `docs/analisis-futuro/` y `.claude/plan/`, y la variable `PLAN_LEDGER` manda sobre
@@ -469,15 +485,18 @@ Cada ítem lleva estos campos, y todos son obligatorios:
 | `titulo` | **Qué pasa hoy**, no qué hacer. "Los logs viven dentro de `src/` y pesan 46 MB" se verifica; "mejorar el logging" no. |
 | `verificacion` | El comando exacto que decide si está hecho, y qué salida cuenta como verde. Es el campo que más se descuida y el que más importa. |
 | `modelo` | `haiku` \| `sonnet` \| `opus`. Ver abajo. |
-| `esfuerzo` | `low` \| `medium` \| `high`. |
-| `horas_maquina` | Tiempo de reloj, **no** tokens. Por encima de 1 el arnés pide confirmación. |
+| `esfuerzo` | `low` \| `medium` \| `high` \| `xhigh` \| `max`. |
+| `horas_maquina` | Tiempo de reloj **de la máquina** —builds, tests, ingestas, evaluaciones—, no horas de persona ni tokens. Por encima de 1 el arnés pide confirmación. |
 | `multiagente` | `true` sólo donde un error sería silencioso y caro de detectar. |
 | `estado` | `pendiente` \| `en_curso` \| `hecho` \| `bloqueado` \| `descartado`. |
 | `por_que_este_modelo` | Una línea. Obliga a justificar el gasto en vez de elegir por inercia. |
 
-Opcionales que valen su peso: `archivos` (qué toca — evita que el ítem se desborde), `rollback`
-(cómo se revierte; si no lo sabes escribir, el ítem no está listo), `bloquea` / `bloqueado_por`,
-y `origen` (por qué existe este ítem).
+Dos más se exigen según el estado, y no en el barrido general: **`rollback`** en los ítems
+`pendiente` y `en_curso` —si no sabes escribir cómo se revierte, el ítem no está listo para
+ejecutarse—, y **`resultado`** en el momento de cerrar. Un valor en blanco cuenta como ausente.
+
+Opcionales de uso frecuente: `archivos` (qué toca — evita que el ítem se desborde),
+`bloquea` / `bloqueado_por`, y `origen` (por qué existe este ítem).
 
 #### `bloqueado_por` apunta hacia atrás, siempre
 
@@ -577,20 +596,20 @@ Están escritas dentro de los comandos, no dependen de que nadie se acuerde:
 
 Lo mínimo que necesitas saber, en orden:
 
-1. **`bash "$ARNES/plan-run.sh" --solo-anunciar`.** Te dice qué toca. No ejecuta nada, no gasta
-   nada. Empieza por ahí.
+1. **`arnes --solo-anunciar`.** Dice qué ítem toca y cuánto declara costar. No ejecuta nada y no
+   gasta nada. Es por donde se empieza.
 2. **El ledger es el plan.** Si quieres saber por qué algo está como está, búscalo por su `id`: los
    ítems cerrados llevan un campo `resultado` con qué se hizo y qué evidencia lo prueba.
 3. **No ejecutes un ítem "a mano" y lo des por hecho.** El valor está en que la verificación se
    corrió de verdad y quedó registrada. Un `hecho` optimista contamina todo lo que venga después.
 4. **Si te encuentras otro problema mientras trabajas, no lo arregles de paso.** Añádelo como ítem
    `pendiente` al final de su ola, con su verificación. Cuesta dos minutos y ordena el trabajo.
-5. **Si algo del arnés te confunde, es un fallo del arnés.** Está pensado para que la primera vez
-   sea leer esta página y correr un comando.
+5. **Una confusión con el arnés se trata como un fallo del arnés.** Está pensado para que la
+   primera vez baste con leer esta página y ejecutar un comando.
 
 ---
 
-## Preguntas que salen siempre
+## Preguntas frecuentes
 
 **¿Por qué una sesión nueva por ítem y no un `/clear`?**
 `/clear` vacía la conversación pero reutiliza la sesión. Cada invocación de `claude` es un proceso
@@ -608,10 +627,10 @@ dilo en el campo `_moneda` del ledger. Lo que importa es que exista un número q
 confirmación antes de gastar.
 
 **¿Puedo ejecutar los ítems sin supervisión?**
-Los mecánicos sí: añade `-p --permission-mode acceptEdits --max-budget-usd N` a la llamada de
-`claude` dentro de `plan-run.sh`. `--max-budget-usd` da un techo duro de gasto y sólo funciona con
-`-p`. Los ítems que piden confirmación (más de una hora de máquina) deben seguir siendo
-interactivos: en modo `-p` no hay a quién preguntar.
+Los mecánicos sí: `arnes 1.1 --desatendido=5`, con el techo de gasto en dólares. No hay que tocar
+ningún script —una edición dentro del plugin la pisa la siguiente actualización—, y las guardas
+duras van incluidas: el modo se niega ante los ítems que exigirían preguntar, porque en modo `-p`
+no hay a quién preguntar.
 
 **¿Esto sirve si no uso Claude Code?**
 El ledger, el validador y la disciplina sí — son un JSON y unas reglas. Los comandos y el hook son

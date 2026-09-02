@@ -240,6 +240,9 @@ SALIDA="$($ARRANCAR </dev/null 2>&1)"; CODE=$?
 check "repo virgen: siembra y sale 0"    "0"  "$CODE"
 check "el ledger existe"                 "si" "$(test -f docs/plan/ejecucion-plan.estado.json && echo si || echo no)"
 check "y dice que ahora escribas ítems"  "si" "$(grep -q 'escribe tus ítems' <<<"$SALIDA" && echo si || echo no)"
+# Lo que se imprime para copiar tiene que ser ejecutable tal cual. La misma
+# regla que ya cumple `ayuda.sh`: `$ARNES` sólo existe si el lector la exportó.
+check "y no imprime \$ARNES sin resolver"  "0"  "$(grep -c '\$ARNES' <<<"$SALIDA" || true)"
 
 # Usuario 2: el mismo repo, ya con un plan REAL dentro. Es el caso que el
 # `cp` del README destruía sin preguntar.
@@ -426,6 +429,42 @@ done
 # propio arranque, así que recién instalado el plugin todavía no existe.
 check "el primer arranque va por el slash command" "si" \
       "$(grep -q '<b>/arnes-plan:plan-arrancar</b>' "$PAG" && echo si || echo no)"
+# `$ARNES` es una variable que el lector define a mano, y sólo si opta por no
+# instalar el lanzador. Citarla fuera de ese bloque reparte comandos que fallan
+# con "No such file or directory" a quien siguió el camino normal.
+FUERA="$(python3 - "$ARNES/README.md" <<'EOPY'
+import io, sys
+lineas = io.open(sys.argv[1], encoding='utf-8').read().splitlines()
+definida = next((i for i, l in enumerate(lineas) if 'export ARNES=' in l), len(lineas))
+print(' '.join(str(i + 1) for i, l in enumerate(lineas)
+               if '$ARNES' in l and i < definida))
+EOPY
+)"
+check "el README no cita \$ARNES antes de definirla" "" "$FUERA"
+
+# El vocabulario del validador está copiado en la prosa. `esfuerzo` llegó a
+# documentarse con tres valores cuando el validador acepta cinco.
+for v in low medium high xhigh max; do
+  check "el README lista el esfuerzo válido: $v" "si" \
+        "$(grep -qF -- "\`$v\`" "$ARNES/README.md" && echo si || echo no)"
+done
+
+# Una tabla de Markdown no se reanuda después de un párrafo: las filas que
+# quedan sueltas se renderizan como texto plano, y en el fuente no se nota.
+HUERFANAS="$(python3 - "$ARNES/README.md" <<'EOPY'
+import io, re, sys
+texto = io.open(sys.argv[1], encoding='utf-8').read()
+malos = []
+for bloque in re.split(r'\n\s*\n', texto):
+    lineas = bloque.splitlines()
+    filas = [l for l in lineas if l.startswith('|')]
+    if filas and len(filas) == len(lineas) \
+       and not any(re.match(r'^\|[\s:|-]+\|$', f) for f in filas):
+        malos.append(filas[0][:40])
+print(' | '.join(malos))
+EOPY
+)"
+check "ninguna fila de tabla sin cabecera" "" "$HUERFANAS"
 
 echo '14. El hook no reparte rutas con la versión clavada dentro'
 # Claude Code conserva las versiones viejas del plugin. Una consola abierta

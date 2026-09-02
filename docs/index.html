@@ -509,7 +509,7 @@ stateDiagram-v2
   <section id="primeros-pasos">
     <p class="when">Empezar · de cero a un ítem cerrado</p>
     <h2>Instalación y primer ítem</h2>
-    <p class="col">Requisitos previos: el CLI de Claude Code accesible como <code>claude</code>, y un repositorio git, que es donde el plan y su avance quedan versionados.</p>
+    <p class="col">Requisitos previos: el CLI de Claude Code accesible como <code>claude</code>, y un repositorio git. El arranque funciona fuera de uno, pero el plan se versiona con el proyecto, cada ítem cierra con un commit, y fuera de un repositorio la guarda de árbol sucio se dispara siempre.</p>
     <div class="pasos">
 
       <div class="paso">
@@ -537,7 +537,7 @@ stateDiagram-v2
   "estado": <b>"pendiente"</b>,
   "modelo": <b>"haiku"</b>,           <i>// haiku · sonnet · opus</i>
   "esfuerzo": <b>"low"</b>,           <i>// low · medium · high · xhigh · max</i>
-  "horas_maquina": <b>0</b>,          <i>// de máquina, no de reloj ni de tokens</i>
+  "horas_maquina": <b>0</b>,          <i>// reloj de la máquina, no de persona ni tokens</i>
   "multiagente": <b>false</b>,
   "verificacion": <b>"find src -name '*.json' -size +1M devuelve vacío"</b>,
   "verificacion_comando": <b>"! find src -name '*.json' -size +1M | grep ."</b>,
@@ -709,7 +709,7 @@ stateDiagram-v2
           <tr><td><code>estado</code></td><td class="libre">Obligatorio. Uno de <code>pendiente</code>, <code>en_curso</code>, <code>hecho</code>, <code>bloqueado</code>, <code>descartado</code>.</td></tr>
           <tr><td><code>modelo</code></td><td class="libre">Obligatorio. <code>haiku</code>, <code>sonnet</code> u <code>opus</code>. Codifica cuánto criterio hace falta, y el arnés lo aplica.</td></tr>
           <tr><td><code>esfuerzo</code></td><td class="libre">Obligatorio. <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code> o <code>max</code>.</td></tr>
-          <tr><td><code>horas_maquina</code></td><td class="libre">Obligatorio. Tiempo de máquina, no tokens: es el recurso escaso. Por encima de 1 dispara una guarda.</td></tr>
+          <tr><td><code>horas_maquina</code></td><td class="libre">Obligatorio. Tiempo de reloj de la máquina —builds, tests, ingestas, evaluaciones—, no horas de persona ni tokens: es el recurso escaso. Por encima de 1 dispara una guarda.</td></tr>
           <tr><td><code>multiagente</code></td><td class="libre">Obligatorio. <code>true</code> impide el modo desatendido.</td></tr>
           <tr><td><code>verificacion</code></td><td class="libre">Obligatorio. Cómo se comprueba que el ítem está hecho, en prosa.</td></tr>
           <tr><td><code>por_que_este_modelo</code></td><td class="libre">Obligatorio. Obliga a justificar el gasto antes de hacerlo.</td></tr>
