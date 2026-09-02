@@ -106,6 +106,12 @@ EN_CABECERA = {'id', 'titulo', 'estado', 'modelo', 'esfuerzo', 'horas_maquina',
 # Claves de nivel ola que se pintan aparte, no como ítem.
 CABECERA_OLA = {'ola', 'nombre', 'items'}
 
+# Escape hatch: si alguna de las interacciones del pliegue (anclajes, filtro,
+# impresión, Ctrl-F) falla y hace falta revertir sin deshacer el resto del
+# ítem, esta constante a `False` vuelve el render de olas a `<section>` plano
+# y sin plegar, como antes de 2.1-plegar-por-estado.
+PLEGAR = True
+
 
 def e(texto):
     """Escapa para HTML. Todo lo que venga del ledger pasa por aquí."""
@@ -597,15 +603,30 @@ def generar(ledger_ruta, version='?', proyecto=None):
     A('</div>')
 
     # ── Olas e ítems ────────────────────────────────────────────────────────
+    # Una ola con TODOS sus ítems en `hecho` es historia: se pliega, no se
+    # esconde — Ctrl-F y la impresión siguen llegando a su contenido. La ola
+    # que trae el ítem que anuncia el panel de arriba se emite siempre abierta:
+    # esa condición se comprueba aparte y no como consecuencia de la anterior,
+    # para que no dependa de que `sig` sea justo el único ítem no-hecho de su
+    # ola (hoy lo es siempre, porque `elegir_siguiente` sólo devuelve pendientes
+    # o en curso, pero la regla se escribe explícita y no por coincidencia).
     for o in olas:
         items = o.get('items', [])
-        A('<section class="ola" id="ola-%s" aria-labelledby="t-ola-%s">'
-          % (e(o.get('ola', '?')), e(o.get('ola', '?'))))
+        ola_num = o.get('ola', '?')
+        es_sig_ola = sig_ola is not None and o is sig_ola
+        todos_hechos = bool(items) and all(i.get('estado') == 'hecho' for i in items)
+        plegada = PLEGAR and todos_hechos and not es_sig_ola
+        etq = 'details' if PLEGAR else 'section'
+        A('<%s class="ola" id="ola-%s" aria-labelledby="t-ola-%s"%s>'
+          % (etq, e(ola_num), e(ola_num), '' if plegada else (' open' if PLEGAR else '')))
         hechos_ola = sum(1 for i in items if i.get('estado') == 'hecho')
-        A('<div class="ola-cab"><h2 id="t-ola-%s"><span class="n">Ola %s</span>%s'
-          '<span class="frac">%d/%d</span></h2>%s</div>'
-          % (e(o.get('ola', '?')), e(o.get('ola', '?')), e(o.get('nombre', '')),
-             hechos_ola, len(items), barra(items)))
+        cab = ('<div class="ola-cab"><h2 id="t-ola-%s"><span class="n">Ola %s</span>%s'
+               '<span class="frac">%d/%d</span></h2>%s</div>'
+               % (e(ola_num), e(ola_num), e(o.get('nombre', '')),
+                  hechos_ola, len(items), barra(items)))
+        # El resumen envuelve la cabecera entera: así la fracción y la barra se
+        # ven siempre, aunque la ola esté plegada, y toda la fila es clicable.
+        A('<summary>%s</summary>' % cab if PLEGAR else cab)
         # Criterios y advertencias: las puertas de la ola. Van arriba porque son
         # lo que decide si esta ola se puede siquiera empezar.
         criterios = [(k, v) for k, v in o.items()
@@ -619,7 +640,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
         A('<div class="items">')
         for it in items:
             A(tarjeta(it, ids))
-        A('</div></section>')
+        A('</div></%s>' % etq)
 
     A(crono_html(cronologia(olas)))
 
@@ -875,10 +896,21 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
 
 /* ── Olas e ítems ─────────────────────────────────────────────────────── */
 .ola{display:flex;flex-direction:column;gap:12px}
+/* Una ola cerrada a N/N se pliega: <details> nativo, no un display:none
+   propio — así Ctrl-F y la impresión siguen llegando a su contenido. El
+   marcador por defecto del navegador se sustituye por un triángulo propio que
+   gira al abrir, para no perder la señal de "esto se puede desplegar". */
+.ola>summary{cursor:pointer;list-style:none}
+.ola>summary::-webkit-details-marker{display:none}
 .ola-cab h2{display:flex;align-items:baseline;gap:11px;font-size:18px;text-transform:none;
   letter-spacing:-.015em;color:var(--tinta);margin-bottom:10px}
 .ola-cab h2 .n{font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
-  color:var(--tenue);flex:none}
+  color:var(--tenue);flex:none;display:flex;align-items:center;gap:7px}
+.ola>summary .ola-cab h2 .n::before{content:"";width:0;height:0;flex:none;
+  border-style:solid;border-width:4px 0 4px 6px;
+  border-color:transparent transparent transparent var(--tenue);
+  transition:transform .12s}
+details.ola[open]>summary .ola-cab h2 .n::before{transform:rotate(90deg)}
 .ola-cab h2 .frac{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--tenue);
   font-family:var(--f-datos);flex:none}
 .ola-cab .barra{height:4px}
@@ -982,6 +1014,13 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
   .acciones,.barra-control,.saltar{display:none!important}
   .item.oculto{display:block!important}
   .ola{display:block!important}
+  /* El pliegue no puede tapar nada en un PDF. El JS ya fuerza `open=true` en
+     cada `<details class="ola">` al imprimir (evento `beforeprint`), y esto es
+     el respaldo puramente CSS por si algún motor no dispara ese evento: el
+     contenido de un `<details>` cerrado lleva `content-visibility:hidden` en
+     la hoja del user-agent, y basta con `display` para revertirlo. */
+  details.ola:not([open])>:not(summary){display:block!important;content-visibility:visible!important}
+  .ola>summary{cursor:default}
   body{background:#fff;color:#000}
   .item,.kpi,.criterios,.notas dl,.mapa .filas{break-inside:avoid;box-shadow:none}
   .detalle dd.recortado{max-height:none!important;-webkit-mask-image:none!important;
@@ -1011,7 +1050,12 @@ JS = r"""
 (function(){
   var q=document.getElementById('q'), cuenta=document.getElementById('cuenta');
   var items=[].slice.call(document.querySelectorAll('.item'));
+  var olas=[].slice.call(document.querySelectorAll('.ola'));
   var estado='todo', texto='';
+
+  // El estado de pliegue con el que salió del servidor. Se restaura al quitar
+  // el filtro; mientras el filtro está puesto, manda la coincidencia y no esto.
+  olas.forEach(function(o){ o.dataset.abiertaOriginal = o.open ? '1' : '0'; });
 
   function aplicar(){
     var vistos=0;
@@ -1020,12 +1064,21 @@ JS = r"""
              (!texto||it.dataset.busca.indexOf(texto)>=0);
       it.classList.toggle('oculto',!ok); if(ok)vistos++;
     });
-    // Una ola sin ningún ítem visible sobra: deja un hueco con criterios que no
-    // vienen a cuento de lo que se está buscando.
-    [].forEach.call(document.querySelectorAll('.ola'),function(o){
-      o.style.display=o.querySelector('.item:not(.oculto)')?'':'none';
+    var sinFiltro=(estado==='todo'&&!texto);
+    olas.forEach(function(o){
+      var vis=o.querySelector('.item:not(.oculto)');
+      // Una ola sin ningún ítem visible sobra: deja un hueco con criterios que
+      // no vienen a cuento de lo que se está buscando.
+      o.style.display=vis?'':'none';
+      if(!('open' in o))return;   // PLEGAR=False: son <section>, no <details>
+      if(sinFiltro) o.open = o.dataset.abiertaOriginal==='1';
+      // Con filtro activo: si le queda algún ítem que encaja, se abre para
+      // que se vea — si estaba plegada por estar hecha del todo, no cuenta
+      // como abierta "de verdad": se vuelve a plegar en cuanto se quita el
+      // filtro, arriba.
+      else if(vis) o.open = true;
     });
-    cuenta.textContent=(estado==='todo'&&!texto)
+    cuenta.textContent=sinFiltro
       ? items.length+' ítems'
       : 'mostrando '+vistos+' de '+items.length;
     var v=document.getElementById('vacio');
@@ -1046,6 +1099,50 @@ JS = r"""
     });
   });
   aplicar();
+
+  // ── Anclajes que abren el pliegue antes de saltar ────────────────────────
+  // `#it-<id>` señala una tarjeta que puede vivir dentro de una ola plegada;
+  // `#ola-N` señala la propia ola. El navegador ya fuerza abierto un
+  // ancestro `<details>` cerrado cuando el destino vive DENTRO de él, pero
+  // eso no cubre `#ola-N`: ahí el destino ES el `<details>`, que nunca está
+  // oculto (sólo su contenido), así que nada lo abriría solo. Se resuelve
+  // igual en los dos casos: abrir toda la cadena de `<details>` ancestros
+  // (incluido el propio destino si lo es) y sólo entonces hacer scroll.
+  function abrirHasta(el){
+    var d = (el.tagName==='DETAILS') ? el : el.closest('details');
+    while(d){ d.open=true; d = d.parentElement && d.parentElement.closest('details'); }
+  }
+  function irA(hash){
+    if(!hash || hash.length<2) return;
+    var el=document.getElementById(hash.slice(1));
+    if(!el) return;
+    abrirHasta(el);
+    el.scrollIntoView();
+  }
+  document.addEventListener('click',function(ev){
+    var a=ev.target.closest && ev.target.closest('a[href^="#"]');
+    if(!a) return;
+    var hash=a.getAttribute('href');
+    if(!hash || hash.length<2 || !document.getElementById(hash.slice(1))) return;
+    abrirHasta(document.getElementById(hash.slice(1)));
+    // No se hace preventDefault: la navegación del propio navegador es la que
+    // pone `:target` y mueve el foco correctamente; aquí sólo se adelanta la
+    // apertura del pliegue para que el salto no aterrice en algo oculto.
+  });
+  if(location.hash) irA(location.hash);
+  window.addEventListener('hashchange',function(){irA(location.hash)});
+
+  // ── Impresión: el pliegue no puede tapar nada en el papel ────────────────
+  var plegadasAntesDeImprimir=null;
+  window.addEventListener('beforeprint',function(){
+    plegadasAntesDeImprimir=olas.filter(function(o){return 'open' in o && !o.open;});
+    plegadasAntesDeImprimir.forEach(function(o){o.open=true;});
+  });
+  window.addEventListener('afterprint',function(){
+    if(!plegadasAntesDeImprimir) return;
+    plegadasAntesDeImprimir.forEach(function(o){o.open=false;});
+    plegadasAntesDeImprimir=null;
+  });
 
   // ── Plegado de los campos largos ─────────────────────────────────────────
   // Se hace aquí y no en el HTML a propósito: si el JS no corre, la página
@@ -1079,7 +1176,12 @@ JS = r"""
     // Y fuera el filtro que hubiera puesto: se comparte el plan entero, no la
     // búsqueda de quien lo compartió.
     [].forEach.call(doc.querySelectorAll('.item.oculto'),function(n){n.classList.remove('oculto')});
-    [].forEach.call(doc.querySelectorAll('.ola'),function(n){n.style.display=''});
+    // El pliegue vuelve al que traía del servidor, no al que dejó el filtro de
+    // quien comparte: la copia es el plan entero, plegado por estado real.
+    [].forEach.call(doc.querySelectorAll('.ola'),function(n){
+      n.style.display='';
+      if('open' in n) n.open = n.dataset.abiertaOriginal==='1';
+    });
     var v=doc.querySelector('#vacio'); if(v&&v.parentNode)v.parentNode.removeChild(v);
     // El plegado lo vuelve a calcular la copia al abrirse: si se fuera con los
     // botones puestos, saldrían duplicados.

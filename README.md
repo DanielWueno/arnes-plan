@@ -227,6 +227,12 @@ una, y cada ítem con lo que se hizo, cómo se verificó y cómo se revierte. Sa
 del ledger con Python: no gasta una llamada al modelo, a diferencia de
 `/arnes-plan:plan-estado`, que es su equivalente en texto dentro de la sesión.
 
+Una ola con todos sus ítems en `hecho` se pliega —es historia, no lo que toca
+ahora—; la ola que trae el ítem que anuncia el panel de arriba siempre sale
+abierta. El pliegue usa `<details>` nativo, así que Ctrl-F y la impresión
+siguen llegando a lo plegado, y el buscador de la página abre solo la ola que
+tenga una coincidencia dentro.
+
 La página se escribe en un temporal y se abre sola. Para compartirla no hay que
 ir a buscar el archivo: lleva **Guardar copia** —descarga la propia página en un
 solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—,

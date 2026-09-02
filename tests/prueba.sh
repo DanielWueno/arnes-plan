@@ -1136,6 +1136,85 @@ check "ni las líneas nuevas por su clase" "0" \
       "$(grep -c '\.linea-doc\|\.linea-arnes' <<<"$BLOQUE_IMPRESION")"
 cd "$ARNES"
 
+echo "25. Una ola cerrada a N/N se pliega; la que trae el ítem que toca, no"
+cd "$PROY"
+python3 - <<'PY'
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['olas'] = [
+    {"ola": 1, "nombre": "Cerrada del todo", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "1.1-cerrado", "titulo": "uno", "estado": "hecho", "modelo": "haiku"},
+        {"id": "1.2-cerrado", "titulo": "dos", "estado": "hecho", "modelo": "haiku"},
+    ]},
+    {"ola": 2, "nombre": "La que toca", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "2.1-toca", "titulo": "tres", "estado": "pendiente", "modelo": "haiku"},
+        {"id": "2.2-toca", "titulo": "cuatro", "estado": "hecho", "modelo": "haiku"},
+    ]},
+]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/plegado.html" --no-abrir >/dev/null 2>&1
+PAG_PLEGADO="$(cat "$TMP/plegado.html")"
+# (1) la ola 1 (2/2 hecho, y no es la que anuncia el panel) sale como
+# `<details>` SIN `open`; la ola 2 (trae el pendiente que anuncia el panel)
+# sale con `open`, aunque por lo demás tampoco esté toda hecha.
+check "ola cerrada del todo: \`<details>\` sin \`open\`" "si" \
+      "$(grep -qE '<details class="ola" id="ola-1"[^>]*aria-labelledby="t-ola-1">' "$TMP/plegado.html" && echo si || echo no)"
+check "y no lleva el atributo \`open\` colado en otro sitio del tag" "0" \
+      "$(grep -oE '<details class="ola" id="ola-1"[^>]*>' "$TMP/plegado.html" | grep -c ' open')"
+check "ola con el ítem que toca: \`<details ... open>\`" "si" \
+      "$(grep -qE '<details class="ola" id="ola-2"[^>]*aria-labelledby="t-ola-2" open>' "$TMP/plegado.html" && echo si || echo no)"
+# La cabecera —número, nombre, fracción— vive en el `<summary>`, así que se ve
+# siempre, esté la ola abierta o no.
+check "la cabecera de la ola plegada vive en el \`<summary>\`" "si" \
+      "$(grep -qE '<summary><div class="ola-cab"><h2 id="t-ola-1">.*<span class="frac">2/2</span>' "$TMP/plegado.html" && echo si || echo no)"
+
+# (2) Los anclajes que ya se usan abren el pliegue antes de saltar. Mecánico:
+# se comprueba que el JS resuelve la cadena de `<details>` ancestros — incluido
+# el caso en que el propio destino de `#ola-N` ES el `<details>`, que la
+# revelación nativa del navegador no cubre— y que lo hace tanto en clic como al
+# cargar la página con un hash puesto, antes de mover el scroll.
+check "el JS sube por los \`<details>\` ancestros del destino" "si" \
+      "$(grep -q "tagName==='DETAILS'" "$TMP/plegado.html" && grep -q "closest('details')" "$TMP/plegado.html" && echo si || echo no)"
+check "abre antes de hacer scroll, no al revés" "si" \
+      "$(python3 -c "
+t=open('$TMP/plegado.html',encoding='utf-8').read()
+i=t.find('function irA(hash)')
+cuerpo=t[i:i+300]
+print('si' if cuerpo.find('abrirHasta')<cuerpo.find('scrollIntoView') else 'no')
+")"
+check "se cablea tanto al clic como al hash de carga" "si" \
+      "$(grep -q "addEventListener('click'" "$TMP/plegado.html" && grep -q 'location.hash' "$TMP/plegado.html" && grep -q "addEventListener('hashchange'" "$TMP/plegado.html" && echo si || echo no)"
+
+# (3) `@media print` fuerza todo abierto: por CSS (el `content-visibility`
+# oculto de un `<details>` cerrado no basta con `display` a secas si no se
+# apunta también ese `content-visibility`) y por JS (`beforeprint`), igual que
+# ya hace con `.item.oculto` y `.ola`.
+BLOQUE_IMPRESION_OLA="$(sed -n '/@media print{/,/^}/p' "$TMP/plegado.html")"
+check "el CSS de impresión reabre el contenido del \`<details>\` cerrado" "si" \
+      "$(grep -qE 'details\.ola:not\(\[open\]\)>:not\(summary\)\{[^}]*content-visibility:visible' <<<"$BLOQUE_IMPRESION_OLA" && echo si || echo no)"
+check "y el JS fuerza \`open\` en \`beforeprint\`, de respaldo" "si" \
+      "$(grep -q "addEventListener('beforeprint'" "$TMP/plegado.html" && echo si || echo no)"
+
+# El escape hatch del rollback: `PLEGAR=False` tiene que devolver el render a
+# `<section>` plano, sin un solo `<details>` de ola, y sin `open` colgando.
+SIN_PLEGAR="$(python3 -c "
+import sys, json
+sys.path.insert(0, '$ARNES/scripts')
+import ver
+ver.PLEGAR = False
+datos = json.load(open('docs/plan/ejecucion-plan.estado.json', encoding='utf-8'))
+json.dump(datos, open('$TMP/sin-plegar.json', 'w', encoding='utf-8'))
+html = ver.generar('$TMP/sin-plegar.json', '0.0.0', '$PROY')
+print('si' if ('<details class=\"ola\" id=' not in html and '<section class=\"ola\" id=' in html) else 'no')
+")"
+check "con \`PLEGAR=False\`, las olas vuelven a \`<section>\` plano" "si" "$SIN_PLEGAR"
+git checkout -q docs/plan/ejecucion-plan.estado.json
+cd "$ARNES"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1
