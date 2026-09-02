@@ -97,7 +97,11 @@ else
   echo -e "  ${DIM}diga QUÉ PASA HOY, una verificación que sea un comando, y un rollback.${NC}"
   echo -e "  ${DIM}Cambia también el campo _moneda: horas_maquina puede no ser tu recurso escaso.${NC}"
   echo
-  echo -e "  Cuando termines:  ${BOLD}"$PY" \"\$ARNES/validar-ledger.py\"${NC}"
+  if [[ $ATAJO -eq 1 ]]; then
+    echo -e "  Cuando termines:  ${BOLD}arnes validar${NC}"
+  else
+    echo -e "  Cuando termines:  valida el ledger ${DIM}(\`arnes validar\`, o la forma larga del README)${NC}"
+  fi
 fi
 
 # ── El atajo: un comando de verdad, no una variable ─────────────────────────

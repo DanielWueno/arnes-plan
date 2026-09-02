@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.12.1</p>
+    <p class="eyebrow">arnes-plan · v1.12.2</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -508,33 +508,36 @@ stateDiagram-v2
 
   <section id="primeros-pasos">
     <p class="when">Empezar · de cero a un ítem cerrado</p>
-    <h2>Los cinco pasos, sin dar nada por sabido</h2>
+    <h2>Instalación y primer ítem</h2>
+    <p class="col">Requisitos previos: el CLI de Claude Code accesible como <code>claude</code>, y un repositorio git. El arranque funciona fuera de uno, pero el plan se versiona con el proyecto, cada ítem cierra con un commit, y fuera de un repositorio la guarda de árbol sucio se dispara siempre.</p>
     <div class="pasos">
 
       <div class="paso">
-        <h3>Instalar el plugin y tener el comando</h3>
-        <p>El plugin trae los slash commands y los hooks. El comando de terminal <code>arnes</code> no viene con él: lo escribe el arranque.</p>
-        <div class="bloque"><b>claude plugin install arnes-plan@arnes-plan</b></div>
-        <p>Si después <code>arnes</code> responde <em>command not found</em>, el lanzador está escrito pero su carpeta no está en el PATH: es <code>~/.local/bin</code>, la misma donde vive <code>claude</code>. El propio arranque imprime la línea que hay que añadir al perfil, distinta en Unix y en PowerShell.</p>
+        <h3>Registrar el marketplace e instalar el plugin</h3>
+        <p>Son dos operaciones distintas: la primera da de alta este repositorio como origen de plugins, la segunda instala desde ese origen. Sin el registro previo, la instalación no encuentra nada que instalar.</p>
+        <div class="bloque"><b>claude plugin marketplace add DanielWueno/arnes-plan</b>
+<b>claude plugin install arnes-plan@arnes-plan</b></div>
+        <p>El plugin trae los slash commands y los hooks; reinicia la sesión de Claude Code para que carguen.</p>
       </div>
 
       <div class="paso">
         <h3>Dejar el proyecto listo</h3>
-        <p>Desde la raíz del proyecto. Siembra el fichero de estado, instala el lanzador y no toca nada si ya había plan.</p>
-        <div class="bloque"><b>arnes arrancar</b>
-<b>arnes arrancar --donde docs/analisis-futuro</b>   # si prefieres otra carpeta</div>
+        <p>Desde una sesión de Claude Code abierta en el proyecto. Siembra el fichero de estado, instala el lanzador <code>arnes</code> en <code>~/.local/bin</code> —donde vive el propio <code>claude</code>— y no toca nada si el proyecto ya tenía plan.</p>
+        <div class="bloque"><b>/arnes-plan:plan-arrancar</b></div>
+        <p>El comando de terminal <code>arnes</code> no viene con el plugin: lo escribe este paso. Por eso el primer arranque va por el slash command, y sólo a partir de ahí preparar otro proyecto es <code>arnes arrancar</code>, con <code>--donde docs/analisis-futuro</code> si el fichero de estado debe vivir en otra carpeta.</p>
+        <p>Si <code>arnes</code> responde <em>command not found</em>, el lanzador está escrito pero su carpeta no está en el PATH. El propio arranque imprime la línea que hay que añadir al perfil, distinta en Unix y en PowerShell.</p>
       </div>
 
       <div class="paso">
         <h3>Escribir el primer ítem</h3>
-        <p>La plantilla se siembra con un ítem de ejemplo: hay que sustituirlo. Esta es la ficha mínima que el arnés acepta para lanzar — sin <code>rollback</code>, <code>por_que_este_modelo</code> o <code>verificacion</code> se niega antes de gastar nada.</p>
+        <p>El arranque siembra <code>docs/plan/ejecucion-plan.estado.json</code> con un ítem de ejemplo que hay que sustituir. Esta es la ficha mínima que el arnés acepta para lanzar: sin <code>rollback</code>, <code>por_que_este_modelo</code> o <code>verificacion</code> se niega antes de gastar nada.</p>
         <div class="bloque">{
   "id": <b>"1.1-sacar-los-logs"</b>,
   "titulo": <b>"Sacar los logs del árbol de código y ajustar .gitignore"</b>,
   "estado": <b>"pendiente"</b>,
   "modelo": <b>"haiku"</b>,           <i>// haiku · sonnet · opus</i>
   "esfuerzo": <b>"low"</b>,           <i>// low · medium · high · xhigh · max</i>
-  "horas_maquina": <b>0</b>,          <i>// de máquina, no de reloj ni de tokens</i>
+  "horas_maquina": <b>0</b>,          <i>// reloj de la máquina, no de persona ni tokens</i>
   "multiagente": <b>false</b>,
   "verificacion": <b>"find src -name '*.json' -size +1M devuelve vacío"</b>,
   "verificacion_comando": <b>"! find src -name '*.json' -size +1M | grep ."</b>,
@@ -546,16 +549,16 @@ stateDiagram-v2
 
       <div class="paso">
         <h3>Ensayar antes de gastar</h3>
-        <p>Las dos preguntas que conviene hacerse antes de abrir una sesión: <em>¿qué va a coger?</em> y <em>¿mi ficha va a pasar?</em>. Ninguna de las dos cuesta nada, pero son dos comandos distintos.</p>
+        <p>Dos comprobaciones previas, cada una con su comando y ninguna con coste: qué ítem se tomaría y cuánto declara costar, y si esa ficha está en condiciones de ejecutarse.</p>
         <div class="bloque"><b>arnes --solo-anunciar</b>   <i># la ficha y el coste. No abre sesión.</i></div>
-        <p>El ensayo enseña qué ítem se tomaría y lo que va a costar, pero <strong>no comprueba que la ficha esté completa</strong>: termina antes de esa validación. Para eso hay un verbo aparte.</p>
+        <p>El anuncio termina antes de la validación, así que <strong>no comprueba que la ficha esté completa</strong>. Para eso hay un verbo aparte.</p>
         <div class="bloque"><b>arnes validar --item 1.1</b>   <i># ¿está lista para ejecutarse?</i>
 <b>arnes validar</b>              <i># todo el fichero: ids repetidos, claves fuera de esquema</i></div>
-        <p><code>arnes ver</code> contesta la primera pregunta en el navegador, y además enseña los ítems que quedaron a medias, que el lanzador no retoma por su cuenta.</p>
+        <p><code>arnes ver</code> muestra lo mismo en el navegador, y además los ítems que quedaron a medias, que el lanzador no retoma por su cuenta.</p>
       </div>
 
       <div class="paso">
-        <h3>Lanzarlo, y saber qué está pasando</h3>
+        <h3>Ejecutar el ítem</h3>
         <p><code>arnes</code> abre una <strong>sesión de Claude Code nueva</strong> —otro proceso, no un <code>/clear</code>— con el modelo y el esfuerzo que dice la ficha, y le pide <code>/arnes-plan:plan-siguiente &lt;id&gt;</code>. Dentro de esa ventana trabaja el agente y apruebas tú los permisos; es él quien marca el ítem <code>hecho</code>, escribe el <code>resultado</code> y hace el commit. Cuando la sesión termina, el lanzador imprime <code>── Cierre ──</code> con el último commit y el resultado de las dos comprobaciones.</p>
         <p>Si el cierre sale en rojo, <strong>el commit ya existe</strong> y el arnés no deshace nada. Las opciones son tres: arreglar lo que falte y volver a cerrar —el hook lo vuelve a evaluar en la siguiente escritura del fichero—, reabrir el ítem poniéndolo <code>en_curso</code>, o revertir con el <code>rollback</code> que la propia ficha obligaba a escribir. Copia antes las líneas de la verificación fallida: sólo existen en esa pantalla.</p>
       </div>
@@ -706,7 +709,7 @@ stateDiagram-v2
           <tr><td><code>estado</code></td><td class="libre">Obligatorio. Uno de <code>pendiente</code>, <code>en_curso</code>, <code>hecho</code>, <code>bloqueado</code>, <code>descartado</code>.</td></tr>
           <tr><td><code>modelo</code></td><td class="libre">Obligatorio. <code>haiku</code>, <code>sonnet</code> u <code>opus</code>. Codifica cuánto criterio hace falta, y el arnés lo aplica.</td></tr>
           <tr><td><code>esfuerzo</code></td><td class="libre">Obligatorio. <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code> o <code>max</code>.</td></tr>
-          <tr><td><code>horas_maquina</code></td><td class="libre">Obligatorio. Tiempo de máquina, no tokens: es el recurso escaso. Por encima de 1 dispara una guarda.</td></tr>
+          <tr><td><code>horas_maquina</code></td><td class="libre">Obligatorio. Tiempo de reloj de la máquina —builds, tests, ingestas, evaluaciones—, no horas de persona ni tokens: es el recurso escaso. Por encima de 1 dispara una guarda.</td></tr>
           <tr><td><code>multiagente</code></td><td class="libre">Obligatorio. <code>true</code> impide el modo desatendido.</td></tr>
           <tr><td><code>verificacion</code></td><td class="libre">Obligatorio. Cómo se comprueba que el ítem está hecho, en prosa.</td></tr>
           <tr><td><code>por_que_este_modelo</code></td><td class="libre">Obligatorio. Obliga a justificar el gasto antes de hacerlo.</td></tr>
@@ -739,7 +742,8 @@ stateDiagram-v2
 
   <footer>
     arnes-plan · plugin de Claude Code · MIT<br>
-    <a href="https://github.com/DanielWueno/arnes-plan">Repositorio</a> · Instalación: <code>claude plugin install arnes-plan@arnes-plan</code>
+    <a href="https://github.com/DanielWueno/arnes-plan">Repositorio</a><br>
+    Instalación: <code>claude plugin marketplace add DanielWueno/arnes-plan</code> · <code>claude plugin install arnes-plan@arnes-plan</code>
   </footer>
 
 </div>
