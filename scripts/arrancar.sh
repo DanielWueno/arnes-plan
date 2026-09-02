@@ -233,10 +233,18 @@ echo -e "  ${BOLD}arnes doctor${NC}             ¿está sana la instalación? ru
 echo
 
 if ! command -v arnes >/dev/null 2>&1; then
-  echo -e "${YELLOW}⚠${NC}  $BIN no está en tu PATH en esta terminal."
-  # El consejo lo decide entorno.sh: en PowerShell un `export` no significa
-  # nada, y darlo igual es peor que callarse — se sigue, no funciona, y parece
-  # culpa de quien lo siguió.
-  echo "     $CONSEJO_PATH"
-  echo -e "${DIM}     (o abre una terminal nueva, si acabas de crearlo)${NC}"
+  # Donde se puede registrar solo, se registra: pedir tres líneas de PowerShell
+  # es devolverle al usuario un trabajo que la instalación puede hacer ella.
+  if arnes_registrar_path "$BIN"; then
+    echo -e "${GREEN}✓${NC} $BIN añadido a tu ${BOLD}PATH de usuario${NC}."
+    echo -e "${DIM}     Ábrelo en una consola nueva: la actual no hereda el cambio.${NC}"
+    echo -e "${DIM}     Para deshacerlo: Variables de entorno del usuario → Path.${NC}"
+  else
+    echo -e "${YELLOW}⚠${NC}  $BIN no está en tu PATH en esta terminal."
+    # El consejo lo decide entorno.sh: en PowerShell un `export` no significa
+    # nada, y darlo igual es peor que callarse — se sigue, no funciona, y parece
+    # culpa de quien lo siguió.
+    echo "     $CONSEJO_PATH"
+    echo -e "${DIM}     (o abre una terminal nueva, si acabas de crearlo)${NC}"
+  fi
 fi

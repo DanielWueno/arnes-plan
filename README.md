@@ -10,8 +10,9 @@ deja en tu repositorio es el ledger, un JSON con tu plan. La herramienta se actu
 **Sistemas.** Los scripts son bash y Python 3, así que corren en macOS, Linux y en Windows sobre
 git-bash o WSL —que es lo que Claude Code usa allí—. El intérprete se resuelve solo (`python3` o
 `python`, según el sistema), y en Windows el lanzador se instala además como `arnes.cmd` para que
-PowerShell y `cmd` sepan invocarlo. El recorrido completo **no** está probado en Windows; los
-informes de fallo son bienvenidos.
+PowerShell y `cmd` sepan invocarlo. Allí `~/.local/bin` no está en el PATH y ponerla exige editar
+el registro, así que lo hace el propio arranque, en el ámbito del usuario y sólo si falta. El
+recorrido completo **no** está probado en Windows; los informes de fallo son bienvenidos.
 
 ---
 

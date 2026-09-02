@@ -42,6 +42,38 @@ else
      export PATH="$HOME/.local/bin:$PATH"'
 fi
 
+# ── Dejar la carpeta en el PATH sin trabajo manual ──────────────────────────
+# En Windows, registrar una variable de entorno es editar el registro, y eso
+# está fuera del dominio de quien sólo quería instalar un plugin: la última
+# milla se convertía en tres líneas de PowerShell copiadas a mano. Se hace aquí.
+#
+# Siempre en el ámbito del USUARIO. El de máquina pide administrador y afecta a
+# todas las cuentas, y en esa PATH no pinta nada un lanzador que vive en el
+# perfil de una sola. Se lee ese mismo ámbito antes de escribirlo —`$env:Path`
+# es la de máquina y la de usuario ya fundidas, y volcarla entera dejaría una
+# copia permanente de las entradas del sistema— y no se añade si ya estaba.
+#
+# En Unix no hace nada: ~/.local/bin es donde vive el propio `claude`, así que
+# ya está en el PATH de quien tiene Claude Code, y adivinar qué fichero de
+# perfil se lee de verdad —zsh, bash, login o interactivo— falla en silencio.
+# Devuelve 0 sólo si la PATH persistente quedó lista.
+arnes_registrar_path() {
+  local dir="$1" ps win
+  [[ $ES_WINDOWS -eq 1 ]] || return 1
+  ps="$(command -v powershell.exe || command -v pwsh.exe \
+        || command -v powershell || command -v pwsh)" || return 1
+  win="$(cygpath -w "$dir" 2>/dev/null || printf '%s' "$dir")"
+  # La ruta viaja por el entorno y no dentro del texto del comando: un
+  # nombre de usuario con una comilla no puede romper —ni ampliar— el script.
+  ARNES_BIN_WIN="$win" "$ps" -NoProfile -NonInteractive -Command '
+    $dir = $env:ARNES_BIN_WIN
+    $u = [Environment]::GetEnvironmentVariable("Path", "User")
+    if (($u -split ";") -contains $dir) { exit 0 }
+    $nuevo = if ([string]::IsNullOrEmpty($u)) { $dir } else { $u.TrimEnd(";") + ";" + $dir }
+    [Environment]::SetEnvironmentVariable("Path", $nuevo, "User")
+  ' >/dev/null 2>&1
+}
+
 # ── Quién es la copia instalada ─────────────────────────────────────────────
 # Lo dice el registro que escribe el propio CLI. Esta consulta estaba duplicada
 # en plan-run.sh y en el lanzador de ~/.local/bin. El lanzador tiene que seguir
