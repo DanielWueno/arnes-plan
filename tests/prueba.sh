@@ -634,7 +634,7 @@ check "el verbo \`ver\` sale por plan-run.sh" "si" \
 # Por eso el destino por defecto es un temporal, y por eso esto se comprueba:
 # el fallo sería silencioso hasta que alguien lo commiteara.
 check "no deja nada en el árbol de trabajo" "" "$(git status --porcelain)"
-for pieza in 'btn-guardar' 'btn-resumen' 'btn-pdf' 'ítem de prueba' 'Lo siguiente que toca'; do
+for pieza in 'btn-guardar' 'btn-resumen' 'ítem de prueba' 'Lo siguiente que toca'; do
   check "la página trae: $pieza" "si" "$(grep -qF -- "$pieza" "$VISTA" && echo si || echo no)"
 done
 # La página tiene que abrirse sin red: ni CDN, ni fuentes, ni imágenes remotas.

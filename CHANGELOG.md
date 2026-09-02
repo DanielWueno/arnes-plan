@@ -10,6 +10,33 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.14.0] — 2026-09-02
+
+### Añadido
+- **El pie del visor nombra dónde está la documentación, no sólo de qué ledger
+  salió.** Quien recibe una copia guardada de la página —HTML exportado,
+  abierto meses después en otra máquina— no tenía forma de llegar ni a la
+  documentación del proyecto ni a la del arnés salvo que ya se supiera la URL
+  de memoria. Ahora, si la raíz del ledger declara `documentacion` con una URL
+  `http(s)` válida, el pie la enseña como enlace; y siempre enseña, al lado, la
+  documentación del arnés con su versión. Sin el campo, el pie no dice nada en
+  su lugar —ausencia de dato es ausencia de línea, no un "no disponible"—, y un
+  valor que no sea una URL `http(s)` válida (un esquema `javascript:`, o
+  basura) nunca se convierte en enlace ni acaba dentro de un `href`, ni
+  siquiera escapado. Las dos líneas quedan legibles al imprimir o exportar a
+  PDF, que es justo el caso de uso que las motiva.
+
+### Cambiado
+- **La cabecera del visor deja de gastar la primera pantalla en explicarse.**
+  `arnes ver` abría con tres botones y un párrafo de ayuda contándolos; se
+  quita el botón «Imprimir o PDF» —Cmd/Ctrl-P ya hace lo mismo, y el CSS de
+  impresión sigue intacto— y el párrafo `.ayuda` que describía «Guardar copia»
+  y «Copiar resumen» pasa a vivir como `title` y `aria-describedby` de cada
+  botón: la explicación sigue ahí para quien la necesite —al pasar el ratón, o
+  con lector de pantalla— pero ya no ocupa espacio fijo. De paso, «Guardar
+  copia» deja de llevar el estilo `.primario`: con un botón menos, marcar uno
+  como el principal sobraba.
+
 ## [1.13.1] — 2026-09-02
 
 ### Corregido
@@ -546,6 +573,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.14.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.1...arnes-plan--v1.14.0
 [1.13.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.0...arnes-plan--v1.13.1
 [1.13.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.2...arnes-plan--v1.13.0
 [1.12.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.1...arnes-plan--v1.12.2

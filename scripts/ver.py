@@ -470,15 +470,22 @@ def generar(ledger_ruta, version='?', proyecto=None):
     A('<p class="sello">%s · generado el %s · arnés v%s · sin inferencia</p>' % (
         e(os.path.relpath(ledger_ruta, proyecto) if ledger_ruta.startswith(proyecto)
           else ledger_ruta), e(ahora), e(version)))
-    # Compartir se hace desde aquí, no copiando una ruta de la consola.
+    # Compartir se hace desde aquí, no copiando una ruta de la consola. El texto
+    # que antes explicaba los botones en un párrafo visible ahora vive como
+    # `title`/`aria-describedby` en cada botón: la ayuda sigue accesible, pero
+    # ya no ocupa la primera pantalla.
     A('<div class="acciones">'
-      '<button id="btn-guardar" type="button" class="primario">Guardar copia</button>'
-      '<button id="btn-resumen" type="button">Copiar resumen</button>'
-      '<button id="btn-pdf" type="button">Imprimir o PDF</button>'
+      '<button id="btn-guardar" type="button" title="Descarga esta misma página '
+      'en un solo archivo, lista para adjuntar." aria-describedby="ayuda-guardar">'
+      'Guardar copia</button>'
+      '<span id="ayuda-guardar" class="oculta">Descarga esta misma página en un '
+      'solo archivo, lista para adjuntar.</span>'
+      '<button id="btn-resumen" type="button" title="Copia el estado del plan en '
+      'texto al portapapeles." aria-describedby="ayuda-resumen">Copiar resumen</button>'
+      '<span id="ayuda-resumen" class="oculta">Copia el estado del plan en texto '
+      'al portapapeles.</span>'
       '<span id="aviso" class="aviso" role="status" aria-live="polite"></span>'
       '</div>')
-    A('<p class="ayuda">«Guardar copia» descarga esta misma página en un solo archivo, '
-      'lista para adjuntar. «Copiar resumen» deja el estado en texto en el portapapeles.</p>')
     A('</div></header>')
 
     A('<main class="ancho" id="principal">')
@@ -764,11 +771,8 @@ a{color:inherit}
   cursor:pointer;border:1px solid var(--linea);background:var(--papel);color:var(--tinta);
   transition:border-color .12s,background .12s}
 .acciones button:hover{border-color:var(--tenue)}
-.acciones button.primario{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
-.acciones button.primario:hover{background:var(--tinta-2);border-color:var(--tinta-2)}
 .aviso{font-size:12.5px;color:var(--hecho);opacity:0;transition:opacity .18s}
 .aviso.visible{opacity:1}
-.cabecera .ayuda{margin-top:12px}
 
 main{padding:30px 28px 84px;display:flex;flex-direction:column;gap:38px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenue);
@@ -975,7 +979,7 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
      controles —son sólo líneas de texto, y dos de ellas (documentación del
      proyecto y del arnés) son justo lo que hace falta para encontrar el
      proyecto desde una copia impresa o exportada— así que se deja legible. */
-  .acciones,.barra-control,.saltar,.cabecera .ayuda{display:none!important}
+  .acciones,.barra-control,.saltar{display:none!important}
   .item.oculto{display:block!important}
   .ola{display:block!important}
   body{background:#fff;color:#000}
@@ -1111,8 +1115,6 @@ JS = r"""
       navigator.clipboard.writeText(texto).then(function(){decir('resumen copiado')},respaldo);
     } else respaldo();
   });
-
-  document.getElementById('btn-pdf').addEventListener('click',function(){window.print()});
 
   // Lo único que sale del cierre. No es API para nadie: es para que la suite
   // pueda comprobar QUÉ se comparte sin simular una descarga, que en un
