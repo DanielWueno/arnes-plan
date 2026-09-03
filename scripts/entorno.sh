@@ -16,6 +16,28 @@ if command -v python3 >/dev/null 2>&1; then PY=python3
 elif command -v python  >/dev/null 2>&1; then PY=python
 else PY=python3; fi   # Que falle con un mensaje claro y no con "PY: not found".
 
+# ── La codificación de la salida ────────────────────────────────────────────
+# Por qué existe: en Windows, Python elige la codificación de `stdout` según a
+# dónde escribe. A una consola escribe UTF-8; a una TUBERÍA cae al locale del
+# sistema —cp1252 en un Windows en español—, donde `✓` no existe. El `print` de
+# la línea de éxito lanzaba UnicodeEncodeError y el script salía 1, y los
+# sitios donde el arnés CAPTURA la salida de un validador son justo los que
+# deciden un veredicto: un ledger sano se anunciaba roto y un ítem bien cerrado
+# quedaba "marcado hecho pero no lo demuestra".
+#
+# Esto cubre los `python -` de una línea incrustados en los .sh, que no tienen
+# dónde ponerlo; cada script .py fija además la suya en su cabecera, que es lo
+# que vale cuando se invocan a mano —la forma larga del README— o cuando los
+# llama Claude Code, como al hook.
+#
+# Se pisa lo que traiga el entorno, y a propósito: la salida de estos Python no
+# es texto para una persona, es el canal por el que se pasan datos entre los
+# scripts del arnés —se captura con $(…) y se parte con sed—. Con otra
+# codificación, un título con acento sale en bytes que no son UTF-8 y el `sed`
+# de al lado contesta "illegal byte sequence": el ledger no tiene por qué caber
+# en el locale de nadie.
+export PYTHONIOENCODING=utf-8
+
 # ── El sistema ──────────────────────────────────────────────────────────────
 # $OSTYPE lo pone bash: en Windows el arnés corre sobre git-bash o WSL, que se
 # identifican como msys/cygwin. Se prefiere a `uname` por no depender de otro
@@ -74,6 +96,42 @@ arnes_registrar_path() {
   ' >/dev/null 2>&1
 }
 
+# ── Una ruta del registro, dicha como la dice este shell ────────────────────
+# Por qué existe: en Windows, `installed_plugins.json` guarda la ruta en forma
+# nativa —`C:\Users\quien\.claude\plugins\cache\...`— y el `$(cd … && pwd)`
+# con el que se compara contesta la forma POSIX de LA MISMA carpeta
+# —`/c/Users/quien/...`—. Comparar las dos como cadenas no puede dar verdadero
+# nunca, así que `doctor`, `--version` y `plan-run` denunciaban "esta NO es la
+# copia instalada" en TODAS las instalaciones de Windows, correctas incluidas.
+# Y de paso el barrido de copias viejas, que reconoce el cache por un glob
+# `*/plugins/cache/*`, no llegaba ni a mirar: con backslashes ese patrón no
+# encaja, así que `--limpiar` no tenía nunca nada que limpiar justo donde la
+# acumulación es segura —una copia por `plugin update`—.
+#
+# Se pregunta al shell antes que a `cygpath`: `cd` + `pwd` devuelve la ruta con
+# LA MISMA ortografía que usan los `$(cd … && pwd)` de los scripts, que es lo
+# único que hace falta para que la comparación signifique algo. `cygpath` queda
+# para la carpeta que ya no existe —una instalación borrada a mano—, donde `cd`
+# no puede contestar.
+#
+# En Unix no toca nada: allí el registro y `pwd` ya hablan igual, y resolver de
+# más cambiaría una ruta con symlinks por su destino a espaldas de quien la lee.
+#
+# Si nada sabe contestar, se devuelve la ruta tal cual: sin traducir dirá "no es
+# la copia instalada", que es sólo un aviso; vacía, en cambio, se leería como
+# "no hay plugin instalado", que es una respuesta distinta y falsa.
+arnes_ruta_shell() {
+  local p="$1" q
+  [[ -n "$p" ]] || return 0
+  if [[ $ES_WINDOWS -eq 1 ]]; then
+    q="$(CDPATH='' cd -- "$p" 2>/dev/null && pwd)" || q=""
+    [[ -n "$q" ]] && { printf '%s' "$q"; return 0; }
+    q="$(cygpath -u "$p" 2>/dev/null)" || q=""
+    [[ -n "$q" ]] && { printf '%s' "$q"; return 0; }
+  fi
+  printf '%s' "$p"
+}
+
 # ── Quién es la copia instalada ─────────────────────────────────────────────
 # Lo dice el registro que escribe el propio CLI. Esta consulta estaba duplicada
 # en plan-run.sh y en el lanzador de ~/.local/bin. El lanzador tiene que seguir
@@ -82,8 +140,11 @@ arnes_registrar_path() {
 # copia instalada" no pueden contestar cosas distintas.
 #
 # Imprime  installPath<TAB>version<TAB>sha_corto  y nada si no está instalado.
+# La ruta sale ya en la forma que entiende este shell (ver arnes_ruta_shell):
+# quien la compara no tiene por qué saber en qué sistema corre.
 arnes_registro() {
-  "$PY" - <<'PY' 2>/dev/null || true
+  local salida
+  salida="$("$PY" - <<'PY' 2>/dev/null || true
 import json, os, sys
 r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
 try:
@@ -98,6 +159,9 @@ for clave, entradas in d.get("plugins", {}).items():
                                  (e.get("gitCommitSha") or "")[:7])))
                 sys.exit(0)
 PY
+)"
+  [[ -n "$salida" ]] || return 0
+  printf '%s\t%s\n' "$(arnes_ruta_shell "${salida%%$'\t'*}")" "${salida#*$'\t'}"
 }
 
 # ── La versión del código que se está ejecutando ────────────────────────────

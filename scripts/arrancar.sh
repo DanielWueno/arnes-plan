@@ -25,8 +25,13 @@
 
 set -euo pipefail
 
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'
-CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'; DIM='\033[2m'
+# Los colores son escapes DE VERDAD, no la cadena "\033[…" a la espera de que
+# alguien los expanda: así una línea que lleve datos dentro puede imprimirse con
+# `printf '%s\n'` —que no interpreta nada— y seguir saliendo en color. Con
+# `echo -e`, un `\c` dentro de un dato (`C:\Users\…\cache\…`) cortaba la salida
+# ahí mismo y se comía el resto de la línea, incluido el salto.
+GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'; RED=$'\033[0;31m'
+CYAN=$'\033[0;36m'; NC=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=entorno.sh
@@ -55,7 +60,7 @@ fi
 cd "$ROOT"
 
 echo
-echo -e "${BOLD}Arnés de plan${NC} ${DIM}·${NC} $ROOT"
+printf '%s\n' "${BOLD}Arnés de plan${NC} ${DIM}·${NC} $ROOT"
 echo
 
 # ── ¿Ya hay ledger? ─────────────────────────────────────────────────────────
@@ -65,7 +70,7 @@ EXISTENTE="$("$PY" "$SCRIPT_DIR/ledger_path.py" 2>/dev/null || true)"
 
 if [[ -n "$EXISTENTE" ]]; then
   echo -e "${GREEN}✓${NC} Este proyecto ya tiene un plan. ${BOLD}No se ha tocado nada.${NC}"
-  echo -e "  ${CYAN}ledger${NC} $EXISTENTE"
+  printf '%s\n' "  ${CYAN}ledger${NC} $EXISTENTE"
   echo
   if "$PY" "$SCRIPT_DIR/validar-ledger.py" "$EXISTENTE"; then
     :
@@ -84,13 +89,13 @@ else
   #    haber pedido otra con --donde.
   DESTINO="$DONDE/ejecucion-plan.estado.json"
   if [[ -e "$DESTINO" ]]; then
-    echo -e "${RED}✗${NC} Ya existe ${BOLD}$DESTINO${NC} y no lo voy a sobrescribir."
+    printf '%s\n' "${RED}✗${NC} Ya existe ${BOLD}$DESTINO${NC} y no lo voy a sobrescribir."
     echo -e "${DIM}   Si de verdad quieres empezar de cero, muévelo tú primero.${NC}"
     exit 1
   fi
   mkdir -p "$DONDE"
   cp "$SCRIPT_DIR/../plantillas/ledger.plantilla.json" "$DESTINO"
-  echo -e "${GREEN}✓${NC} Plan nuevo sembrado en ${BOLD}$DESTINO${NC}"
+  printf '%s\n' "${GREEN}✓${NC} Plan nuevo sembrado en ${BOLD}$DESTINO${NC}"
   echo
   echo -e "${BOLD}Ahora te toca a ti:${NC} escribe tus ítems. Es lo único que no se automatiza."
   echo -e "  ${DIM}Borra el ítem de ejemplo. Cada ítem necesita, como mínimo, un título que${NC}"
@@ -126,7 +131,7 @@ if [[ -e "$ATAJO_RUTA" ]] && ! grep -q "$FIRMA" "$ATAJO_RUTA" 2>/dev/null; then
   # Hay un `arnes` que no pusimos nosotros. No se toca: sobrescribir un
   # ejecutable ajeno del PATH de alguien es exactamente lo que no debe hacer
   # un instalador.
-  echo -e "${YELLOW}⚠${NC}  Ya hay un ${BOLD}arnes${NC} en $BIN que no es de este plugin. No lo toco."
+  printf '%s\n' "${YELLOW}⚠${NC}  Ya hay un ${BOLD}arnes${NC} en $BIN que no es de este plugin. No lo toco."
   echo -e "${DIM}   Usa las rutas largas, o renombra el tuyo si quieres el atajo.${NC}"
   exit 0
 fi
@@ -260,11 +265,11 @@ if ! command -v arnes >/dev/null 2>&1; then
   # Donde se puede registrar solo, se registra: pedir tres líneas de PowerShell
   # es devolverle al usuario un trabajo que la instalación puede hacer ella.
   if arnes_registrar_path "$BIN"; then
-    echo -e "${GREEN}✓${NC} $BIN añadido a tu ${BOLD}PATH de usuario${NC}."
+    printf '%s\n' "${GREEN}✓${NC} $BIN añadido a tu ${BOLD}PATH de usuario${NC}."
     echo -e "${DIM}     Ábrelo en una consola nueva: la actual no hereda el cambio.${NC}"
     echo -e "${DIM}     Para deshacerlo: Variables de entorno del usuario → Path.${NC}"
   else
-    echo -e "${YELLOW}⚠${NC}  $BIN no está en tu PATH en esta terminal."
+    printf '%s\n' "${YELLOW}⚠${NC}  $BIN no está en tu PATH en esta terminal."
     # El consejo lo decide entorno.sh: en PowerShell un `export` no significa
     # nada, y darlo igual es peor que callarse — se sigue, no funciona, y parece
     # culpa de quien lo siguió.

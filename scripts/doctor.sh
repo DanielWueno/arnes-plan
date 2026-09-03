@@ -153,7 +153,14 @@ if [[ -z "$LEDGER" || ! -f "$LEDGER" ]]; then
   # No es un fallo de la instalación: aquí simplemente no hay plan.
   printf "  ledger      ${D}ninguno en este proyecto — sembrar con: arnes arrancar${N}\n"
 else
-  printf "  ledger      %s\n" "${LEDGER#$ROOT/}"
+  # La ruta se acorta a lo que cuelga de la raíz. En Windows el prefijo no
+  # encajaba —`ledger_path.py` contesta con backslashes y `git rev-parse` con
+  # barras, así que la resta no recortaba nada— y salía la ruta absoluta entera,
+  # con el nombre de usuario dentro. Se comparan las dos con barras; es sólo
+  # para imprimir, y por eso no se toca $LEDGER: en Windows Python es nativo y
+  # sólo abre la forma nativa.
+  LEDGER_BARRAS="${LEDGER//\\//}"
+  printf "  ledger      %s\n" "${LEDGER_BARRAS#${ROOT//\\//}/}"
   SOPORTADO="$("$PY" -c 'import importlib.util as u,sys
 s=u.spec_from_file_location("c", sys.argv[1]); m=u.module_from_spec(s); s.loader.exec_module(m)
 print(m.ESQUEMA_SOPORTADO)' "$SCRIPT_DIR/validar_ledger_compat.py" 2>/dev/null || echo '?')"

@@ -13,7 +13,10 @@ git-bash o WSL —que es lo que Claude Code usa allí—. El intérprete se resu
 PowerShell y `cmd` sepan invocarlo — envoltorio que localiza él mismo el `bash` de Git for Windows,
 porque ese intérprete no está en el PATH de Windows. Allí `~/.local/bin` no está en el PATH y ponerla exige editar
 el registro, así que lo hace el propio arranque, en el ámbito del usuario y sólo si falta. El
-recorrido completo **no** está probado en Windows; los informes de fallo son bienvenidos.
+recorrido completo **no** está probado en Windows: no hay runner, así que la suite —que corre en
+Unix— reproduce a mano lo que allí es distinto (la ruta nativa que guarda el registro de plugins, la
+codificación que Python elige cuando su salida va capturada). Los informes de fallo son bienvenidos:
+los tres que arregla la 1.16.1 salieron de uno.
 
 ---
 
@@ -389,9 +392,9 @@ interactivos. El único que no pregunta nunca es `--desatendido`, y por eso es e
 | `esperaba a <id>, que ya está hecho: no bloquea` | El ítem declara `bloqueado_por`, pero el bloqueante cerró. No frena, y se dice en voz alta porque el campo sigue en la ficha: si no, parecería que el arnés se comió un aviso. |
 | `El árbol tiene cambios sin commitear` | El ítem cierra con commit y se los llevaría. Commitea o guarda lo tuyo antes. |
 | `No encuentro el ledger.` | No hay ledger donde se busca. `arnes arrancar` lo siembra sin pisar nada. Con `PLAN_LEDGER`, revisa la ruta: **no cae de vuelta a la búsqueda normal**, así que una errata da este mismo mensaje aun teniendo un ledger válido en su sitio. |
-| `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. |
+| `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. En Windows, antes de la 1.16.1 salía **siempre**, incluso sobre la copia correcta: actualiza. |
 | `No hay ítem que encaje con: -V` | Un arnés anterior a 1.12.0, donde `-V` se tomaba por un id. Actualiza: `claude plugin update arnes-plan@arnes-plan`. |
-| `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. |
+| `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. Si viene con un `UnicodeEncodeError` debajo, es un arnés de Windows anterior a la 1.16.1 y el ítem estaba bien cerrado: actualiza. |
 | `La verificación falla, pero el ítem quedó hecho` | Su criterio no pasa fuera de su sesión. Nada se ha revertido. |
 | `La verificación no terminó en N s` | Se cortó por tiempo. Sube `ARNES_LIMITE_VERIFICACION` si el comando es legítimamente lento. |
 | `'claude' no está en el PATH` | El lanzador necesita el CLI de Claude Code para abrir la sesión. |

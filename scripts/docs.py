@@ -21,6 +21,17 @@ import json
 import os
 import sys
 
+# La salida, en UTF-8 y no en lo que decida el sistema. En Windows, Python
+# escribe UTF-8 a una consola pero cae al locale —cp1252— cuando su salida va a
+# una TUBERÍA, y ahí `✓` no existe: `print` lanzaba UnicodeEncodeError y el
+# script salía 1 justo cuando alguien captura su salida para decidir con su
+# código de retorno. Se fija la codificación en vez de renunciar a los símbolos.
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except Exception:      # un flujo sustituido, o un Python sin reconfigure
+    pass
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 PAGINA = os.path.normpath(os.path.join(AQUI, '..', 'docs', 'index.html'))
 PUBLICADA = 'https://danielwueno.github.io/arnes-plan/'

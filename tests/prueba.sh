@@ -154,6 +154,17 @@ git checkout -q docs/plan/ejecucion-plan.estado.json
 SALIDA="$(FALSO_CIERRA=hecho FALSO_RESULTADO='evidencia: n/a' bash "$ARNES/scripts/plan-run.sh" 1.1 --desatendido </dev/null 2>&1)"; CODE=$?
 check "con resultado escrito, cierra en verde" "0" "$CODE"
 git checkout -q docs/plan/ejecucion-plan.estado.json
+# Y el mismo cierre bueno con el entorno pidiendo cp1252 —que es la que Python
+# elegía por su cuenta en Windows en cuanto la salida iba CAPTURADA en vez de a
+# una consola—. Con ella, el `print` del ✓ lanzaba UnicodeEncodeError, el
+# validador salía 1 y este cierre correcto se anunciaba "marcado hecho pero no
+# lo demuestra": un veredicto falso, en rojo, sobre trabajo bien hecho. El arnés
+# fija la codificación de sus propios Python y no la hereda, así que el
+# veredicto no puede depender del locale de quien ejecuta.
+SALIDA="$(PYTHONIOENCODING=cp1252 FALSO_CIERRA=hecho FALSO_RESULTADO='evidencia: n/a' bash "$ARNES/scripts/plan-run.sh" 1.1 --desatendido </dev/null 2>&1)"; CODE=$?
+check "un entorno en cp1252 no cambia el veredicto" "0" "$CODE"
+check "sin rastro de UnicodeEncodeError"      "0" "$(grep -c 'UnicodeEncodeError' <<<"$SALIDA")"
+git checkout -q docs/plan/ejecucion-plan.estado.json
 
 echo "6. La verificación se corre fuera de la sesión que declaró el ítem hecho"
 ficha verificacion_comando='exit 3'
@@ -563,6 +574,21 @@ AVISO_FIN
 SALIDA="$(HOME="$CASA_AVISO" bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
 check "correr una copia no instalada avisa" "si" \
       "$(grep -q 'NO es la copia instalada' <<<"$SALIDA" && echo si || echo no)"
+# La misma ruta, pero escrita como la escribe Windows. Lleva un `\c` dentro
+# —…\plugins\cache\…— y para `echo -e` eso significa "corta aquí y no imprimas
+# el salto": el aviso salía truncado en `\plugins` y se comía además la línea
+# siguiente. Nada revienta y nada avisa; sólo desaparece texto.
+cat > "$CASA_AVISO/.claude/plugins/installed_plugins.json" <<WIN_FIN
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"C:\\\\Users\\\\prueba\\\\.claude\\\\plugins\\\\cache\\\\arnes-plan\\\\arnes-plan\\\\9.9.9",
+   "version":"9.9.9"}]}}
+WIN_FIN
+SALIDA="$(HOME="$CASA_AVISO" bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
+check "una ruta de Windows en el aviso llega entera" "si" \
+      "$(grep -q 'cache.arnes-plan.arnes-plan.9.9.9.scripts' <<<"$SALIDA" && echo si || echo no)"
+check "y no se come la línea de después"    "si" \
+      "$(grep -q 'Si copiaste la ruta' <<<"$SALIDA" && echo si || echo no)"
+
 # Y sin registro de instalación no debe inventarse un aviso.
 CASA_VACIA="$TMP/casa-vacia"; mkdir -p "$CASA_VACIA"
 SALIDA="$(HOME="$CASA_VACIA" bash "$ARNES/scripts/plan-run.sh" --solo-anunciar 2>&1 || true)"
@@ -1353,6 +1379,89 @@ check "no se usó scroll suave en ningún sitio (nada que desactivar para movimi
 
 git checkout -q docs/plan/ejecucion-plan.estado.json
 cd "$ARNES"
+
+echo "27. En Windows, la ruta del registro no puede desmentir a la instalación"
+# El registro que escribe Claude Code guarda la ruta en forma NATIVA
+# —C:\Users\quien\.claude\plugins\cache\...— y el `$(cd … && pwd)` con el que se
+# compara contesta la forma POSIX de la MISMA carpeta —/c/Users/quien/...—.
+# Comparadas como cadenas no coinciden nunca: `doctor`, `--version` y `plan-run`
+# denunciaban "esta NO es la copia instalada" en TODA instalación de Windows, y
+# el barrido de copias viejas —que reconoce el cache por un glob con barras— no
+# llegaba ni a mirar, así que `--limpiar` no limpiaba nada justo donde la
+# acumulación es segura: una copia por `plugin update`.
+#
+# Se reproduce por el mecanismo y no por el síntoma: un `cygpath` de mentira
+# hace de tabla de montaje —en Windows es quien traduce— con una sola unidad, la
+# que inventa esta prueba. La suite corre en Unix; sin este montaje, los tres
+# fallos de esta versión seguirían siendo invisibles aquí.
+CASA_WIN="$TMP/casa-windows"
+CACHE_WIN="$CASA_WIN/.claude/plugins/cache/arnes-plan/arnes-plan"
+mkdir -p "$CASA_WIN/.claude/plugins" "$CACHE_WIN/1.0.0/.claude-plugin" \
+         "$CACHE_WIN/9.9.9/.claude-plugin" "$TMP/binwin"
+echo '{"name":"arnes-plan","version":"1.0.0"}' > "$CACHE_WIN/1.0.0/.claude-plugin/plugin.json"
+echo '{"name":"arnes-plan","version":"9.9.9"}' > "$CACHE_WIN/9.9.9/.claude-plugin/plugin.json"
+cp -R "$ARNES/scripts" "$CACHE_WIN/9.9.9/"
+cat > "$CASA_WIN/.claude/plugins/installed_plugins.json" <<WINREG_FIN
+{"version":2,"plugins":{"arnes-plan@arnes-plan":[
+  {"scope":"user","installPath":"C:\\\\Users\\\\prueba\\\\.claude\\\\plugins\\\\cache\\\\arnes-plan\\\\arnes-plan\\\\9.9.9",
+   "version":"9.9.9"}]}}
+WINREG_FIN
+cat > "$TMP/binwin/cygpath" <<'CYG_FIN'
+#!/bin/bash
+# `cygpath -u` de mentira. Traduce una sola unidad, la de la prueba, y lo demás
+# lo devuelve tal cual: es lo que hace la de verdad con una ruta que ya es POSIX.
+PRE='C:/Users/prueba'
+p="${2:-}"; p="${p//\\//}"
+printf '%s' "${p/#$PRE/$CYG_CASA}"
+CYG_FIN
+chmod +x "$TMP/binwin/cygpath"
+doctor_win() {
+  env HOME="$CASA_WIN" CYG_CASA="$CASA_WIN" OSTYPE=msys PATH="$TMP/binwin:$PATH" \
+      CLAUDE_PROJECT_DIR="$PROY" bash "$CACHE_WIN/9.9.9/scripts/doctor.sh" "$@"
+}
+SALIDA="$(doctor_win 2>&1 || true)"
+check "la ruta nativa del registro se reconoce como la copia instalada" "si" \
+      "$(grep -q 'es la copia registrada' <<<"$SALIDA" && echo si || echo no)"
+check "y \`doctor\` no denuncia una instalación sana" "0" \
+      "$(doctor_win >/dev/null 2>&1; echo $?)"
+check "el barrido del cache llega a ver la copia vieja" "si" \
+      "$(grep -q '1 versiones anteriores' <<<"$SALIDA" && echo si || echo no)"
+doctor_win --limpiar >/dev/null 2>&1 || true
+check "y \`--limpiar\` la quita"             "no" \
+      "$(test -d "$CACHE_WIN/1.0.0" && echo si || echo no)"
+check "conservando la instalada"             "si" \
+      "$(test -d "$CACHE_WIN/9.9.9" && echo si || echo no)"
+
+# En Unix no se toca nada: ahí el registro y `pwd` ya hablan igual, y resolver de
+# más cambiaría una ruta con symlinks por su destino a espaldas de quien la lee.
+ENLACE="$TMP/enlace-a-copia"; ln -sfn "$CACHE_WIN/9.9.9" "$ENLACE"
+check "en Unix la ruta del registro se devuelve tal cual" "$ENLACE" \
+      "$(bash -c 'source "$1/scripts/entorno.sh"; arnes_ruta_shell "$2"' _ "$ARNES" "$ENLACE")"
+# Y la carpeta que ya no existe —una instalación borrada a mano— tiene que
+# devolver la ruta SIN traducir y no abortar: quien incluye entorno.sh corre con
+# `set -e`, y una respuesta vacía se leería como "no hay plugin instalado", que
+# es otra cosa y es falsa.
+check "una ruta que ya no existe se devuelve entera y no aborta" "C:\\se\\borro" \
+      "$(env OSTYPE=msys PATH=/usr/bin:/bin bash -c \
+         'set -euo pipefail; source "$1/scripts/entorno.sh"; arnes_ruta_shell "$2"; echo' \
+         _ "$ARNES" 'C:\se\borro')"
+
+# La regla, para el próximo .py que se añada: si escribe en stdout, fija su
+# codificación. En Windows, un `print` con un símbolo fuera del cp1252 revienta
+# el script en cuanto su salida va capturada — y ahí es donde el arnés lee
+# códigos de salida para decidir veredictos.
+SIN_UTF8=""
+for f in "$ARNES"/scripts/*.py "$ARNES"/hooks/*.py; do
+  grep -qE 'print\(|sys\.stdout' "$f" || continue
+  grep -q "sys.stdout.reconfigure(encoding='utf-8')" "$f" || SIN_UTF8="$SIN_UTF8 $(basename "$f")"
+done
+check "todo .py que imprime fija su salida en UTF-8" "" "$SIN_UTF8"
+# El validador es el que decide veredictos, así que se comprueba de verdad y no
+# sólo por inspección: cp1252 es lo que Windows le pone cuando lo capturan.
+SALIDA="$(PYTHONIOENCODING=cp1252 python3 "$ARNES/scripts/validar-ledger.py" "$FALSO_LEDGER" 2>&1)"; CODE=$?
+check "el validador sale 0 con la salida en cp1252" "0" "$CODE"
+check "y su ✓ sale entero"                   "si" \
+      "$(grep -q '✓ Ledger' <<<"$SALIDA" && echo si || echo no)"
 
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi

@@ -1,7 +1,7 @@
 {
   "name": "arnes-plan",
   "description": "Ejecuta un plan de ingeniería un ítem por sesión, con el avance en un ledger versionado que sobrevive al /clear y al reinicio del límite de sesión",
-  "version": "1.16.0",
+  "version": "1.16.1",
   "author": {
     "name": "DWeno",
     "email": "dbueno@reyma.net"
