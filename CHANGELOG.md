@@ -10,6 +10,34 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.16.0] — 2026-09-03
+
+### Añadido
+- **El README y la página dicen para qué NO sirve el arnés.** La documentación
+  explicaba bien los cuatro problemas que resuelve, pero nada advertía de
+  cuándo la herramienta deja de sostener nada: si el ejecutor de un ítem es
+  una persona en vez de un agente, cinco de los nueve campos obligatorios
+  (`modelo`, `esfuerzo`, `por_que_este_modelo`, `multiagente`,
+  `horas_maquina`) pasan a ser relleno y tres de las cinco guardas de
+  `--desatendido` dejan de proteger nada; si el criterio no cabe en un
+  comando, la puerta de cierre se reduce a comprobar que alguien escribió
+  `resultado`, que es la autodeclaración que el arnés existe para no leer
+  como evidencia; y si el trabajo no deja diff, el ledger se vuelve una copia
+  del plan que se desincroniza el primer día. El modo de fallo que motivó la
+  sección no es que el arnés rechace esos casos: es que **los acepta** —el
+  validador sale verde— y produce un fichero de estado que nadie actualiza.
+  La sección se escribe como tres preguntas con respuesta observable, dice
+  qué hacer cuando un plan cae del lado que no es (dejarlo en su gestor de
+  tareas y llevar al arnés sólo la rebanada que un agente ejecuta y un
+  comando verifica) y nombra también el caso que sí aplica pese a parecer que
+  no, para no espantar usos legítimos.
+- **`tests/prueba.sh` impide que las dos copias de esa sección diverjan**
+  (sección 19): comprueba que existe en `README.md` y que la página trae el
+  encabezado —no sólo el enlace del índice—, que las dos nombran los cinco
+  campos que la sección declara relleno, y que siguen siendo nueve los campos
+  obligatorios de ítem en `validar-ledger.py`, porque el «cinco de los nueve»
+  es una cuenta sobre una lista que vive en el código.
+
 ## [1.15.0] — 2026-09-03
 
 ### Añadido

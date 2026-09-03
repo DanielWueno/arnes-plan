@@ -749,6 +749,46 @@ for v in haiku sonnet opus low medium high xhigh max \
         "$(grep -qF -- "<code>$v</code>" "$ARNES/docs/index.html" && echo si || echo no)"
 done
 
+# La sección «para qué no sirve» es lo único del README que dice cuándo NO usar
+# esto, y vive copiada en la página. Divergen solas: se afina el encuadre en un
+# sitio y el otro sigue publicando el viejo. Se comprueba que las dos copias
+# existan y que sigan nombrando los cinco campos que la sección declara relleno
+# cuando el ejecutor es una persona — si alguien reescribe la sección y se los
+# come, el argumento se queda sin la parte comprobable.
+check "el README dice para qué no sirve"   "si" \
+      "$(grep -qF -- '## Para qué no sirve' "$ARNES/README.md" && echo si || echo no)"
+# En la página se busca el encabezado de la sección, no la frase: el índice de
+# arriba la nombra igual, así que borrar la sección y dejar el enlace pasaría
+# por buena una página que ya no dice nada.
+check "y la página trae la sección, no sólo el enlace" "si" \
+      "$(grep -qF -- '<h2>Para qué no sirve</h2>' "$ARNES/docs/index.html" && echo si || echo no)"
+FLOJAS="$(python3 - "$ARNES" <<'PY'
+import io, sys
+raiz = sys.argv[1]
+campos = ['modelo', 'esfuerzo', 'por_que_este_modelo', 'multiagente', 'horas_maquina']
+malos = []
+for f in ('README.md', 'docs/index.html'):
+    texto = io.open(raiz + '/' + f, encoding='utf-8').read()
+    i = texto.find('Para qué no sirve')
+    seccion = texto[i:i + 3500] if i >= 0 else ''
+    faltan = [c for c in campos if c not in seccion]
+    if faltan:
+        malos.append(f + ':' + ','.join(faltan))
+print(' '.join(malos))
+PY
+)"
+check "las dos copias nombran los 5 campos que quedan en relleno" "" "$FLOJAS"
+# Y el «cinco de los nueve» es una cuenta sobre una lista que vive en el
+# validador: si mañana se añade un décimo campo obligatorio, la frase miente.
+N_OBLIG="$(python3 - "$ARNES" <<'PY'
+import io, re, sys
+src = io.open(sys.argv[1] + '/scripts/validar-ledger.py', encoding='utf-8').read()
+m = re.search(r'CAMPOS_ITEM = \{(.*?)\}', src, re.S)
+print(len(re.findall(r"'[a-z_]+'", m.group(1))))
+PY
+)"
+check "siguen siendo 9 los campos obligatorios de ítem" "9" "$N_OBLIG"
+
 echo '20. La documentación no promete lo que la consola no dice'
 cd "$PROY"
 export CLAUDE_PROJECT_DIR="$PROY"
