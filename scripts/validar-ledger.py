@@ -35,6 +35,7 @@ Uso:
   python3 validar-ledger.py [ruta]            # todo el ledger
   python3 validar-ledger.py --item 4.2        # antes de ejecutar: ¿está listo?
   python3 validar-ledger.py --al-cerrar 4.2   # después: ¿quedó bien cerrado?
+  python3 validar-ledger.py --arreglar-codificacion   # deshace el mojibake
 """
 import json, os, sys
 
@@ -124,6 +125,104 @@ def sitio(o, n, m):
     ola = o.get('ola')
     cabeza = f'ola {ola}' if isinstance(ola, int) else f'olas[{n}]'
     return f'{cabeza}.items[{m}]'
+
+
+# ── Texto que pasó dos veces por la codificación ────────────────────────────
+# Por qué existe: "pólizas" escrito al ledger a través de una consola que lee
+# cp1252 lo que ya era UTF-8 queda guardado como "pÃ³lizas" —los dos bytes del
+# carácter, leídos como dos caracteres— y ahí se queda para siempre. Nada
+# revienta y nada avisa: el JSON sigue siendo UTF-8 válido, el validador sale
+# verde, y el mojibake viaja al `resultado`, al visor y al entregable. Se
+# descubre cuando alguien lee el dossier terminado, que es el peor momento.
+#
+# La prueba no es que aparezca una `Ã`: es que el texto REVIERTA. Se vuelve a
+# codificar en cp1252 y se lee como UTF-8; si eso da un texto distinto, sólo
+# pudo salir de una doble codificación. Un "São Paulo" escrito a propósito no
+# revierte —sus bytes en cp1252 no son UTF-8 válido— y no se denuncia.
+SOSPECHOSAS = ('\u00c3', '\u00c2')
+
+
+def revertir(s):
+    """El texto sin la vuelta de más, o None si no la llevaba. Itera porque una
+    cadena puede haber pasado dos veces por la misma consola."""
+    actual = s
+    for _ in range(3):
+        if not any(c in actual for c in SOSPECHOSAS):
+            break
+        try:
+            siguiente = actual.encode('cp1252').decode('utf-8')
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            break
+        if siguiente == actual:
+            break
+        actual = siguiente
+    return actual if actual != s else None
+
+
+def codificacion_doble(data):
+    """[(donde, texto, revertido)] de todo el ledger. Mira olas e ítems, campo
+    a campo: el mismo fallo aparece en el nombre de una ola y en el `resultado`
+    de un ítem, y quien lo arregla necesita saber en cuál."""
+    hallazgos = []
+
+    def mirar(donde, contenedor):
+        for campo, valor in contenedor.items():
+            textos = valor if isinstance(valor, list) else [valor]
+            for i, t in enumerate(textos):
+                if not isinstance(t, str):
+                    continue
+                limpio = revertir(t)
+                if limpio is not None:
+                    etiqueta = f'{campo}[{i}]' if isinstance(valor, list) else campo
+                    hallazgos.append((f'{donde}.{etiqueta}', t, limpio))
+
+    for n, o in enumerate(data.get('olas', [])):
+        if not isinstance(o, dict):
+            continue
+        ola = o.get('ola')
+        mirar(f'ola {ola}' if isinstance(ola, int) else f'olas[{n}]', o)
+        for m, it in enumerate(o.get('items') or []):
+            if isinstance(it, dict):
+                mirar(sitio(o, n, m), it)
+    return hallazgos
+
+
+def arreglar_codificacion(ruta, hallazgos):
+    """Deshace la vuelta de más en el fichero. Devuelve cuántos textos cambió,
+    o -1 si el resultado no volvía a ser JSON y por tanto no se escribió.
+
+    Se opera sobre el TEXTO del fichero y no sobre el objeto ya parseado: un
+    `json.dump` reindentaría el ledger entero y el diff dejaría de decir qué
+    cambió de verdad. Un ledger es un fichero versionado que alguien va a leer
+    en un `git diff`, y esa legibilidad es media herramienta.
+    """
+    with open(ruta, encoding='utf-8', newline='') as fh:
+        crudo = fh.read()
+
+    # Cada pareja, en las dos formas en que el fichero puede guardarla: el
+    # carácter tal cual, o escapado (`\u00f3`) si quien lo escribió usó
+    # ensure_ascii. Se pone la que se encuentre, para no cambiarle el estilo.
+    parejas = set()
+    for _, malo, bueno in hallazgos:
+        parejas.add((malo, bueno))
+        parejas.add((json.dumps(malo)[1:-1], json.dumps(bueno)[1:-1]))
+    # De más largo a más corto: un mojibake puede ser prefijo de otro, y
+    # empezar por el corto dejaría el largo a medias.
+    nuevo, hechos = crudo, 0
+    for malo, bueno in sorted(parejas, key=lambda par: -len(par[0])):
+        if malo and malo in nuevo:
+            hechos += nuevo.count(malo)
+            nuevo = nuevo.replace(malo, bueno)
+
+    if nuevo == crudo:
+        return 0
+    try:
+        json.loads(nuevo)
+    except json.JSONDecodeError:
+        return -1
+    with open(ruta, 'w', encoding='utf-8', newline='') as fh:
+        fh.write(nuevo)
+    return hechos
 
 
 def revisar_item(it, donde, errores, ids=None, exigir_cierre=False):
@@ -236,6 +335,9 @@ def informar(errores, ruta):
 def main():
     args = sys.argv[1:]
     item_pedido, exigir_cierre = None, False
+    arreglar = '--arreglar-codificacion' in args
+    if arreglar:
+        args.remove('--arreglar-codificacion')
     # --item y --al-cerrar miran el mismo ítem en momentos distintos: el
     # primero antes de gastar (¿tiene con qué ejecutarse?), el segundo después
     # (¿dejó rastro de qué pasó?). Comparten camino para no divergir.
@@ -264,6 +366,33 @@ def main():
     if not isinstance(data.get('olas'), list) or not data['olas']:
         print("✗ Falta la lista 'olas' o está vacía.", file=sys.stderr)
         return 1
+
+    # Antes de validar: un ledger con mojibake es un ledger válido, pero si
+    # además le falta un campo, el arreglo del texto no tiene por qué esperar a
+    # que se complete la ficha. Son dos problemas distintos.
+    if arreglar:
+        hallazgos = codificacion_doble(data)
+        if not hallazgos:
+            print('✓ Nada que arreglar: no hay texto doblemente codificado.')
+            return 0
+        hechos = arreglar_codificacion(ruta, hallazgos)
+        if hechos < 0:
+            print('✗ El arreglo no volvía a ser JSON válido. No he escrito nada.',
+                  file=sys.stderr)
+            return 1
+        if hechos == 0:
+            print('✗ Detecto el texto pero no lo encuentro en el fichero tal cual.',
+                  file=sys.stderr)
+            print('   Pasa si algo reescribió el ledger con otra codificación.',
+                  file=sys.stderr)
+            return 1
+        for donde, malo, bueno in hallazgos:
+            print(f'  {donde}')
+            print(f'    decía: {malo[:70]}')
+            print(f'    dice:  {bueno[:70]}')
+        print(f'✓ {hechos} texto(s) arreglados en {ruta}.')
+        print('  Revisa el `git diff` y commitéalo: el ledger es lo que sobrevive.')
+        return 0
 
     errores = []
     revisar_esquema(data, errores)
@@ -342,6 +471,20 @@ def main():
         print(f'  ⚠ {len(derivadas)} campos fuera del esquema: {muestra}')
         print(f'    El arnés no los lee. Si son rastro del cierre, van en '
               f'`resultado`; con `_` delante se ignoran.')
+
+    # Aviso, no error: el JSON es UTF-8 válido y el ledger no está roto. Pero
+    # este texto no lo arregla quien lo escribió —no lo vio— sino quien lo
+    # encuentra, y si nadie lo encuentra sale impreso en el entregable.
+    dobles = codificacion_doble(data)
+    if dobles:
+        print(f'  ⚠ {len(dobles)} texto(s) con la codificación pasada dos veces:')
+        for donde, malo, bueno in dobles[:3]:
+            print(f'    {donde}: {malo[:56]}')
+            print(f'      debería decir: {bueno[:56]}')
+        if len(dobles) > 3:
+            print(f'    …y {len(dobles) - 3} más.')
+        print('    Lo escribió una consola que leyó como cp1252 lo que ya era')
+        print('    UTF-8. Deshacerlo:  arnes validar --arreglar-codificacion')
 
     # Informe, no error: que el bloqueo de un ítem haya cerrado es lo que pasa
     # cada vez que se cierra algo. Convertirlo en error haría fallar el ledger

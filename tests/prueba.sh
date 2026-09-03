@@ -1463,6 +1463,104 @@ check "el validador sale 0 con la salida en cp1252" "0" "$CODE"
 check "y su ✓ sale entero"                   "si" \
       "$(grep -q '✓ Ledger' <<<"$SALIDA" && echo si || echo no)"
 
+echo "28. Un texto doblemente codificado no llega al entregable"
+# Por qué: "pólizas" escrito al ledger desde una consola que lee como cp1252 lo
+# que ya era UTF-8 queda guardado como "pÃ³lizas", y ahí se queda. El JSON sigue
+# siendo válido y el validador salía verde, así que el mojibake viajaba al
+# `resultado`, al visor y al entregable — se descubría leyendo el dossier
+# terminado, que es el peor sitio posible.
+moji() { python3 -c "import sys; print(sys.argv[1].encode('utf-8').decode('cp1252'), end='')" "$1"; }
+revertir() {
+  python3 -c "
+import importlib.util as u, sys
+e = u.spec_from_file_location('v', sys.argv[1]); m = u.module_from_spec(e); e.loader.exec_module(m)
+print(m.revertir(sys.argv[2]) or 'None')" "$ARNES/scripts/validar-ledger.py" "$1"
+}
+VALIDA="python3 $ARNES/scripts/validar-ledger.py"
+
+# La prueba no es que aparezca una `Ã`: es que el texto REVIERTA. Sin eso, un
+# nombre propio con esa letra se denunciaría, y un validador que se equivoca al
+# acusar se deja de leer.
+check "el mojibake revierte"                 "pólizas"   "$(revertir "$(moji pólizas)")"
+check "un São Paulo legítimo no se denuncia" "None"      "$(revertir 'São Paulo')"
+check "ni el texto que ya está bien"         "None"      "$(revertir 'pólizas')"
+
+PMOJI="$TMP/proyecto-moji"; mkdir -p "$PMOJI/docs/plan"
+LMOJI="$PMOJI/docs/plan/ejecucion-plan.estado.json"
+sembrar_moji() { # sembrar_moji [--escapado]
+  python3 - "$ARNES/plantillas/ledger.plantilla.json" "$LMOJI" "${1:-}" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
+moji = lambda t: t.encode('utf-8').decode('cp1252')
+it = d['olas'][0]['items'][0]
+for n in ('verificacion_comando', '_resultado'):
+    it.pop(n, None)
+it.update(id='1.1', titulo=moji('Inventario de pólizas'), modelo='haiku',
+          esfuerzo='low', horas_maquina=0, estado='pendiente', rollback='n/a',
+          verificacion=moji('una decisión explícita por archivo'),
+          multiagente=False, por_que_este_modelo='p')
+d['olas'][0]['nombre'] = moji('Preparación')
+if sys.argv[3] == '--escapado':
+    # Como lo deja un editor de Windows: escapes \uXXXX y finales CRLF.
+    texto = json.dumps(d, indent=2, ensure_ascii=True).replace('\n', '\r\n')
+    open(sys.argv[2], 'w', encoding='utf-8', newline='').write(texto)
+else:
+    json.dump(d, open(sys.argv[2], 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+}
+
+sembrar_moji
+SALIDA="$($VALIDA "$LMOJI" 2>&1)"; CODE=$?
+check "el ledger sigue siendo válido: es aviso, no error" "0" "$CODE"
+check "se avisa, y con el texto que debería decir" "si" \
+      "$(grep -q 'debería decir: Preparación' <<<"$SALIDA" && echo si || echo no)"
+check "cuenta también el nombre de la ola, no sólo los ítems" "si" \
+      "$(grep -q '3 texto(s) con la codificación' <<<"$SALIDA" && echo si || echo no)"
+
+cp "$LMOJI" "$TMP/moji-antes.json"
+check "\`--arreglar-codificacion\` sale 0"    "0" \
+      "$($VALIDA --arreglar-codificacion "$LMOJI" >/dev/null 2>&1; echo $?)"
+check "y deja el ledger sin nada que denunciar" "0" \
+      "$($VALIDA "$LMOJI" 2>&1 | grep -c 'codificación pasada')"
+# El diff son SÓLO esas líneas: se arregla el texto del fichero, no se
+# reserializa el JSON. Un ledger es un fichero versionado que alguien va a leer
+# en un `git diff`, y reindentarlo entero le quita a ese diff todo su valor.
+check "el diff son las 3 líneas del texto y ninguna más" "3" \
+      "$(diff "$TMP/moji-antes.json" "$LMOJI" | grep -c '^< ')"
+check "una segunda pasada no encuentra nada" "si" \
+      "$($VALIDA --arreglar-codificacion "$LMOJI" 2>&1 | grep -q 'Nada que arreglar' && echo si || echo no)"
+
+# La otra forma en que el fichero puede guardarlo. Se arregla en su mismo
+# estilo: quien escribió el ledger con escapes no se merece un diff de 400
+# líneas porque el arnés prefiera los acentos literales.
+sembrar_moji --escapado
+CR_ANTES="$(grep -c $'\r' "$LMOJI")"
+$VALIDA --arreglar-codificacion "$LMOJI" >/dev/null 2>&1
+check "la forma escapada se arregla escapada" "si" \
+      "$(grep -q '\\u00f3lizas' "$LMOJI" && echo si || echo no)"
+check "y los finales de línea CRLF se conservan" "$CR_ANTES" "$(grep -c $'\r' "$LMOJI")"
+check "el resultado sigue siendo JSON legible"  "0" \
+      "$(python3 -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8'))" "$LMOJI" >/dev/null 2>&1; echo $?)"
+
+# Y en la puerta de cierre, que es el único momento en que corregirlo no es
+# arqueología: el texto lo acaba de escribir esa sesión.
+cd "$GP"
+# El ítem se reabre y se commitea antes: el hook sólo mira lo que ACABA de
+# cerrarse contra la versión en HEAD, y la sección 10 dejó ese cierre ya
+# commiteado. Sin esto, el silencio del hook no probaría nada.
+ficha_gate pendiente 'true'; git add -A; git commit -qm "reabierto para el caso de la codificación"
+ficha_gate hecho 'true' "evidencia: $(moji 'las pólizas quedaron inventariadas')"
+SALIDA="$(llamar_gate)"
+check "la puerta de cierre lo dice al cerrar" "si" \
+      "$(grep -q 'codificación' <<<"$SALIDA" && echo si || echo no)"
+check "y dice cómo se arregla"                "si" \
+      "$(grep -q 'arreglar-codificacion' <<<"$SALIDA" && echo si || echo no)"
+check "sin bloquear el cierre por eso"        "si" \
+      "$(grep -q 'no bloquea' <<<"$SALIDA" && echo si || echo no)"
+ficha_gate hecho 'true' 'evidencia: sin acentos raros'
+check "y calla cuando el texto está bien"     ""   "$(llamar_gate)"
+cd "$ARNES"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1

@@ -17,3 +17,4 @@ _spec.loader.exec_module(_mod)
 ESQUEMA_SOPORTADO = _mod.ESQUEMA_SOPORTADO
 CONOCIDAS = _mod.CONOCIDAS
 CAMPOS_ITEM = _mod.CAMPOS_ITEM
+codificacion_doble = _mod.codificacion_doble

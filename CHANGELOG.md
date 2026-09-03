@@ -10,6 +10,47 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.17.0] — 2026-09-03
+
+### Añadido
+- **El validador denuncia el texto que pasó dos veces por la codificación.**
+  Escribir "pólizas" al ledger desde una consola que lee como cp1252 lo que ya
+  era UTF-8 lo guarda como `pÃ³lizas` —los dos bytes del carácter, leídos como
+  dos caracteres— y ahí se queda para siempre. El modo de fallo es el que este
+  arnés existe para no permitir: **nada revienta y nada avisa**. El JSON sigue
+  siendo UTF-8 válido, el validador salía verde, y ese texto viaja al
+  `resultado` de un ítem cerrado, al visor y al entregable; se descubre leyendo
+  el dossier terminado, que es el peor sitio posible y el más caro de corregir.
+  Ahora `arnes validar` lo dice —como aviso, no como error: el ledger no está
+  roto— nombrando el sitio (`ola 3.items[2].resultado`), lo que dice y lo que
+  debería decir. La detección no se fía de que aparezca una `Ã`: la prueba es
+  que el texto **revierta** al volver a codificarlo en cp1252 y leerlo como
+  UTF-8, así que un "São Paulo" escrito a propósito —cuyos bytes en cp1252 no
+  son UTF-8 válido— no se denuncia. Acusar en falso es la forma más rápida de
+  que un aviso se deje de leer.
+- **`arnes validar --arreglar-codificacion` lo deshace.** Detectarlo y dejar el
+  arreglo como trabajo manual campo a campo sería media herramienta: son
+  decenas de cadenas en un ledger en uso, repartidas entre títulos, criterios y
+  resultados ya cerrados. El arreglo opera sobre el **texto** del fichero y no
+  sobre el JSON reserializado, así que el `git diff` son exactamente las líneas
+  del texto corregido y ninguna más: un ledger es un fichero versionado que
+  alguien va a leer en un diff, y reindentarlo entero le quita a ese diff todo
+  su valor. Respeta la forma en que el fichero guarde el texto —literal o
+  escapado (`\u00f3`)— y los finales de línea, comprueba que el resultado
+  sigue siendo JSON legible antes de escribir, y no escribe nada si no lo es.
+- **La puerta de cierre lo avisa también**, y ahí es donde más sirve: el texto
+  lo acaba de escribir la sesión que está abierta, que es el único momento en
+  que corregirlo no es arqueología. Después queda en el `resultado` de un ítem
+  cerrado. No bloquea el cierre: el trabajo está hecho y el ledger es válido.
+- **`tests/prueba.sh` cubre el caso entero** (sección 28, 14 comprobaciones):
+  que el mojibake revierte y que un `São Paulo` legítimo y un texto ya correcto
+  no se denuncian; que el aviso sale con el texto que debería decir y cuenta
+  también el nombre de una ola, no sólo los ítems; que `--arreglar-codificacion`
+  deja el ledger limpio, que el diff son sólo esas líneas, que una segunda
+  pasada no encuentra nada, que la forma escapada se arregla escapada y que los
+  finales CRLF se conservan; y que la puerta de cierre lo dice, dice cómo
+  arreglarlo, no bloquea, y calla cuando el texto está bien.
+
 ## [1.16.1] — 2026-09-03
 
 ### Arreglado
@@ -699,6 +740,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.17.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.16.1...arnes-plan--v1.17.0
 [1.16.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.16.0...arnes-plan--v1.16.1
 [1.16.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.15.0...arnes-plan--v1.16.0
 [1.15.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.14.0...arnes-plan--v1.15.0

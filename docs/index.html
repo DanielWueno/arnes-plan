@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.16.1</p>
+    <p class="eyebrow">arnes-plan · v1.17.0</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -573,6 +573,7 @@ stateDiagram-v2
         <p>El anuncio termina antes de la validación, así que <strong>no comprueba que la ficha esté completa</strong>. Para eso hay un verbo aparte.</p>
         <div class="bloque"><b>arnes validar --item 1.1</b>   <i># ¿está lista para ejecutarse?</i>
 <b>arnes validar</b>              <i># todo el fichero: ids repetidos, claves fuera de esquema</i></div>
+        <p>Ese mismo verbo avisa del texto que pasó <strong>dos veces por la codificación</strong> —«pÃ³lizas» por «pólizas», lo que deja una consola que lee como cp1252 lo que ya era UTF-8—: nada revienta, el JSON sigue siendo válido, y ese texto acaba impreso en el entregable. <code>arnes validar --arreglar-codificacion</code> lo deshace cambiando sólo esas líneas del fichero.</p>
         <p><code>arnes ver</code> muestra lo mismo en el navegador, y además los ítems que quedaron a medias, que el lanzador no retoma por su cuenta.</p>
       </div>
 

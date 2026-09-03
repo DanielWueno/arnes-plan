@@ -57,7 +57,7 @@ LIMITE_SEG = int(os.environ.get('ARNES_LIMITE_VERIFICACION', '120'))
 
 # El esquema lo define el validador y aquí se importa: dos listas de campos
 # conocidos en dos ficheros divergirían, y el aviso empezaría a mentir.
-from validar_ledger_compat import CONOCIDAS  # noqa: E402
+from validar_ledger_compat import CONOCIDAS, codificacion_doble  # noqa: E402
 
 
 def salir_callado():
@@ -175,6 +175,20 @@ def main():
             f'({", ".join(muestra)}{"…" if len(desconocidas) > 8 else ""}).\n'
             f'  Nadie los valida ni los lee, así que lo que se escriba ahí no lo verá el arnés.\n'
             f'  Si es rastro del cierre, va en `resultado`. Si no, con un `_` delante se ignora.')
+
+    # El mismo aviso que da `arnes validar`, y aquí además: el texto lo acaba de
+    # escribir esta sesión, que es el único momento en que corregirlo no es
+    # arqueología. Después queda en el `resultado` de un ítem cerrado y viaja al
+    # entregable, donde ya lo lee el cliente.
+    dobles = codificacion_doble(data)
+    if dobles and recien:
+        donde, malo, bueno = dobles[0]
+        quejas.append(
+            f'· Aviso, no bloquea: {len(dobles)} texto(s) del ledger llevan la codificación\n'
+            f'  pasada dos veces. En {donde} dice "{malo[:50]}"\n'
+            f'  donde debería decir "{bueno[:50]}".\n'
+            f'  Lo escribe una consola que lee como cp1252 lo que ya era UTF-8; no lo\n'
+            f'  arregles a mano campo a campo: `arnes validar --arreglar-codificacion`.')
 
     if quejas:
         print('Puerta de cierre del arnés — este cierre no se sostiene todavía:\n')
