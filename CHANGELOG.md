@@ -10,6 +10,32 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.15.0] — 2026-09-03
+
+### Añadido
+- **Las olas cerradas del visor se pliegan.** `arnes ver` emitía todas las
+  olas y todos sus ítems desplegados: una ola cerrada a N/N ocupaba lo mismo
+  que la que está en curso, así que el scroll crecía linealmente con el
+  ledger y lo que importa quedaba enterrado entre historia. Ahora una ola con
+  todos sus ítems en `hecho` se pliega —con `<details>` nativo, no un
+  `display:none` propio, así que Ctrl-F y la impresión siguen llegando a su
+  contenido—, mientras que la ola que trae el ítem que anuncia el panel de
+  arriba se emite siempre abierta, esté cerrada o no por lo demás. Los
+  anclajes que ya se usan (`#it-<id>`, `#ola-N`) abren el pliegue antes de
+  saltar, y el filtro/buscador abre las olas que contengan una coincidencia
+  y las vuelve a plegar al quitar el filtro. `@media print` fuerza todo
+  abierto, igual que ya hacía con `.item.oculto` y `.ola`.
+- **Navegación entre olas sin volver arriba a mano.** Ir de la Ola 5 a la Ola
+  2 exigía subir hasta el «Mapa de olas», que desaparece del scroll en
+  cuanto se avanza. Ahora una barra de navegación pegajosa (dentro de la
+  barra de control, ya `sticky`) lista cada ola con su fracción hecho/total
+  —calculada una sola vez y compartida con el «Mapa de olas», para que
+  nunca puedan divergir—; cada ola cierra con enlaces a la anterior y la
+  siguiente, sin emitir el que no existe en los extremos; y un botón
+  «arriba» aparece sólo tras hacer scroll, nunca en la primera pantalla.
+  Nada de esto sale en `@media print`: en un PDF todas las olas van abiertas
+  y en orden, así que no hace falta saltar entre ellas.
+
 ## [1.14.0] — 2026-09-02
 
 ### Añadido
@@ -573,6 +599,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.15.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.14.0...arnes-plan--v1.15.0
 [1.14.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.1...arnes-plan--v1.14.0
 [1.13.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.0...arnes-plan--v1.13.1
 [1.13.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.2...arnes-plan--v1.13.0

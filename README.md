@@ -233,6 +233,11 @@ abierta. El pliegue usa `<details>` nativo, así que Ctrl-F y la impresión
 siguen llegando a lo plegado, y el buscador de la página abre solo la ola que
 tenga una coincidencia dentro.
 
+Moverse entre olas no obliga a volver arriba: una barra con la fracción de
+cada ola queda fija al hacer scroll, cada ola termina con un enlace a la
+anterior y a la siguiente, y un botón "arriba" aparece al bajar de página.
+Nada de esto sale en la versión impresa o exportada a PDF.
+
 La página se escribe en un temporal y se abre sola. Para compartirla no hay que
 ir a buscar el archivo: lleva **Guardar copia** —descarga la propia página en un
 solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—, y

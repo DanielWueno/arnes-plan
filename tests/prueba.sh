@@ -1215,6 +1215,105 @@ check "con \`PLEGAR=False\`, las olas vuelven a \`<section>\` plano" "si" "$SIN_
 git checkout -q docs/plan/ejecucion-plan.estado.json
 cd "$ARNES"
 
+echo "26. De la ola 5 a la 2 sin volver arriba a mano"
+cd "$PROY"
+python3 - <<'PY'
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['olas'] = [
+    {"ola": 1, "nombre": "Primera", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "1.1-nav", "titulo": "uno", "estado": "hecho", "modelo": "haiku"},
+        {"id": "1.2-nav", "titulo": "dos", "estado": "hecho", "modelo": "haiku"},
+    ]},
+    {"ola": 2, "nombre": "Segunda", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "2.1-nav", "titulo": "tres", "estado": "pendiente", "modelo": "haiku"},
+        {"id": "2.2-nav", "titulo": "cuatro", "estado": "hecho", "modelo": "haiku"},
+    ]},
+    {"ola": 3, "nombre": "Tercera", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "3.1-nav", "titulo": "cinco", "estado": "pendiente", "modelo": "haiku"},
+    ]},
+]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/nav.html" --no-abrir >/dev/null 2>&1
+
+# (1) La barra pegajosa saca una entrada por ola con su fracción, y esa
+# fracción no puede ser un cálculo aparte del que ya pinta el mapa de olas:
+# se compara, ola por ola, que ambos sitios digan lo mismo.
+FRACS="$(python3 -c "
+import re
+t = open('$TMP/nav.html', encoding='utf-8').read()
+mapa = dict(re.findall(r'<a class=\"fila\" href=\"#ola-(\d+)\">.*?<span class=\"frac\">(\d+/\d+)</span>', t))
+nav_bloque = re.findall(r'<nav class=\"ola-nav\"[^>]*>(.*?)</nav>', t)[0]
+nav = dict(re.findall(r'<a href=\"#ola-(\d+)\"><span class=\"n\">Ola \d+</span><span class=\"frac\">(\d+/\d+)</span></a>', nav_bloque))
+ok = mapa and nav and mapa == nav and set(mapa) == {'1','2','3'}
+print('mapa=%s nav=%s' % (mapa, nav))
+print('IGUAL' if ok else 'DISTINTO')
+")"
+check "mapa de olas y barra de navegación calculan la MISMA fracción por ola ($FRACS)" "si" \
+      "$(echo "$FRACS" | tail -1 | grep -q IGUAL && echo si || echo no)"
+
+# (2) Prev/siguiente: la primera ola no lleva "anterior", la última no lleva
+# "siguiente", y la del medio lleva las dos.
+check "ola 1 (primera): sin enlace 'anterior'" "si" \
+      "$(python3 -c "
+t=open('$TMP/nav.html',encoding='utf-8').read()
+i=t.find('id=\"ola-1\"'); j=t.find('id=\"ola-2\"')
+bloque=t[i:j]
+print('si' if ('ola-prev' not in bloque and 'ola-next' in bloque) else 'no')
+")"
+check "ola 2 (intermedia): lleva anterior Y siguiente" "si" \
+      "$(python3 -c "
+t=open('$TMP/nav.html',encoding='utf-8').read()
+i=t.find('id=\"ola-2\"'); j=t.find('id=\"ola-3\"')
+bloque=t[i:j]
+print('si' if ('ola-prev' in bloque and 'ola-next' in bloque) else 'no')
+")"
+check "ola 3 (última): sin enlace 'siguiente'" "si" \
+      "$(python3 -c "
+t=open('$TMP/nav.html',encoding='utf-8').read()
+i=t.find('id=\"ola-3\"'); bloque=t[i:]
+print('si' if ('ola-next' not in bloque and 'ola-prev' in bloque) else 'no')
+")"
+
+# (3) El botón "arriba" no puede estar visible en la primera pantalla: la
+# regla base (sin \`.visible\`) lo esconde, y sólo el JS al hacer scroll
+# añade esa clase.
+check "hay un enlace/botón \`.arriba\` a \`#top\`" "si" \
+      "$(grep -qE '<a class="arriba" href="#top"' "$TMP/nav.html" && echo si || echo no)"
+check "por defecto está oculto (visibility:hidden u opacity:0 en la regla base, sin \`.visible\`)" "si" \
+      "$(python3 -c "
+import re
+t=open('$TMP/nav.html',encoding='utf-8').read()
+base=re.search(r'\.arriba\{([^}]*)\}', t)
+print('si' if base and ('visibility:hidden' in base.group(1) or 'opacity:0' in base.group(1)) else 'no')
+")"
+check "sólo se revela con una clase que añade el JS al hacer scroll" "si" \
+      "$(grep -qE '\.arriba\.visible\{' "$TMP/nav.html" && grep -q "classList.toggle('visible'" "$TMP/nav.html" && grep -q "addEventListener('scroll'" "$TMP/nav.html" && echo si || echo no)"
+
+# (4) @media print no puede colar nada de esto nuevo.
+BLOQUE_IMPRESION_NAV="$(sed -n '/@media print{/,/^}/p' "$TMP/nav.html")"
+check "\`@media print\` oculta la barra sticky de olas (\`.ola-nav\`)" "si" \
+      "$(grep -q '\.ola-nav' <<<"$BLOQUE_IMPRESION_NAV" && echo si || echo no)"
+check "\`@media print\` oculta los enlaces anterior/siguiente (\`.ola-vecinas\`)" "si" \
+      "$(grep -q '\.ola-vecinas' <<<"$BLOQUE_IMPRESION_NAV" && echo si || echo no)"
+check "\`@media print\` oculta el botón \`.arriba\`" "si" \
+      "$(grep -q '\.arriba' <<<"$BLOQUE_IMPRESION_NAV" && echo si || echo no)"
+
+# (5) Este ítem no usa scroll suave (\`el.scrollIntoView()\` ya salía sin
+# opciones desde 2.1-plegar-por-estado, y los enlaces nuevos son anclas
+# normales): se documenta en el propio test que NO hace falta el respaldo de
+# \`prefers-reduced-motion\` para scroll, comprobando que no se coló ninguno.
+check "no se usó scroll suave en ningún sitio (nada que desactivar para movimiento reducido)" "si" \
+      "$(grep -q 'scroll-behavior:smooth' "$TMP/nav.html" && echo no || (grep -q "behavior:.smooth." "$TMP/nav.html" && echo no || echo si))"
+
+git checkout -q docs/plan/ejecucion-plan.estado.json
+cd "$ARNES"
+
 echo
 if [[ $FALLOS -eq 0 ]]; then echo "$OK comprobaciones, todas verdes"; exit 0; fi
 echo "$FALLOS de $((OK+FALLOS)) comprobaciones en rojo"; exit 1

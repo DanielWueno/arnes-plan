@@ -353,6 +353,13 @@ def tarjeta(it, ids_conocidos):
     return ''.join(P)
 
 
+def frac_ola(items):
+    """(hechos, total) de una ola: un único cálculo para que el mapa de olas,
+    la barra de navegación entre olas y la cabecera de cada ola nunca puedan
+    enseñar una fracción distinta para la misma ola."""
+    return sum(1 for i in items if i.get('estado') == 'hecho'), len(items)
+
+
 def barra(items, con_etiqueta=True):
     """La barra apilada de una ola. Hueco de 2 px entre segmentos —si se tocan,
     dos estados contiguos parecen uno— y un mínimo de ancho para que un solo
@@ -469,6 +476,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
     P = []
     A = P.append
 
+    A('<a id="top"></a>')
     # ── Identidad y acciones ────────────────────────────────────────────────
     A('<header class="cabecera"><div class="ancho">')
     A('<p class="micro">Plan de ingeniería</p>')
@@ -568,7 +576,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
     A('<div class="filas">')
     for o in olas:
         items = o.get('items', [])
-        hechos = sum(1 for i in items if i.get('estado') == 'hecho')
+        hechos, total = frac_ola(items)
         pend_h = 0.0
         for i in items:
             if i.get('estado') not in ('hecho', 'descartado'):
@@ -580,7 +588,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
           '<span class="n">Ola %s</span><span class="nom">%s</span>%s'
           '<span class="frac">%d/%d</span><span class="hs">%s</span></a>'
           % (e(o.get('ola', '?')), e(o.get('ola', '?')), e(o.get('nombre', '')),
-             barra(items), hechos, len(items),
+             barra(items), hechos, total,
              e(horas(pend_h)) if pend_h else '<span class="nada">—</span>'))
     A('</div>')
     A('<p class="ayuda">La última columna son las horas de máquina que quedan por gastar '
@@ -600,6 +608,20 @@ def generar(ledger_ruta, version='?', proyecto=None):
               % (e(est), punto(est), e(ETIQUETA_ESTADO[est]), c[est]))
     A('</div>')
     A('<p class="cuenta" id="cuenta" role="status" aria-live="polite"></p>')
+    # Navegación entre olas: vive DENTRO de `.barra-control` a propósito, no en
+    # un contenedor pegajoso aparte — dos `position:sticky` seguidos con el
+    # mismo `top` se pisan uno a otro al desplazar. Compartiendo el mismo
+    # elemento sticky, la fracción de cada ola queda siempre visible sin
+    # volver arriba, y hereda gratis el hueco de `@media print` que ya oculta
+    # `.barra-control` entera.
+    if len(olas) > 1:
+        A('<nav class="ola-nav" aria-label="Ir a una ola">')
+        for o in olas:
+            hechos_n, total_n = frac_ola(o.get('items', []))
+            A('<a href="#ola-%s"><span class="n">Ola %s</span>'
+              '<span class="frac">%d/%d</span></a>'
+              % (e(o.get('ola', '?')), e(o.get('ola', '?')), hechos_n, total_n))
+        A('</nav>')
     A('</div>')
 
     # ── Olas e ítems ────────────────────────────────────────────────────────
@@ -610,7 +632,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
     # para que no dependa de que `sig` sea justo el único ítem no-hecho de su
     # ola (hoy lo es siempre, porque `elegir_siguiente` sólo devuelve pendientes
     # o en curso, pero la regla se escribe explícita y no por coincidencia).
-    for o in olas:
+    for idx, o in enumerate(olas):
         items = o.get('items', [])
         ola_num = o.get('ola', '?')
         es_sig_ola = sig_ola is not None and o is sig_ola
@@ -619,11 +641,11 @@ def generar(ledger_ruta, version='?', proyecto=None):
         etq = 'details' if PLEGAR else 'section'
         A('<%s class="ola" id="ola-%s" aria-labelledby="t-ola-%s"%s>'
           % (etq, e(ola_num), e(ola_num), '' if plegada else (' open' if PLEGAR else '')))
-        hechos_ola = sum(1 for i in items if i.get('estado') == 'hecho')
+        hechos_ola, total_ola = frac_ola(items)
         cab = ('<div class="ola-cab"><h2 id="t-ola-%s"><span class="n">Ola %s</span>%s'
                '<span class="frac">%d/%d</span></h2>%s</div>'
                % (e(ola_num), e(ola_num), e(o.get('nombre', '')),
-                  hechos_ola, len(items), barra(items)))
+                  hechos_ola, total_ola, barra(items)))
         # El resumen envuelve la cabecera entera: así la fracción y la barra se
         # ven siempre, aunque la ola esté plegada, y toda la fila es clicable.
         A('<summary>%s</summary>' % cab if PLEGAR else cab)
@@ -641,6 +663,23 @@ def generar(ledger_ruta, version='?', proyecto=None):
         for it in items:
             A(tarjeta(it, ids))
         A('</div></%s>' % etq)
+        # Ir de la ola 5 a la 2 no debería obligar a volver arriba a mano: la
+        # primera ola no lleva "anterior" ni la última "siguiente" — nunca un
+        # enlace roto, simplemente no se emite.
+        vecinas = []
+        if idx > 0:
+            ant = olas[idx - 1]
+            vecinas.append('<a class="ola-prev" href="#ola-%s">← Ola %s · %s</a>'
+                           % (e(ant.get('ola', '?')), e(ant.get('ola', '?')),
+                              e(ant.get('nombre', ''))))
+        if idx < len(olas) - 1:
+            sig_o = olas[idx + 1]
+            vecinas.append('<a class="ola-next" href="#ola-%s">Ola %s · %s →</a>'
+                           % (e(sig_o.get('ola', '?')), e(sig_o.get('ola', '?')),
+                              e(sig_o.get('nombre', ''))))
+        if vecinas:
+            A('<nav class="ola-vecinas" aria-label="Ola anterior o siguiente">%s</nav>'
+              % ''.join(vecinas))
 
     A(crono_html(cronologia(olas)))
 
@@ -656,6 +695,9 @@ def generar(ledger_ruta, version='?', proyecto=None):
 
     A('</main>')
     A(pie_pag_html(datos, ledger_ruta, version))
+    # Oculto hasta que se hace scroll (lo revela el JS al pasar el umbral):
+    # en la primera pantalla no hay nada que "arriba" pueda mejorar.
+    A('<a class="arriba" href="#top" aria-label="Volver arriba" title="Volver arriba">↑</a>')
     A('<!--VIVO-->')
 
     return PLANTILLA % {
@@ -893,9 +935,20 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
 .f.activo{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
 .f.activo b{color:var(--papel);opacity:.72}
 .cuenta{font-size:12.5px;color:var(--tenue);margin-left:auto}
+/* `flex-basis:100%` la manda a su propia línea dentro del `flex-wrap` de
+   `.barra-control`, sin que haga falta un segundo contenedor pegajoso —dos
+   `position:sticky` con el mismo `top` se solapan al desplazar. */
+.ola-nav{flex-basis:100%;display:flex;gap:6px;overflow-x:auto;padding-top:9px;
+  margin-top:3px;border-top:1px solid var(--linea-2)}
+.ola-nav a{flex:none;display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--linea);border-radius:99px;padding:5px 12px;font-size:12px;
+  color:var(--tinta-2);text-decoration:none;white-space:nowrap;transition:border-color .12s}
+.ola-nav a:hover{border-color:var(--tenue);color:var(--tinta)}
+.ola-nav .n{color:var(--tenue)}
+.ola-nav .frac{font-family:var(--f-datos)}
 
 /* ── Olas e ítems ─────────────────────────────────────────────────────── */
-.ola{display:flex;flex-direction:column;gap:12px}
+.ola{display:flex;flex-direction:column;gap:12px;scroll-margin-top:120px}
 /* Una ola cerrada a N/N se pliega: <details> nativo, no un display:none
    propio — así Ctrl-F y la impresión siguen llegando a su contenido. El
    marcador por defecto del navegador se sustituye por un triángulo propio que
@@ -917,6 +970,14 @@ details.ola[open]>summary .ola-cab h2 .n::before{transform:rotate(90deg)}
 .criterios{margin:0;padding:15px 20px;background:var(--hundido);border:1px solid var(--linea);
   border-radius:var(--r);display:flex;flex-direction:column;gap:12px}
 .items{display:flex;flex-direction:column;gap:9px}
+/* Ir de la ola 5 a la 2 no debería obligar a volver arriba a mano: enlace a
+   la anterior y a la siguiente al cierre de cada ola. Sólo una de las dos en
+   la primera y en la última — nunca un enlace roto, simplemente no sale. */
+.ola-vecinas{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.ola-vecinas a{color:var(--acento-tinta);text-decoration:none;max-width:48%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ola-vecinas a:hover{text-decoration:underline}
+.ola-vecinas .ola-next{margin-left:auto;text-align:right}
 
 .item{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);
   padding:17px 20px;box-shadow:var(--sombra);scroll-margin-top:78px;position:relative}
@@ -1003,6 +1064,20 @@ details.ola[open]>summary .ola-cab h2 .n::before{transform:rotate(90deg)}
 .vacio{padding:34px;text-align:center;color:var(--tenue);font-size:14px;
   border:1px dashed var(--linea);border-radius:var(--r)}
 
+/* Botón "arriba": invisible en la primera pantalla a propósito —ahí no hay
+   nada que "arriba" mejore— y sin ocupar hueco en el flujo (`position:fixed`).
+   `visibility:hidden` en vez de sólo `opacity` para que tampoco se pare el
+   foco del teclado en un botón que no se ve; el JS añade `.visible` al pasar
+   el umbral de scroll. Sin JS se queda oculto para siempre, que es peor que
+   feo pero nunca un enlace roto: `href="#top"` sigue siendo un ancla normal. */
+.arriba{position:fixed;right:20px;bottom:20px;z-index:20;visibility:hidden;opacity:0;
+  display:flex;align-items:center;justify-content:center;width:38px;height:38px;
+  border-radius:99px;border:1px solid var(--linea);background:var(--papel);
+  color:var(--tinta-2);text-decoration:none;font-size:16px;box-shadow:var(--sombra);
+  transition:opacity .15s,visibility .15s}
+.arriba:hover{color:var(--tinta);border-color:var(--tenue)}
+.arriba.visible{visibility:visible;opacity:1}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 @media print{
@@ -1011,7 +1086,12 @@ details.ola[open]>summary .ola-cab h2 .n::before{transform:rotate(90deg)}
      controles —son sólo líneas de texto, y dos de ellas (documentación del
      proyecto y del arnés) son justo lo que hace falta para encontrar el
      proyecto desde una copia impresa o exportada— así que se deja legible. */
-  .acciones,.barra-control,.saltar{display:none!important}
+  /* `.ola-nav` vive dentro de `.barra-control` y ya sale oculta con ella;
+     se nombra aquí también, explícita, para que la regla no dependa de dónde
+     viva el marcado el día de mañana. `.ola-vecinas` (anterior/siguiente) y
+     `.arriba` son navegación de pantalla, no de papel: en un PDF todas las
+     olas salen abiertas y en orden, así que no hace falta saltar entre ellas. */
+  .acciones,.barra-control,.ola-nav,.ola-vecinas,.arriba,.saltar{display:none!important}
   .item.oculto{display:block!important}
   .ola{display:block!important}
   /* El pliegue no puede tapar nada en un PDF. El JS ya fuerza `open=true` en
@@ -1131,6 +1211,19 @@ JS = r"""
   });
   if(location.hash) irA(location.hash);
   window.addEventListener('hashchange',function(){irA(location.hash)});
+
+  // ── Botón "arriba" ────────────────────────────────────────────────────────
+  // Salto de ancla nativo, sin scroll suave en CSS ni en JS: no hay animación
+  // que desactivar para quien prefiere movimiento reducido.
+  var arriba=document.querySelector('.arriba');
+  if(arriba){
+    var umbralArriba=window.innerHeight;
+    var comprobarArriba=function(){
+      arriba.classList.toggle('visible', window.scrollY>umbralArriba);
+    };
+    window.addEventListener('scroll',comprobarArriba,{passive:true});
+    comprobarArriba();
+  }
 
   // ── Impresión: el pliegue no puede tapar nada en el papel ────────────────
   var plegadasAntesDeImprimir=null;
