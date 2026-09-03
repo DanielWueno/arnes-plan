@@ -627,6 +627,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.16.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.15.0...arnes-plan--v1.16.0
 [1.15.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.14.0...arnes-plan--v1.15.0
 [1.14.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.1...arnes-plan--v1.14.0
 [1.13.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.0...arnes-plan--v1.13.1
