@@ -235,9 +235,8 @@ tenga una coincidencia dentro.
 
 La página se escribe en un temporal y se abre sola. Para compartirla no hay que
 ir a buscar el archivo: lleva **Guardar copia** —descarga la propia página en un
-solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—,
-**Copiar resumen** —el estado en texto, para pegarlo en un chat— e **Imprimir o
-PDF**. Con `--salida` se escribe donde se quiera.
+solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—, y
+**Copiar resumen** —el estado en texto, para pegarlo en un chat—. Con `--salida` se escribe donde se quiera.
 
 `--live` no exige haber corrido `arnes ver` antes: si la página no existe o el
 ledger es más reciente, la genera. El archivo del disco se mantiene al día
