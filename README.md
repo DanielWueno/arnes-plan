@@ -397,6 +397,7 @@ interactivos. El único que no pregunta nunca es `--desatendido`, y por eso es e
 | `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. Si viene con un `UnicodeEncodeError` debajo, es un arnés de Windows anterior a la 1.16.1 y el ítem estaba bien cerrado: actualiza. |
 | `La verificación falla, pero el ítem quedó hecho` | Su criterio no pasa fuera de su sesión. Nada se ha revertido. |
 | `La verificación no terminó en N s` | Se cortó por tiempo. Sube `ARNES_LIMITE_VERIFICACION` si el comando es legítimamente lento. |
+| `N texto(s) con la codificación pasada dos veces` | Mojibake en el ledger (`pÃ³lizas`). No invalida nada, pero sale impreso en el entregable. `arnes validar --arreglar-codificacion`. |
 | `'claude' no está en el PATH` | El lanzador necesita el CLI de Claude Code para abrir la sesión. |
 
 Códigos de salida: **1** si la ficha estaba incompleta, si `--desatendido` se negó o si el cierre
@@ -610,6 +611,22 @@ ledger pertenece al proyecto. Pero un campo no documentado no lo lee ninguna her
 a acumularse: un ledger en uso puede llegar a decenas de nombres fuera de esquema, la mayoría
 usados una sola vez, mientras la validación sigue en verde. Si es rastro del cierre, va en
 `resultado`; si es una nota deliberada, un `_` delante la exime del aviso.
+
+### Texto que pasó dos veces por la codificación
+
+Escribir "pólizas" al ledger desde una consola que lee como cp1252 lo que ya era UTF-8 lo guarda
+como `pÃ³lizas`, y ahí se queda: el JSON sigue siendo válido y nada avisa, así que ese texto viaja
+al `resultado`, al visor y al entregable. El validador lo detecta y lo dice, sin fallar, y la puerta
+de cierre también —ahí todavía lo escribió la sesión que está abierta—. Deshacerlo:
+
+```bash
+arnes validar --arreglar-codificacion
+```
+
+Sólo cambia esas líneas del fichero: el ledger no se reserializa, así que el `git diff` sigue
+diciendo qué cambió de verdad. Y no acusa a lo legítimo: la prueba no es que aparezca una `Ã`, es
+que el texto **revierta** al volver a codificarlo, algo que un "São Paulo" escrito a propósito no
+hace.
 
 `verificacion_comando` se ejecuta con tu shell y tus permisos, igual que un `Makefile` del
 repositorio. Vale lo mismo que el ledger: si no te fiarías de correr a ciegas lo que dice, no te

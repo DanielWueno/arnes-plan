@@ -79,6 +79,11 @@ ${B}COMPROBAR${N}
                                ${D}\`arnes --solo-anunciar\` NO lo comprueba: enseña la
                                ficha y el coste, pero sale antes de validarla.${N}
   arnes validar --al-cerrar 5.0   ¿quedó bien cerrado?
+  arnes validar --arreglar-codificacion
+                               deshace el texto que pasó dos veces por la
+                               codificación: "pÃ³lizas" vuelve a "pólizas".
+                               ${D}Sólo cambia esas líneas del fichero; el resto del
+                               ledger, incluida la sangría, queda igual.${N}
   arnes --version              la versión y el commit, en una línea. Nada más.
   arnes doctor                 ¿está sana la instalación? qué copia corre, qué
                                versión tiene el lanzador, qué esquema el ledger,
