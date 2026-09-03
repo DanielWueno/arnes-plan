@@ -35,6 +35,46 @@ memoria de una conversación**, y se ejecuta un ítem por sesión.
 
 ---
 
+## Para qué no sirve
+
+El arnés da por supuestas dos cosas de cada ítem, y **no comprueba ninguna de las dos**: que lo
+ejecuta un agente en una sesión, y que hay un comando que decide si está hecho. Donde no se cumplen
+no salta nada — el validador sale verde, `arnes` propone el siguiente ítem y lo que queda es un JSON
+que nadie actualiza. El límite, por tanto, lo decides tú antes de escribir el plan. Tres preguntas,
+las tres con respuesta observable:
+
+**1. ¿Quién ejecuta el ítem?** Si es una persona, cinco de los nueve campos obligatorios se vuelven
+relleno: `modelo`, `esfuerzo`, `por_que_este_modelo`, `multiagente` y `horas_maquina` sólo
+significan algo si hay un modelo al que encargarle el trabajo. Y con ellos se caen tres de las cinco
+guardas: la que se niega a ejecutar `opus` sin supervisión, la que frena por horas de máquina y la
+que reserva `multiagente` no protegen nada. Lo que queda es un formulario de nueve casillas para
+llevar cuatro datos.
+
+**2. ¿El criterio cabe en un comando que salga 0?** Si no cabe —"lo revisa el responsable del
+área", "clasificar treinta casos a mano"—, `verificacion_comando` se queda fuera, que es lo
+correcto: media verificación automática miente más de lo que ayuda. Pero entonces la puerta de
+cierre se reduce a comprobar que alguien escribió `resultado`, y eso es exactamente la
+autodeclaración que el arnés existe para no leer como evidencia.
+
+**3. ¿El ítem cierra con un commit?** La unidad del arnés es lo que cabe entre dos commits de un
+repositorio. Si el trabajo no deja diff —una reunión, una decisión de negocio, una migración que
+ejecuta un proveedor—, el commit de cierre no captura nada y el ledger deja de ser el registro del
+avance: pasa a ser una copia del plan, y se desincroniza el primer día.
+
+**Cómo se lee el resultado.** Un "no" de tres deja el arnés útil, con una pieza menos: esta misma
+sección se escribió como un ítem del ledger cuyo criterio no es mecánico —lo decide quien la lee—,
+y el ítem funcionó porque el trabajo era un diff y cerró con un commit. **Con dos o tres "no", lo
+que necesitas es un gestor de tareas, no esto.** Un checklist de auditoría donde cada punto lo firma
+una persona después de revisarlo a mano falla las tres: no hay agente, no hay comando y no hay
+diff. El arnés lo aceptaría sin protestar, y ahí está el problema.
+
+Cuando un plan cae del lado que no es, la salida no es forzarlo entero ni tirarlo: **el plan se
+queda donde vive** —el gestor de tareas, el documento de requerimientos— y el arnés se lleva sólo
+la rebanada que un agente ejecuta y un comando verifica. Un ledger de seis ítems reales vale más que
+uno de cuarenta que nadie mantiene.
+
+---
+
 ## Cómo funciona
 
 Dos diagramas describen el mecanismo completo. GitHub los renderiza aquí mismo; la misma fuente
@@ -227,11 +267,21 @@ una, y cada ítem con lo que se hizo, cómo se verificó y cómo se revierte. Sa
 del ledger con Python: no gasta una llamada al modelo, a diferencia de
 `/arnes-plan:plan-estado`, que es su equivalente en texto dentro de la sesión.
 
+Una ola con todos sus ítems en `hecho` se pliega —es historia, no lo que toca
+ahora—; la ola que trae el ítem que anuncia el panel de arriba siempre sale
+abierta. El pliegue usa `<details>` nativo, así que Ctrl-F y la impresión
+siguen llegando a lo plegado, y el buscador de la página abre solo la ola que
+tenga una coincidencia dentro.
+
+Moverse entre olas no obliga a volver arriba: una barra con la fracción de
+cada ola queda fija al hacer scroll, cada ola termina con un enlace a la
+anterior y a la siguiente, y un botón "arriba" aparece al bajar de página.
+Nada de esto sale en la versión impresa o exportada a PDF.
+
 La página se escribe en un temporal y se abre sola. Para compartirla no hay que
 ir a buscar el archivo: lleva **Guardar copia** —descarga la propia página en un
-solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—,
-**Copiar resumen** —el estado en texto, para pegarlo en un chat— e **Imprimir o
-PDF**. Con `--salida` se escribe donde se quiera.
+solo `.html` autocontenido, sin red ni dependencias, listo para adjuntar—, y
+**Copiar resumen** —el estado en texto, para pegarlo en un chat—. Con `--salida` se escribe donde se quiera.
 
 `--live` no exige haber corrido `arnes ver` antes: si la página no existe o el
 ledger es más reciente, la genera. El archivo del disco se mantiene al día
@@ -478,6 +528,12 @@ escaso el que decide qué ítems se lanzan sin preguntar.
   ]
 }
 ```
+
+La raíz del ledger admite un campo opcional, fuera de `olas`:
+
+| Campo | Para qué |
+|---|---|
+| `documentacion` | Opcional. La URL de la documentación del proyecto (`http://` o `https://`). Si está y es una URL válida, el visor (`arnes ver`) la enseña como enlace en el pie de página, junto a la de la documentación del arnés — así una copia guardada de la página sigue llevando a ambas aunque se abra en otra máquina, meses después. Sin el campo, el visor no dice nada en su lugar: ausencia de dato es ausencia de línea, no un "no disponible". Un valor que no empiece por `http://` o `https://` tampoco se convierte en enlace, por seguridad. |
 
 Cada ítem lleva estos campos, y todos son obligatorios:
 

@@ -106,6 +106,12 @@ EN_CABECERA = {'id', 'titulo', 'estado', 'modelo', 'esfuerzo', 'horas_maquina',
 # Claves de nivel ola que se pintan aparte, no como ítem.
 CABECERA_OLA = {'ola', 'nombre', 'items'}
 
+# Escape hatch: si alguna de las interacciones del pliegue (anclajes, filtro,
+# impresión, Ctrl-F) falla y hace falta revertir sin deshacer el resto del
+# ítem, esta constante a `False` vuelve el render de olas a `<section>` plano
+# y sin plegar, como antes de 2.1-plegar-por-estado.
+PLEGAR = True
+
 
 def e(texto):
     """Escapa para HTML. Todo lo que venga del ledger pasa por aquí."""
@@ -347,6 +353,13 @@ def tarjeta(it, ids_conocidos):
     return ''.join(P)
 
 
+def frac_ola(items):
+    """(hechos, total) de una ola: un único cálculo para que el mapa de olas,
+    la barra de navegación entre olas y la cabecera de cada ola nunca puedan
+    enseñar una fracción distinta para la misma ola."""
+    return sum(1 for i in items if i.get('estado') == 'hecho'), len(items)
+
+
 def barra(items, con_etiqueta=True):
     """La barra apilada de una ola. Hueco de 2 px entre segmentos —si se tocan,
     dos estados contiguos parecen uno— y un mínimo de ancho para que un solo
@@ -404,6 +417,44 @@ def crono_html(crono):
         % (total, len(crono), e(crono[0][0]), e(crono[-1][0]), alto, ''.join(cols), filas))
 
 
+URL_DOC_ARNES = 'https://danielwueno.github.io/arnes-plan/'
+
+
+def url_http_valida(v):
+    """True sólo si `v` es una cadena que empieza por http:// o https://.
+
+    Se comprueba el esquema antes de decidir si algo se convierte en enlace:
+    un `javascript:` o cualquier basura no debe acabar nunca dentro de un
+    atributo `href`, ni siquiera escapado."""
+    return isinstance(v, str) and v.strip().lower().startswith(('http://', 'https://'))
+
+
+def pie_pag_html(datos, ledger_ruta, version):
+    """El pie de la página. Dos líneas fijas —de qué ledger salió, y dónde está
+    la documentación del arnés— y una tercera que sólo aparece si el ledger
+    declara `documentacion`: ausencia de dato es ausencia de línea, no un
+    "no disponible" que nadie pidió."""
+    P = ['<p class="linea-fuente">Generada por <code>arnes ver</code> desde <code>%s</code>. '
+         'Se regenera volviendo a ejecutarlo; no se edita a mano.</p>'
+         % e(os.path.basename(ledger_ruta))]
+
+    doc = datos.get('documentacion')
+    if doc not in (None, '', [], {}):
+        if url_http_valida(doc):
+            doc_txt = doc.strip()
+            P.append('<p class="linea-doc">Documentación del proyecto: '
+                      '<a href="%s">%s</a></p>' % (e(doc_txt), e(doc_txt)))
+        else:
+            # No es una URL http(s): se muestra como texto, nunca como enlace
+            # ni dentro de un atributo href.
+            P.append('<p class="linea-doc">Documentación del proyecto: %s</p>' % e(doc))
+
+    P.append('<p class="linea-arnes">Documentación del arnés (v%s): '
+              '<a href="%s">%s</a></p>' % (e(version), e(URL_DOC_ARNES), e(URL_DOC_ARNES)))
+
+    return '<footer class="pie-pag"><div class="ancho">%s</div></footer>' % ''.join(P)
+
+
 def generar(ledger_ruta, version='?', proyecto=None):
     datos = leer(ledger_ruta)
     olas = datos.get('olas')
@@ -425,6 +476,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
     P = []
     A = P.append
 
+    A('<a id="top"></a>')
     # ── Identidad y acciones ────────────────────────────────────────────────
     A('<header class="cabecera"><div class="ancho">')
     A('<p class="micro">Plan de ingeniería</p>')
@@ -432,15 +484,22 @@ def generar(ledger_ruta, version='?', proyecto=None):
     A('<p class="sello">%s · generado el %s · arnés v%s · sin inferencia</p>' % (
         e(os.path.relpath(ledger_ruta, proyecto) if ledger_ruta.startswith(proyecto)
           else ledger_ruta), e(ahora), e(version)))
-    # Compartir se hace desde aquí, no copiando una ruta de la consola.
+    # Compartir se hace desde aquí, no copiando una ruta de la consola. El texto
+    # que antes explicaba los botones en un párrafo visible ahora vive como
+    # `title`/`aria-describedby` en cada botón: la ayuda sigue accesible, pero
+    # ya no ocupa la primera pantalla.
     A('<div class="acciones">'
-      '<button id="btn-guardar" type="button" class="primario">Guardar copia</button>'
-      '<button id="btn-resumen" type="button">Copiar resumen</button>'
-      '<button id="btn-pdf" type="button">Imprimir o PDF</button>'
+      '<button id="btn-guardar" type="button" title="Descarga esta misma página '
+      'en un solo archivo, lista para adjuntar." aria-describedby="ayuda-guardar">'
+      'Guardar copia</button>'
+      '<span id="ayuda-guardar" class="oculta">Descarga esta misma página en un '
+      'solo archivo, lista para adjuntar.</span>'
+      '<button id="btn-resumen" type="button" title="Copia el estado del plan en '
+      'texto al portapapeles." aria-describedby="ayuda-resumen">Copiar resumen</button>'
+      '<span id="ayuda-resumen" class="oculta">Copia el estado del plan en texto '
+      'al portapapeles.</span>'
       '<span id="aviso" class="aviso" role="status" aria-live="polite"></span>'
       '</div>')
-    A('<p class="ayuda">«Guardar copia» descarga esta misma página en un solo archivo, '
-      'lista para adjuntar. «Copiar resumen» deja el estado en texto en el portapapeles.</p>')
     A('</div></header>')
 
     A('<main class="ancho" id="principal">')
@@ -517,7 +576,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
     A('<div class="filas">')
     for o in olas:
         items = o.get('items', [])
-        hechos = sum(1 for i in items if i.get('estado') == 'hecho')
+        hechos, total = frac_ola(items)
         pend_h = 0.0
         for i in items:
             if i.get('estado') not in ('hecho', 'descartado'):
@@ -529,7 +588,7 @@ def generar(ledger_ruta, version='?', proyecto=None):
           '<span class="n">Ola %s</span><span class="nom">%s</span>%s'
           '<span class="frac">%d/%d</span><span class="hs">%s</span></a>'
           % (e(o.get('ola', '?')), e(o.get('ola', '?')), e(o.get('nombre', '')),
-             barra(items), hechos, len(items),
+             barra(items), hechos, total,
              e(horas(pend_h)) if pend_h else '<span class="nada">—</span>'))
     A('</div>')
     A('<p class="ayuda">La última columna son las horas de máquina que quedan por gastar '
@@ -549,18 +608,47 @@ def generar(ledger_ruta, version='?', proyecto=None):
               % (e(est), punto(est), e(ETIQUETA_ESTADO[est]), c[est]))
     A('</div>')
     A('<p class="cuenta" id="cuenta" role="status" aria-live="polite"></p>')
+    # Navegación entre olas: vive DENTRO de `.barra-control` a propósito, no en
+    # un contenedor pegajoso aparte — dos `position:sticky` seguidos con el
+    # mismo `top` se pisan uno a otro al desplazar. Compartiendo el mismo
+    # elemento sticky, la fracción de cada ola queda siempre visible sin
+    # volver arriba, y hereda gratis el hueco de `@media print` que ya oculta
+    # `.barra-control` entera.
+    if len(olas) > 1:
+        A('<nav class="ola-nav" aria-label="Ir a una ola">')
+        for o in olas:
+            hechos_n, total_n = frac_ola(o.get('items', []))
+            A('<a href="#ola-%s"><span class="n">Ola %s</span>'
+              '<span class="frac">%d/%d</span></a>'
+              % (e(o.get('ola', '?')), e(o.get('ola', '?')), hechos_n, total_n))
+        A('</nav>')
     A('</div>')
 
     # ── Olas e ítems ────────────────────────────────────────────────────────
-    for o in olas:
+    # Una ola con TODOS sus ítems en `hecho` es historia: se pliega, no se
+    # esconde — Ctrl-F y la impresión siguen llegando a su contenido. La ola
+    # que trae el ítem que anuncia el panel de arriba se emite siempre abierta:
+    # esa condición se comprueba aparte y no como consecuencia de la anterior,
+    # para que no dependa de que `sig` sea justo el único ítem no-hecho de su
+    # ola (hoy lo es siempre, porque `elegir_siguiente` sólo devuelve pendientes
+    # o en curso, pero la regla se escribe explícita y no por coincidencia).
+    for idx, o in enumerate(olas):
         items = o.get('items', [])
-        A('<section class="ola" id="ola-%s" aria-labelledby="t-ola-%s">'
-          % (e(o.get('ola', '?')), e(o.get('ola', '?'))))
-        hechos_ola = sum(1 for i in items if i.get('estado') == 'hecho')
-        A('<div class="ola-cab"><h2 id="t-ola-%s"><span class="n">Ola %s</span>%s'
-          '<span class="frac">%d/%d</span></h2>%s</div>'
-          % (e(o.get('ola', '?')), e(o.get('ola', '?')), e(o.get('nombre', '')),
-             hechos_ola, len(items), barra(items)))
+        ola_num = o.get('ola', '?')
+        es_sig_ola = sig_ola is not None and o is sig_ola
+        todos_hechos = bool(items) and all(i.get('estado') == 'hecho' for i in items)
+        plegada = PLEGAR and todos_hechos and not es_sig_ola
+        etq = 'details' if PLEGAR else 'section'
+        A('<%s class="ola" id="ola-%s" aria-labelledby="t-ola-%s"%s>'
+          % (etq, e(ola_num), e(ola_num), '' if plegada else (' open' if PLEGAR else '')))
+        hechos_ola, total_ola = frac_ola(items)
+        cab = ('<div class="ola-cab"><h2 id="t-ola-%s"><span class="n">Ola %s</span>%s'
+               '<span class="frac">%d/%d</span></h2>%s</div>'
+               % (e(ola_num), e(ola_num), e(o.get('nombre', '')),
+                  hechos_ola, total_ola, barra(items)))
+        # El resumen envuelve la cabecera entera: así la fracción y la barra se
+        # ven siempre, aunque la ola esté plegada, y toda la fila es clicable.
+        A('<summary>%s</summary>' % cab if PLEGAR else cab)
         # Criterios y advertencias: las puertas de la ola. Van arriba porque son
         # lo que decide si esta ola se puede siquiera empezar.
         criterios = [(k, v) for k, v in o.items()
@@ -574,7 +662,24 @@ def generar(ledger_ruta, version='?', proyecto=None):
         A('<div class="items">')
         for it in items:
             A(tarjeta(it, ids))
-        A('</div></section>')
+        A('</div></%s>' % etq)
+        # Ir de la ola 5 a la 2 no debería obligar a volver arriba a mano: la
+        # primera ola no lleva "anterior" ni la última "siguiente" — nunca un
+        # enlace roto, simplemente no se emite.
+        vecinas = []
+        if idx > 0:
+            ant = olas[idx - 1]
+            vecinas.append('<a class="ola-prev" href="#ola-%s">← Ola %s · %s</a>'
+                           % (e(ant.get('ola', '?')), e(ant.get('ola', '?')),
+                              e(ant.get('nombre', ''))))
+        if idx < len(olas) - 1:
+            sig_o = olas[idx + 1]
+            vecinas.append('<a class="ola-next" href="#ola-%s">Ola %s · %s →</a>'
+                           % (e(sig_o.get('ola', '?')), e(sig_o.get('ola', '?')),
+                              e(sig_o.get('nombre', ''))))
+        if vecinas:
+            A('<nav class="ola-vecinas" aria-label="Ola anterior o siguiente">%s</nav>'
+              % ''.join(vecinas))
 
     A(crono_html(cronologia(olas)))
 
@@ -589,9 +694,10 @@ def generar(ledger_ruta, version='?', proyecto=None):
         A('</dl></section>')
 
     A('</main>')
-    A('<footer class="pie-pag"><div class="ancho">Generada por <code>arnes ver</code> '
-      'desde <code>%s</code>. Se regenera volviendo a ejecutarlo; no se edita a mano.'
-      '</div></footer>' % e(os.path.basename(ledger_ruta)))
+    A(pie_pag_html(datos, ledger_ruta, version))
+    # Oculto hasta que se hace scroll (lo revela el JS al pasar el umbral):
+    # en la primera pantalla no hay nada que "arriba" pueda mejorar.
+    A('<a class="arriba" href="#top" aria-label="Volver arriba" title="Volver arriba">↑</a>')
     A('<!--VIVO-->')
 
     return PLANTILLA % {
@@ -728,11 +834,8 @@ a{color:inherit}
   cursor:pointer;border:1px solid var(--linea);background:var(--papel);color:var(--tinta);
   transition:border-color .12s,background .12s}
 .acciones button:hover{border-color:var(--tenue)}
-.acciones button.primario{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
-.acciones button.primario:hover{background:var(--tinta-2);border-color:var(--tinta-2)}
 .aviso{font-size:12.5px;color:var(--hecho);opacity:0;transition:opacity .18s}
 .aviso.visible{opacity:1}
-.cabecera .ayuda{margin-top:12px}
 
 main{padding:30px 28px 84px;display:flex;flex-direction:column;gap:38px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenue);
@@ -832,19 +935,49 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
 .f.activo{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
 .f.activo b{color:var(--papel);opacity:.72}
 .cuenta{font-size:12.5px;color:var(--tenue);margin-left:auto}
+/* `flex-basis:100%` la manda a su propia línea dentro del `flex-wrap` de
+   `.barra-control`, sin que haga falta un segundo contenedor pegajoso —dos
+   `position:sticky` con el mismo `top` se solapan al desplazar. */
+.ola-nav{flex-basis:100%;display:flex;gap:6px;overflow-x:auto;padding-top:9px;
+  margin-top:3px;border-top:1px solid var(--linea-2)}
+.ola-nav a{flex:none;display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--linea);border-radius:99px;padding:5px 12px;font-size:12px;
+  color:var(--tinta-2);text-decoration:none;white-space:nowrap;transition:border-color .12s}
+.ola-nav a:hover{border-color:var(--tenue);color:var(--tinta)}
+.ola-nav .n{color:var(--tenue)}
+.ola-nav .frac{font-family:var(--f-datos)}
 
 /* ── Olas e ítems ─────────────────────────────────────────────────────── */
-.ola{display:flex;flex-direction:column;gap:12px}
+.ola{display:flex;flex-direction:column;gap:12px;scroll-margin-top:120px}
+/* Una ola cerrada a N/N se pliega: <details> nativo, no un display:none
+   propio — así Ctrl-F y la impresión siguen llegando a su contenido. El
+   marcador por defecto del navegador se sustituye por un triángulo propio que
+   gira al abrir, para no perder la señal de "esto se puede desplegar". */
+.ola>summary{cursor:pointer;list-style:none}
+.ola>summary::-webkit-details-marker{display:none}
 .ola-cab h2{display:flex;align-items:baseline;gap:11px;font-size:18px;text-transform:none;
   letter-spacing:-.015em;color:var(--tinta);margin-bottom:10px}
 .ola-cab h2 .n{font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
-  color:var(--tenue);flex:none}
+  color:var(--tenue);flex:none;display:flex;align-items:center;gap:7px}
+.ola>summary .ola-cab h2 .n::before{content:"";width:0;height:0;flex:none;
+  border-style:solid;border-width:4px 0 4px 6px;
+  border-color:transparent transparent transparent var(--tenue);
+  transition:transform .12s}
+details.ola[open]>summary .ola-cab h2 .n::before{transform:rotate(90deg)}
 .ola-cab h2 .frac{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--tenue);
   font-family:var(--f-datos);flex:none}
 .ola-cab .barra{height:4px}
 .criterios{margin:0;padding:15px 20px;background:var(--hundido);border:1px solid var(--linea);
   border-radius:var(--r);display:flex;flex-direction:column;gap:12px}
 .items{display:flex;flex-direction:column;gap:9px}
+/* Ir de la ola 5 a la 2 no debería obligar a volver arriba a mano: enlace a
+   la anterior y a la siguiente al cierre de cada ola. Sólo una de las dos en
+   la primera y en la última — nunca un enlace roto, simplemente no sale. */
+.ola-vecinas{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.ola-vecinas a{color:var(--acento-tinta);text-decoration:none;max-width:48%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ola-vecinas a:hover{text-decoration:underline}
+.ola-vecinas .ola-next{margin-left:auto;text-align:right}
 
 .item{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);
   padding:17px 20px;box-shadow:var(--sombra);scroll-margin-top:78px;position:relative}
@@ -926,17 +1059,48 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--tenu
 .notas .campo dd{color:var(--tenue);font-size:13.5px}
 .pie-pag{border-top:1px solid var(--linea);padding:22px 0 44px;color:var(--tenue);
   font-size:12.5px}
+.pie-pag p+p{margin-top:6px}
+.pie-pag a{color:inherit}
 .vacio{padding:34px;text-align:center;color:var(--tenue);font-size:14px;
   border:1px dashed var(--linea);border-radius:var(--r)}
+
+/* Botón "arriba": invisible en la primera pantalla a propósito —ahí no hay
+   nada que "arriba" mejore— y sin ocupar hueco en el flujo (`position:fixed`).
+   `visibility:hidden` en vez de sólo `opacity` para que tampoco se pare el
+   foco del teclado en un botón que no se ve; el JS añade `.visible` al pasar
+   el umbral de scroll. Sin JS se queda oculto para siempre, que es peor que
+   feo pero nunca un enlace roto: `href="#top"` sigue siendo un ancla normal. */
+.arriba{position:fixed;right:20px;bottom:20px;z-index:20;visibility:hidden;opacity:0;
+  display:flex;align-items:center;justify-content:center;width:38px;height:38px;
+  border-radius:99px;border:1px solid var(--linea);background:var(--papel);
+  color:var(--tinta-2);text-decoration:none;font-size:16px;box-shadow:var(--sombra);
+  transition:opacity .15s,visibility .15s}
+.arriba:hover{color:var(--tinta);border-color:var(--tenue)}
+.arriba.visible{visibility:visible;opacity:1}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 @media print{
   /* Un PDF con los filtros aplicados y media página en blanco no es un informe:
-     se imprime el estado completo, sin controles. */
-  .acciones,.barra-control,.pie-pag,.saltar,.cabecera .ayuda{display:none!important}
+     se imprime el estado completo, sin controles. El pie de página no lleva
+     controles —son sólo líneas de texto, y dos de ellas (documentación del
+     proyecto y del arnés) son justo lo que hace falta para encontrar el
+     proyecto desde una copia impresa o exportada— así que se deja legible. */
+  /* `.ola-nav` vive dentro de `.barra-control` y ya sale oculta con ella;
+     se nombra aquí también, explícita, para que la regla no dependa de dónde
+     viva el marcado el día de mañana. `.ola-vecinas` (anterior/siguiente) y
+     `.arriba` son navegación de pantalla, no de papel: en un PDF todas las
+     olas salen abiertas y en orden, así que no hace falta saltar entre ellas. */
+  .acciones,.barra-control,.ola-nav,.ola-vecinas,.arriba,.saltar{display:none!important}
   .item.oculto{display:block!important}
   .ola{display:block!important}
+  /* El pliegue no puede tapar nada en un PDF. El JS ya fuerza `open=true` en
+     cada `<details class="ola">` al imprimir (evento `beforeprint`), y esto es
+     el respaldo puramente CSS por si algún motor no dispara ese evento: el
+     contenido de un `<details>` cerrado lleva `content-visibility:hidden` en
+     la hoja del user-agent, y basta con `display` para revertirlo. */
+  details.ola:not([open])>:not(summary){display:block!important;content-visibility:visible!important}
+  .ola>summary{cursor:default}
   body{background:#fff;color:#000}
   .item,.kpi,.criterios,.notas dl,.mapa .filas{break-inside:avoid;box-shadow:none}
   .detalle dd.recortado{max-height:none!important;-webkit-mask-image:none!important;
@@ -966,7 +1130,12 @@ JS = r"""
 (function(){
   var q=document.getElementById('q'), cuenta=document.getElementById('cuenta');
   var items=[].slice.call(document.querySelectorAll('.item'));
+  var olas=[].slice.call(document.querySelectorAll('.ola'));
   var estado='todo', texto='';
+
+  // El estado de pliegue con el que salió del servidor. Se restaura al quitar
+  // el filtro; mientras el filtro está puesto, manda la coincidencia y no esto.
+  olas.forEach(function(o){ o.dataset.abiertaOriginal = o.open ? '1' : '0'; });
 
   function aplicar(){
     var vistos=0;
@@ -975,12 +1144,21 @@ JS = r"""
              (!texto||it.dataset.busca.indexOf(texto)>=0);
       it.classList.toggle('oculto',!ok); if(ok)vistos++;
     });
-    // Una ola sin ningún ítem visible sobra: deja un hueco con criterios que no
-    // vienen a cuento de lo que se está buscando.
-    [].forEach.call(document.querySelectorAll('.ola'),function(o){
-      o.style.display=o.querySelector('.item:not(.oculto)')?'':'none';
+    var sinFiltro=(estado==='todo'&&!texto);
+    olas.forEach(function(o){
+      var vis=o.querySelector('.item:not(.oculto)');
+      // Una ola sin ningún ítem visible sobra: deja un hueco con criterios que
+      // no vienen a cuento de lo que se está buscando.
+      o.style.display=vis?'':'none';
+      if(!('open' in o))return;   // PLEGAR=False: son <section>, no <details>
+      if(sinFiltro) o.open = o.dataset.abiertaOriginal==='1';
+      // Con filtro activo: si le queda algún ítem que encaja, se abre para
+      // que se vea — si estaba plegada por estar hecha del todo, no cuenta
+      // como abierta "de verdad": se vuelve a plegar en cuanto se quita el
+      // filtro, arriba.
+      else if(vis) o.open = true;
     });
-    cuenta.textContent=(estado==='todo'&&!texto)
+    cuenta.textContent=sinFiltro
       ? items.length+' ítems'
       : 'mostrando '+vistos+' de '+items.length;
     var v=document.getElementById('vacio');
@@ -1001,6 +1179,63 @@ JS = r"""
     });
   });
   aplicar();
+
+  // ── Anclajes que abren el pliegue antes de saltar ────────────────────────
+  // `#it-<id>` señala una tarjeta que puede vivir dentro de una ola plegada;
+  // `#ola-N` señala la propia ola. El navegador ya fuerza abierto un
+  // ancestro `<details>` cerrado cuando el destino vive DENTRO de él, pero
+  // eso no cubre `#ola-N`: ahí el destino ES el `<details>`, que nunca está
+  // oculto (sólo su contenido), así que nada lo abriría solo. Se resuelve
+  // igual en los dos casos: abrir toda la cadena de `<details>` ancestros
+  // (incluido el propio destino si lo es) y sólo entonces hacer scroll.
+  function abrirHasta(el){
+    var d = (el.tagName==='DETAILS') ? el : el.closest('details');
+    while(d){ d.open=true; d = d.parentElement && d.parentElement.closest('details'); }
+  }
+  function irA(hash){
+    if(!hash || hash.length<2) return;
+    var el=document.getElementById(hash.slice(1));
+    if(!el) return;
+    abrirHasta(el);
+    el.scrollIntoView();
+  }
+  document.addEventListener('click',function(ev){
+    var a=ev.target.closest && ev.target.closest('a[href^="#"]');
+    if(!a) return;
+    var hash=a.getAttribute('href');
+    if(!hash || hash.length<2 || !document.getElementById(hash.slice(1))) return;
+    abrirHasta(document.getElementById(hash.slice(1)));
+    // No se hace preventDefault: la navegación del propio navegador es la que
+    // pone `:target` y mueve el foco correctamente; aquí sólo se adelanta la
+    // apertura del pliegue para que el salto no aterrice en algo oculto.
+  });
+  if(location.hash) irA(location.hash);
+  window.addEventListener('hashchange',function(){irA(location.hash)});
+
+  // ── Botón "arriba" ────────────────────────────────────────────────────────
+  // Salto de ancla nativo, sin scroll suave en CSS ni en JS: no hay animación
+  // que desactivar para quien prefiere movimiento reducido.
+  var arriba=document.querySelector('.arriba');
+  if(arriba){
+    var umbralArriba=window.innerHeight;
+    var comprobarArriba=function(){
+      arriba.classList.toggle('visible', window.scrollY>umbralArriba);
+    };
+    window.addEventListener('scroll',comprobarArriba,{passive:true});
+    comprobarArriba();
+  }
+
+  // ── Impresión: el pliegue no puede tapar nada en el papel ────────────────
+  var plegadasAntesDeImprimir=null;
+  window.addEventListener('beforeprint',function(){
+    plegadasAntesDeImprimir=olas.filter(function(o){return 'open' in o && !o.open;});
+    plegadasAntesDeImprimir.forEach(function(o){o.open=true;});
+  });
+  window.addEventListener('afterprint',function(){
+    if(!plegadasAntesDeImprimir) return;
+    plegadasAntesDeImprimir.forEach(function(o){o.open=false;});
+    plegadasAntesDeImprimir=null;
+  });
 
   // ── Plegado de los campos largos ─────────────────────────────────────────
   // Se hace aquí y no en el HTML a propósito: si el JS no corre, la página
@@ -1034,7 +1269,12 @@ JS = r"""
     // Y fuera el filtro que hubiera puesto: se comparte el plan entero, no la
     // búsqueda de quien lo compartió.
     [].forEach.call(doc.querySelectorAll('.item.oculto'),function(n){n.classList.remove('oculto')});
-    [].forEach.call(doc.querySelectorAll('.ola'),function(n){n.style.display=''});
+    // El pliegue vuelve al que traía del servidor, no al que dejó el filtro de
+    // quien comparte: la copia es el plan entero, plegado por estado real.
+    [].forEach.call(doc.querySelectorAll('.ola'),function(n){
+      n.style.display='';
+      if('open' in n) n.open = n.dataset.abiertaOriginal==='1';
+    });
     var v=doc.querySelector('#vacio'); if(v&&v.parentNode)v.parentNode.removeChild(v);
     // El plegado lo vuelve a calcular la copia al abrirse: si se fuera con los
     // botones puestos, saldrían duplicados.
@@ -1070,8 +1310,6 @@ JS = r"""
       navigator.clipboard.writeText(texto).then(function(){decir('resumen copiado')},respaldo);
     } else respaldo();
   });
-
-  document.getElementById('btn-pdf').addEventListener('click',function(){window.print()});
 
   // Lo único que sale del cierre. No es API para nadie: es para que la suite
   // pueda comprobar QUÉ se comparte sin simular una descarga, que en un

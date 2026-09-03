@@ -634,12 +634,19 @@ check "el verbo \`ver\` sale por plan-run.sh" "si" \
 # Por eso el destino por defecto es un temporal, y por eso esto se comprueba:
 # el fallo sería silencioso hasta que alguien lo commiteara.
 check "no deja nada en el árbol de trabajo" "" "$(git status --porcelain)"
-for pieza in 'btn-guardar' 'btn-resumen' 'btn-pdf' 'ítem de prueba' 'Lo siguiente que toca'; do
+for pieza in 'btn-guardar' 'btn-resumen' 'ítem de prueba' 'Lo siguiente que toca'; do
   check "la página trae: $pieza" "si" "$(grep -qF -- "$pieza" "$VISTA" && echo si || echo no)"
 done
 # La página tiene que abrirse sin red: ni CDN, ni fuentes, ni imágenes remotas.
-check "no pide nada al exterior" "0" \
-      "$(grep -coE '(src|href)="https?://' "$VISTA" || true)"
+# Un enlace normal (`<a href>`) no dispara ninguna carga al abrir la página —
+# el pie de página ahora lleva dos, a propósito (documentación del proyecto y
+# del arnés)—, así que sólo cuenta como "pide algo al exterior" un recurso que
+# SÍ se cargaría solo: `src=` en cualquier etiqueta, o el `href=` de un `<link>`
+# (hoja de estilo, preconexión, etc.).
+check "no carga recursos remotos" "0" \
+      "$(grep -coE 'src="https?://' "$VISTA" || true)"
+check "no enlaza hojas de estilo ni precarga nada del exterior" "0" \
+      "$(grep -coE '<link[^>]*href="https?://' "$VISTA" || true)"
 # Regresión exacta de un fallo real: el bloque de JavaScript vivía en una cadena
 # normal de Python, así que su `\n` se convirtió en un salto de línea DENTRO de
 # un literal JavaScript y rompió el script entero — con él, los tres botones y
@@ -741,6 +748,46 @@ for v in haiku sonnet opus low medium high xhigh max \
   check "la página lista el valor válido: $v" "si" \
         "$(grep -qF -- "<code>$v</code>" "$ARNES/docs/index.html" && echo si || echo no)"
 done
+
+# La sección «para qué no sirve» es lo único del README que dice cuándo NO usar
+# esto, y vive copiada en la página. Divergen solas: se afina el encuadre en un
+# sitio y el otro sigue publicando el viejo. Se comprueba que las dos copias
+# existan y que sigan nombrando los cinco campos que la sección declara relleno
+# cuando el ejecutor es una persona — si alguien reescribe la sección y se los
+# come, el argumento se queda sin la parte comprobable.
+check "el README dice para qué no sirve"   "si" \
+      "$(grep -qF -- '## Para qué no sirve' "$ARNES/README.md" && echo si || echo no)"
+# En la página se busca el encabezado de la sección, no la frase: el índice de
+# arriba la nombra igual, así que borrar la sección y dejar el enlace pasaría
+# por buena una página que ya no dice nada.
+check "y la página trae la sección, no sólo el enlace" "si" \
+      "$(grep -qF -- '<h2>Para qué no sirve</h2>' "$ARNES/docs/index.html" && echo si || echo no)"
+FLOJAS="$(python3 - "$ARNES" <<'PY'
+import io, sys
+raiz = sys.argv[1]
+campos = ['modelo', 'esfuerzo', 'por_que_este_modelo', 'multiagente', 'horas_maquina']
+malos = []
+for f in ('README.md', 'docs/index.html'):
+    texto = io.open(raiz + '/' + f, encoding='utf-8').read()
+    i = texto.find('Para qué no sirve')
+    seccion = texto[i:i + 3500] if i >= 0 else ''
+    faltan = [c for c in campos if c not in seccion]
+    if faltan:
+        malos.append(f + ':' + ','.join(faltan))
+print(' '.join(malos))
+PY
+)"
+check "las dos copias nombran los 5 campos que quedan en relleno" "" "$FLOJAS"
+# Y el «cinco de los nueve» es una cuenta sobre una lista que vive en el
+# validador: si mañana se añade un décimo campo obligatorio, la frase miente.
+N_OBLIG="$(python3 - "$ARNES" <<'PY'
+import io, re, sys
+src = io.open(sys.argv[1] + '/scripts/validar-ledger.py', encoding='utf-8').read()
+m = re.search(r'CAMPOS_ITEM = \{(.*?)\}', src, re.S)
+print(len(re.findall(r"'[a-z_]+'", m.group(1))))
+PY
+)"
+check "siguen siendo 9 los campos obligatorios de ítem" "9" "$N_OBLIG"
 
 echo '20. La documentación no promete lo que la consola no dice'
 cd "$PROY"
@@ -1067,6 +1114,244 @@ check "un id que no existe cuenta como bloqueo vivo" "si" \
 # alguien añade un estado a CERRADOS, esto falla y señala dónde está el gemelo.
 check "los dos criterios de cerrado no han divergido" "{'hecho'}" \
       "$(sed -n "s/^CERRADOS = //p" "$ARNES/scripts/validar-ledger.py")"
+cd "$ARNES"
+
+echo "24. El pie de página nombra la documentación, sin colar un href malicioso"
+cd "$PROY"
+# El contrato de silencio: sin `documentacion` en la raíz del ledger, no se
+# inventa un "no disponible" — sencillamente no hay línea de proyecto.
+python3 -c "
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d.pop('documentacion', None)
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/pie-sin-doc.html" --no-abrir >/dev/null 2>&1
+check "sin \`documentacion\`: no aparece la línea del proyecto" "0" \
+      "$(grep -c 'Documentación del proyecto' "$TMP/pie-sin-doc.html")"
+check "pero sí la del arnés, con su versión y su URL" "si" \
+      "$(grep -q "Documentación del arnés (v$VERSION_MANIFIESTO): <a href=\"https://danielwueno.github.io/arnes-plan/\">" "$TMP/pie-sin-doc.html" && echo si || echo no)"
+
+# Con una URL http(s) válida: se pinta como enlace, y la línea del arnés sigue
+# ahí al lado.
+python3 -c "
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['documentacion'] = 'https://ejemplo.invalid/docs'
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/pie-con-doc.html" --no-abrir >/dev/null 2>&1
+check "con URL https: aparece como enlace" "si" \
+      "$(grep -q '<a href="https://ejemplo.invalid/docs">https://ejemplo.invalid/docs</a>' "$TMP/pie-con-doc.html" && echo si || echo no)"
+check "y también sale la URL del arnés con su versión" "si" \
+      "$(grep -q "Documentación del arnés (v$VERSION_MANIFIESTO): <a href=\"https://danielwueno.github.io/arnes-plan/\">" "$TMP/pie-con-doc.html" && echo si || echo no)"
+
+# Un esquema peligroso, o directamente basura: nunca dentro de un href, aunque
+# sea escapado.
+for MALO in 'javascript:alert(1)' 'no-una-url'; do
+  python3 -c "
+import json, sys
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['documentacion'] = sys.argv[1]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)" "$MALO"
+  python3 "$ARNES/scripts/ver.py" --salida "$TMP/pie-malo.html" --no-abrir >/dev/null 2>&1
+  check "\`$MALO\` no acaba dentro de un href" "0" \
+        "$(grep -c "href=\"$MALO\"" "$TMP/pie-malo.html")"
+done
+python3 -c "
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d.pop('documentacion', None)
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
+git checkout -q docs/plan/ejecucion-plan.estado.json
+
+# El `@media print` no puede tapar las dos líneas nuevas: son justo lo que hace
+# falta para encontrar el proyecto y el arnés desde una copia impresa.
+BLOQUE_IMPRESION="$(sed -n '/@media print{/,/^}/p' "$TMP/pie-sin-doc.html")"
+check "el CSS de impresión no oculta \`.pie-pag\`" "0" \
+      "$(grep -c '\.pie-pag[^{]*{[^}]*display:none' <<<"$BLOQUE_IMPRESION")"
+check "ni las líneas nuevas por su clase" "0" \
+      "$(grep -c '\.linea-doc\|\.linea-arnes' <<<"$BLOQUE_IMPRESION")"
+cd "$ARNES"
+
+echo "25. Una ola cerrada a N/N se pliega; la que trae el ítem que toca, no"
+cd "$PROY"
+python3 - <<'PY'
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['olas'] = [
+    {"ola": 1, "nombre": "Cerrada del todo", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "1.1-cerrado", "titulo": "uno", "estado": "hecho", "modelo": "haiku"},
+        {"id": "1.2-cerrado", "titulo": "dos", "estado": "hecho", "modelo": "haiku"},
+    ]},
+    {"ola": 2, "nombre": "La que toca", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "2.1-toca", "titulo": "tres", "estado": "pendiente", "modelo": "haiku"},
+        {"id": "2.2-toca", "titulo": "cuatro", "estado": "hecho", "modelo": "haiku"},
+    ]},
+]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/plegado.html" --no-abrir >/dev/null 2>&1
+PAG_PLEGADO="$(cat "$TMP/plegado.html")"
+# (1) la ola 1 (2/2 hecho, y no es la que anuncia el panel) sale como
+# `<details>` SIN `open`; la ola 2 (trae el pendiente que anuncia el panel)
+# sale con `open`, aunque por lo demás tampoco esté toda hecha.
+check "ola cerrada del todo: \`<details>\` sin \`open\`" "si" \
+      "$(grep -qE '<details class="ola" id="ola-1"[^>]*aria-labelledby="t-ola-1">' "$TMP/plegado.html" && echo si || echo no)"
+check "y no lleva el atributo \`open\` colado en otro sitio del tag" "0" \
+      "$(grep -oE '<details class="ola" id="ola-1"[^>]*>' "$TMP/plegado.html" | grep -c ' open')"
+check "ola con el ítem que toca: \`<details ... open>\`" "si" \
+      "$(grep -qE '<details class="ola" id="ola-2"[^>]*aria-labelledby="t-ola-2" open>' "$TMP/plegado.html" && echo si || echo no)"
+# La cabecera —número, nombre, fracción— vive en el `<summary>`, así que se ve
+# siempre, esté la ola abierta o no.
+check "la cabecera de la ola plegada vive en el \`<summary>\`" "si" \
+      "$(grep -qE '<summary><div class="ola-cab"><h2 id="t-ola-1">.*<span class="frac">2/2</span>' "$TMP/plegado.html" && echo si || echo no)"
+
+# (2) Los anclajes que ya se usan abren el pliegue antes de saltar. Mecánico:
+# se comprueba que el JS resuelve la cadena de `<details>` ancestros — incluido
+# el caso en que el propio destino de `#ola-N` ES el `<details>`, que la
+# revelación nativa del navegador no cubre— y que lo hace tanto en clic como al
+# cargar la página con un hash puesto, antes de mover el scroll.
+check "el JS sube por los \`<details>\` ancestros del destino" "si" \
+      "$(grep -q "tagName==='DETAILS'" "$TMP/plegado.html" && grep -q "closest('details')" "$TMP/plegado.html" && echo si || echo no)"
+check "abre antes de hacer scroll, no al revés" "si" \
+      "$(python3 -c "
+t=open('$TMP/plegado.html',encoding='utf-8').read()
+i=t.find('function irA(hash)')
+cuerpo=t[i:i+300]
+print('si' if cuerpo.find('abrirHasta')<cuerpo.find('scrollIntoView') else 'no')
+")"
+check "se cablea tanto al clic como al hash de carga" "si" \
+      "$(grep -q "addEventListener('click'" "$TMP/plegado.html" && grep -q 'location.hash' "$TMP/plegado.html" && grep -q "addEventListener('hashchange'" "$TMP/plegado.html" && echo si || echo no)"
+
+# (3) `@media print` fuerza todo abierto: por CSS (el `content-visibility`
+# oculto de un `<details>` cerrado no basta con `display` a secas si no se
+# apunta también ese `content-visibility`) y por JS (`beforeprint`), igual que
+# ya hace con `.item.oculto` y `.ola`.
+BLOQUE_IMPRESION_OLA="$(sed -n '/@media print{/,/^}/p' "$TMP/plegado.html")"
+check "el CSS de impresión reabre el contenido del \`<details>\` cerrado" "si" \
+      "$(grep -qE 'details\.ola:not\(\[open\]\)>:not\(summary\)\{[^}]*content-visibility:visible' <<<"$BLOQUE_IMPRESION_OLA" && echo si || echo no)"
+check "y el JS fuerza \`open\` en \`beforeprint\`, de respaldo" "si" \
+      "$(grep -q "addEventListener('beforeprint'" "$TMP/plegado.html" && echo si || echo no)"
+
+# El escape hatch del rollback: `PLEGAR=False` tiene que devolver el render a
+# `<section>` plano, sin un solo `<details>` de ola, y sin `open` colgando.
+SIN_PLEGAR="$(python3 -c "
+import sys, json
+sys.path.insert(0, '$ARNES/scripts')
+import ver
+ver.PLEGAR = False
+datos = json.load(open('docs/plan/ejecucion-plan.estado.json', encoding='utf-8'))
+json.dump(datos, open('$TMP/sin-plegar.json', 'w', encoding='utf-8'))
+html = ver.generar('$TMP/sin-plegar.json', '0.0.0', '$PROY')
+print('si' if ('<details class=\"ola\" id=' not in html and '<section class=\"ola\" id=' in html) else 'no')
+")"
+check "con \`PLEGAR=False\`, las olas vuelven a \`<section>\` plano" "si" "$SIN_PLEGAR"
+git checkout -q docs/plan/ejecucion-plan.estado.json
+cd "$ARNES"
+
+echo "26. De la ola 5 a la 2 sin volver arriba a mano"
+cd "$PROY"
+python3 - <<'PY'
+import json
+p = 'docs/plan/ejecucion-plan.estado.json'
+d = json.load(open(p, encoding='utf-8'))
+d['olas'] = [
+    {"ola": 1, "nombre": "Primera", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "1.1-nav", "titulo": "uno", "estado": "hecho", "modelo": "haiku"},
+        {"id": "1.2-nav", "titulo": "dos", "estado": "hecho", "modelo": "haiku"},
+    ]},
+    {"ola": 2, "nombre": "Segunda", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "2.1-nav", "titulo": "tres", "estado": "pendiente", "modelo": "haiku"},
+        {"id": "2.2-nav", "titulo": "cuatro", "estado": "hecho", "modelo": "haiku"},
+    ]},
+    {"ola": 3, "nombre": "Tercera", "criterio_de_entrada": "n/a",
+     "criterio_de_salida": "n/a", "items": [
+        {"id": "3.1-nav", "titulo": "cinco", "estado": "pendiente", "modelo": "haiku"},
+    ]},
+]
+json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+PY
+python3 "$ARNES/scripts/ver.py" --salida "$TMP/nav.html" --no-abrir >/dev/null 2>&1
+
+# (1) La barra pegajosa saca una entrada por ola con su fracción, y esa
+# fracción no puede ser un cálculo aparte del que ya pinta el mapa de olas:
+# se compara, ola por ola, que ambos sitios digan lo mismo.
+FRACS="$(python3 -c "
+import re
+t = open('$TMP/nav.html', encoding='utf-8').read()
+mapa = dict(re.findall(r'<a class=\"fila\" href=\"#ola-(\d+)\">.*?<span class=\"frac\">(\d+/\d+)</span>', t))
+nav_bloque = re.findall(r'<nav class=\"ola-nav\"[^>]*>(.*?)</nav>', t)[0]
+nav = dict(re.findall(r'<a href=\"#ola-(\d+)\"><span class=\"n\">Ola \d+</span><span class=\"frac\">(\d+/\d+)</span></a>', nav_bloque))
+ok = mapa and nav and mapa == nav and set(mapa) == {'1','2','3'}
+print('mapa=%s nav=%s' % (mapa, nav))
+print('IGUAL' if ok else 'DISTINTO')
+")"
+check "mapa de olas y barra de navegación calculan la MISMA fracción por ola ($FRACS)" "si" \
+      "$(echo "$FRACS" | tail -1 | grep -q IGUAL && echo si || echo no)"
+
+# (2) Prev/siguiente: la primera ola no lleva "anterior", la última no lleva
+# "siguiente", y la del medio lleva las dos.
+check "ola 1 (primera): sin enlace 'anterior'" "si" \
+      "$(python3 -c "
+t=open('$TMP/nav.html',encoding='utf-8').read()
+i=t.find('id=\"ola-1\"'); j=t.find('id=\"ola-2\"')
+bloque=t[i:j]
+print('si' if ('ola-prev' not in bloque and 'ola-next' in bloque) else 'no')
+")"
+check "ola 2 (intermedia): lleva anterior Y siguiente" "si" \
+      "$(python3 -c "
+t=open('$TMP/nav.html',encoding='utf-8').read()
+i=t.find('id=\"ola-2\"'); j=t.find('id=\"ola-3\"')
+bloque=t[i:j]
+print('si' if ('ola-prev' in bloque and 'ola-next' in bloque) else 'no')
+")"
+check "ola 3 (última): sin enlace 'siguiente'" "si" \
+      "$(python3 -c "
+t=open('$TMP/nav.html',encoding='utf-8').read()
+i=t.find('id=\"ola-3\"'); bloque=t[i:]
+print('si' if ('ola-next' not in bloque and 'ola-prev' in bloque) else 'no')
+")"
+
+# (3) El botón "arriba" no puede estar visible en la primera pantalla: la
+# regla base (sin \`.visible\`) lo esconde, y sólo el JS al hacer scroll
+# añade esa clase.
+check "hay un enlace/botón \`.arriba\` a \`#top\`" "si" \
+      "$(grep -qE '<a class="arriba" href="#top"' "$TMP/nav.html" && echo si || echo no)"
+check "por defecto está oculto (visibility:hidden u opacity:0 en la regla base, sin \`.visible\`)" "si" \
+      "$(python3 -c "
+import re
+t=open('$TMP/nav.html',encoding='utf-8').read()
+base=re.search(r'\.arriba\{([^}]*)\}', t)
+print('si' if base and ('visibility:hidden' in base.group(1) or 'opacity:0' in base.group(1)) else 'no')
+")"
+check "sólo se revela con una clase que añade el JS al hacer scroll" "si" \
+      "$(grep -qE '\.arriba\.visible\{' "$TMP/nav.html" && grep -q "classList.toggle('visible'" "$TMP/nav.html" && grep -q "addEventListener('scroll'" "$TMP/nav.html" && echo si || echo no)"
+
+# (4) @media print no puede colar nada de esto nuevo.
+BLOQUE_IMPRESION_NAV="$(sed -n '/@media print{/,/^}/p' "$TMP/nav.html")"
+check "\`@media print\` oculta la barra sticky de olas (\`.ola-nav\`)" "si" \
+      "$(grep -q '\.ola-nav' <<<"$BLOQUE_IMPRESION_NAV" && echo si || echo no)"
+check "\`@media print\` oculta los enlaces anterior/siguiente (\`.ola-vecinas\`)" "si" \
+      "$(grep -q '\.ola-vecinas' <<<"$BLOQUE_IMPRESION_NAV" && echo si || echo no)"
+check "\`@media print\` oculta el botón \`.arriba\`" "si" \
+      "$(grep -q '\.arriba' <<<"$BLOQUE_IMPRESION_NAV" && echo si || echo no)"
+
+# (5) Este ítem no usa scroll suave (\`el.scrollIntoView()\` ya salía sin
+# opciones desde 2.1-plegar-por-estado, y los enlaces nuevos son anclas
+# normales): se documenta en el propio test que NO hace falta el respaldo de
+# \`prefers-reduced-motion\` para scroll, comprobando que no se coló ninguno.
+check "no se usó scroll suave en ningún sitio (nada que desactivar para movimiento reducido)" "si" \
+      "$(grep -q 'scroll-behavior:smooth' "$TMP/nav.html" && echo no || (grep -q "behavior:.smooth." "$TMP/nav.html" && echo no || echo si))"
+
+git checkout -q docs/plan/ejecucion-plan.estado.json
 cd "$ARNES"
 
 echo

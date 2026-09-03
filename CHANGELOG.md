@@ -10,6 +10,87 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.16.0] — 2026-09-03
+
+### Añadido
+- **El README y la página dicen para qué NO sirve el arnés.** La documentación
+  explicaba bien los cuatro problemas que resuelve, pero nada advertía de
+  cuándo la herramienta deja de sostener nada: si el ejecutor de un ítem es
+  una persona en vez de un agente, cinco de los nueve campos obligatorios
+  (`modelo`, `esfuerzo`, `por_que_este_modelo`, `multiagente`,
+  `horas_maquina`) pasan a ser relleno y tres de las cinco guardas de
+  `--desatendido` dejan de proteger nada; si el criterio no cabe en un
+  comando, la puerta de cierre se reduce a comprobar que alguien escribió
+  `resultado`, que es la autodeclaración que el arnés existe para no leer
+  como evidencia; y si el trabajo no deja diff, el ledger se vuelve una copia
+  del plan que se desincroniza el primer día. El modo de fallo que motivó la
+  sección no es que el arnés rechace esos casos: es que **los acepta** —el
+  validador sale verde— y produce un fichero de estado que nadie actualiza.
+  La sección se escribe como tres preguntas con respuesta observable, dice
+  qué hacer cuando un plan cae del lado que no es (dejarlo en su gestor de
+  tareas y llevar al arnés sólo la rebanada que un agente ejecuta y un
+  comando verifica) y nombra también el caso que sí aplica pese a parecer que
+  no, para no espantar usos legítimos.
+- **`tests/prueba.sh` impide que las dos copias de esa sección diverjan**
+  (sección 19): comprueba que existe en `README.md` y que la página trae el
+  encabezado —no sólo el enlace del índice—, que las dos nombran los cinco
+  campos que la sección declara relleno, y que siguen siendo nueve los campos
+  obligatorios de ítem en `validar-ledger.py`, porque el «cinco de los nueve»
+  es una cuenta sobre una lista que vive en el código.
+
+## [1.15.0] — 2026-09-03
+
+### Añadido
+- **Las olas cerradas del visor se pliegan.** `arnes ver` emitía todas las
+  olas y todos sus ítems desplegados: una ola cerrada a N/N ocupaba lo mismo
+  que la que está en curso, así que el scroll crecía linealmente con el
+  ledger y lo que importa quedaba enterrado entre historia. Ahora una ola con
+  todos sus ítems en `hecho` se pliega —con `<details>` nativo, no un
+  `display:none` propio, así que Ctrl-F y la impresión siguen llegando a su
+  contenido—, mientras que la ola que trae el ítem que anuncia el panel de
+  arriba se emite siempre abierta, esté cerrada o no por lo demás. Los
+  anclajes que ya se usan (`#it-<id>`, `#ola-N`) abren el pliegue antes de
+  saltar, y el filtro/buscador abre las olas que contengan una coincidencia
+  y las vuelve a plegar al quitar el filtro. `@media print` fuerza todo
+  abierto, igual que ya hacía con `.item.oculto` y `.ola`.
+- **Navegación entre olas sin volver arriba a mano.** Ir de la Ola 5 a la Ola
+  2 exigía subir hasta el «Mapa de olas», que desaparece del scroll en
+  cuanto se avanza. Ahora una barra de navegación pegajosa (dentro de la
+  barra de control, ya `sticky`) lista cada ola con su fracción hecho/total
+  —calculada una sola vez y compartida con el «Mapa de olas», para que
+  nunca puedan divergir—; cada ola cierra con enlaces a la anterior y la
+  siguiente, sin emitir el que no existe en los extremos; y un botón
+  «arriba» aparece sólo tras hacer scroll, nunca en la primera pantalla.
+  Nada de esto sale en `@media print`: en un PDF todas las olas van abiertas
+  y en orden, así que no hace falta saltar entre ellas.
+
+## [1.14.0] — 2026-09-02
+
+### Añadido
+- **El pie del visor nombra dónde está la documentación, no sólo de qué ledger
+  salió.** Quien recibe una copia guardada de la página —HTML exportado,
+  abierto meses después en otra máquina— no tenía forma de llegar ni a la
+  documentación del proyecto ni a la del arnés salvo que ya se supiera la URL
+  de memoria. Ahora, si la raíz del ledger declara `documentacion` con una URL
+  `http(s)` válida, el pie la enseña como enlace; y siempre enseña, al lado, la
+  documentación del arnés con su versión. Sin el campo, el pie no dice nada en
+  su lugar —ausencia de dato es ausencia de línea, no un "no disponible"—, y un
+  valor que no sea una URL `http(s)` válida (un esquema `javascript:`, o
+  basura) nunca se convierte en enlace ni acaba dentro de un `href`, ni
+  siquiera escapado. Las dos líneas quedan legibles al imprimir o exportar a
+  PDF, que es justo el caso de uso que las motiva.
+
+### Cambiado
+- **La cabecera del visor deja de gastar la primera pantalla en explicarse.**
+  `arnes ver` abría con tres botones y un párrafo de ayuda contándolos; se
+  quita el botón «Imprimir o PDF» —Cmd/Ctrl-P ya hace lo mismo, y el CSS de
+  impresión sigue intacto— y el párrafo `.ayuda` que describía «Guardar copia»
+  y «Copiar resumen» pasa a vivir como `title` y `aria-describedby` de cada
+  botón: la explicación sigue ahí para quien la necesite —al pasar el ratón, o
+  con lector de pantalla— pero ya no ocupa espacio fijo. De paso, «Guardar
+  copia» deja de llevar el estilo `.primario`: con un botón menos, marcar uno
+  como el principal sobraba.
+
 ## [1.13.1] — 2026-09-02
 
 ### Corregido
@@ -546,6 +627,9 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.16.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.15.0...arnes-plan--v1.16.0
+[1.15.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.14.0...arnes-plan--v1.15.0
+[1.14.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.1...arnes-plan--v1.14.0
 [1.13.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.0...arnes-plan--v1.13.1
 [1.13.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.2...arnes-plan--v1.13.0
 [1.12.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.12.1...arnes-plan--v1.12.2

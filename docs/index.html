@@ -374,7 +374,7 @@
 <div class="wrap">
 
   <header>
-    <p class="eyebrow">arnes-plan · v1.13.1</p>
+    <p class="eyebrow">arnes-plan · v1.16.0</p>
     <h1>Arnés de plan</h1>
     <hr class="rule-top">
     <p class="thesis">Ejecuta un plan de ingeniería <strong>un ítem por sesión</strong>, con el avance en un fichero versionado y con barreras a los dos lados del trabajo: unas antes de gastar, otras después de darlo por hecho.</p>
@@ -384,6 +384,7 @@
     <ul class="indice">
       <li><a href="#primeros-pasos">Empezar</a></li>
       <li><a href="#por-que">Por qué existe</a></li>
+      <li><a href="#limites">Para qué no sirve</a></li>
       <li><a href="#mecanismo">Cómo funciona</a></li>
       <li><a href="#ciclo">Ciclo del ítem</a></li>
       <li><a href="#barreras">Qué se comprueba</a></li>
@@ -414,6 +415,24 @@
         <p>Una tarea que ocupa la máquina tres horas se descubre cuando ya lleva tres horas ocupada.</p>
       </div>
     </div>
+  </section>
+
+  <section id="limites">
+    <p class="when">Antes de escribir el plan</p>
+    <h2>Para qué no sirve</h2>
+    <p class="col">El arnés da por supuestas dos cosas de cada ítem, y <strong>no comprueba ninguna de las dos</strong>: que lo ejecuta un agente en una sesión, y que hay un comando que decide si está hecho. Donde no se cumplen no salta nada — el validador sale verde, <code>arnes</code> propone el siguiente ítem y lo que queda es un fichero de estado que nadie actualiza. El límite, por tanto, lo decides tú antes de escribir el plan. Tres preguntas, las tres con respuesta observable:</p>
+    <div class="ref">
+      <table>
+        <thead><tr><th>La pregunta</th><th>Si la respuesta te deja fuera</th></tr></thead>
+        <tbody>
+          <tr><td class="libre">¿Quién ejecuta el ítem?</td><td class="libre">Si es una persona, <strong>cinco de los nueve campos obligatorios se vuelven relleno</strong>: <code>modelo</code>, <code>esfuerzo</code>, <code>por_que_este_modelo</code>, <code>multiagente</code> y <code>horas_maquina</code> sólo significan algo si hay un modelo al que encargarle el trabajo. Y con ellos se caen tres de las cinco guardas: la que se niega a ejecutar <code>opus</code> sin supervisión, la que frena por horas de máquina y la que reserva <code>multiagente</code> no protegen nada. Lo que queda es un formulario de nueve casillas para llevar cuatro datos.</td></tr>
+          <tr><td class="libre">¿El criterio cabe en un comando que salga 0?</td><td class="libre">Si no cabe —«lo revisa el responsable del área», «clasificar treinta casos a mano»—, <code>verificacion_comando</code> se queda fuera, que es lo correcto: media verificación automática miente más de lo que ayuda. Pero entonces la puerta de cierre se reduce a comprobar que alguien escribió <code>resultado</code>, y eso es exactamente la autodeclaración que el arnés existe para no leer como evidencia.</td></tr>
+          <tr><td class="libre">¿El ítem cierra con un commit?</td><td class="libre">La unidad del arnés es lo que cabe entre dos commits de un repositorio. Si el trabajo no deja diff —una reunión, una decisión de negocio, una migración que ejecuta un proveedor—, el commit de cierre no captura nada y el fichero de estado deja de ser el registro del avance: pasa a ser una copia del plan, y se desincroniza el primer día.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col"><strong>Cómo se lee el resultado.</strong> Un «no» de tres deja el arnés útil, con una pieza menos: esta misma sección se escribió como un ítem del fichero de estado cuyo criterio no es mecánico —lo decide quien la lee—, y el ítem funcionó porque el trabajo era un diff y cerró con un commit. <strong>Con dos o tres «no», lo que necesitas es un gestor de tareas, no esto.</strong> Un checklist de auditoría donde cada punto lo firma una persona después de revisarlo a mano falla las tres: no hay agente, no hay comando y no hay diff. El arnés lo aceptaría sin protestar, y ahí está el problema.</p>
+    <p class="col">Cuando un plan cae del lado que no es, la salida no es forzarlo entero ni tirarlo: <strong>el plan se queda donde vive</strong> —el gestor de tareas, el documento de requerimientos— y el arnés se lleva sólo la rebanada que un agente ejecuta y un comando verifica. Un plan de seis ítems reales vale más que uno de cuarenta que nadie mantiene.</p>
   </section>
 
   <section id="mecanismo">
