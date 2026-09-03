@@ -10,6 +10,78 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.16.1] — 2026-09-03
+
+### Arreglado
+- **En Windows, el arnés se desmentía a sí mismo: "esta NO es la copia
+  instalada" sobre la copia instalada.** El registro que escribe Claude Code
+  (`installed_plugins.json`) guarda la ruta en forma nativa —
+  `C:\Users\quien\.claude\plugins\cache\...`— y el `$(cd … && pwd)` con el
+  que los scripts averiguan dónde están contesta la forma POSIX de LA MISMA
+  carpeta —`/c/Users/quien/...`—. Comparadas como cadenas no coinciden nunca,
+  así que la comprobación no podía dar verdadero en ninguna instalación de
+  Windows: `arnes doctor` salía 1 con un ✗, cada `arnes plan` abría con el
+  aviso en amarillo y `arnes --version` omitía el sha por no poder avalarlo.
+  El daño no era sólo el ruido: el barrido de copias viejas del cache reconoce
+  el cache por un glob `*/plugins/cache/*`, que con backslashes no encaja, así
+  que `arnes doctor --limpiar` no tenía nunca nada que limpiar justo donde la
+  acumulación es segura —Claude Code conserva una copia por `plugin update`, y
+  cada una es un arnés entero y ejecutable—. La ruta del registro se traduce
+  ahora a la forma que entiende el shell, en un solo sitio (`arnes_registro`),
+  preguntando primero al propio shell (`cd` + `pwd`, que devuelve la misma
+  ortografía con la que se compara) y dejando `cygpath` para la carpeta que ya
+  no existe. En Unix no cambia nada, a propósito: allí las dos formas ya son la
+  misma, y resolver de más cambiaría una ruta con symlinks por su destino.
+- **Un `✓` por una tubería tumbaba al validador, y con él el veredicto.** En
+  Windows, Python elige la codificación de su salida según a dónde escribe: a
+  una consola, UTF-8; a una tubería, la del locale —cp1252 en un Windows en
+  español—, donde `✓` no existe. El `print` de la línea de ÉXITO lanzaba
+  `UnicodeEncodeError` y el script salía 1. Y los dos sitios donde el arnés
+  CAPTURA la salida de un validador son justo los que deciden un veredicto,
+  así que en Windows un ledger sano se anunciaba con "El ledger tiene
+  problemas" y un ítem correctamente cerrado —con su `resultado` escrito y su
+  `verificacion_comando` pasando fuera de su propia sesión— se remataba con
+  "está marcado `hecho` pero no lo demuestra", en rojo y saliendo 1. Por la
+  misma vía moría en silencio el hook que anuncia el siguiente ítem al abrir
+  sesión, que escribe su JSON a una tubería con acentos dentro. Cada script
+  Python fija ahora su salida en UTF-8 en su cabecera —vale también invocado a
+  mano o por Claude Code— y `entorno.sh` la fija para los `python -` de una
+  línea incrustados en los `.sh`, pisando lo que traiga el entorno: esa salida
+  no es texto para una persona, es el canal por el que se pasan datos entre los
+  scripts, y con otra codificación un título con acento sale en bytes que no son
+  UTF-8 y el `sed` de al lado contesta `illegal byte sequence`.
+- **`echo -e` se comía media línea si el dato traía una ruta de Windows.** Los
+  colores estaban definidos como la cadena `'\033[…'`, lo que obligaba a
+  imprimir todo con `echo -e` —el que los expande— y de paso hacía que `echo`
+  interpretase los escapes que vinieran DENTRO de los datos. En
+  `C:\Users\…\plugins\cache\…` hay un `\c`, que significa "corta la salida
+  aquí y no imprimas el salto de línea": el aviso de la copia instalada salía
+  truncado en `\plugins` y se llevaba por delante la línea siguiente. Los
+  colores pasan a ser escapes de verdad (`$'\033[…'`) y las líneas que llevan
+  datos —una ruta, un título del ledger, un `verificacion_comando`— se imprimen
+  con `printf '%s\n'`, que no interpreta nada. Afectaba a `plan-run.sh` y
+  `arrancar.sh`; `doctor.sh` ya lo hacía así.
+- **`arnes doctor` imprimía la ruta absoluta del ledger, con el nombre de
+  usuario dentro.** La acorta restándole la raíz del proyecto, pero en Windows
+  `ledger_path.py` la contesta con backslashes y `git rev-parse` con barras, así
+  que la resta no recortaba nada. Se comparan las dos con barras. Es sólo para
+  imprimir: `$LEDGER` no se toca, porque en Windows Python es nativo y sólo abre
+  la forma nativa.
+
+### Añadido
+- **`tests/prueba.sh` reproduce en Unix los tres mecanismos de Windows**
+  (sección 27 y ampliaciones de las secciones 5 y 12). No hay runner de
+  Windows, así que los tres fallos eran invisibles para la suite: se montan por
+  su mecanismo y no por su síntoma —un `cygpath` de mentira que hace de tabla de
+  montaje con una sola unidad, un registro con la ruta en forma nativa, y
+  `PYTHONIOENCODING=cp1252`, que es lo que Windows elegía por su cuenta—. Se
+  comprueba que la copia instalada se reconoce, que `--limpiar` ve y borra la
+  copia vieja conservando la instalada, que en Unix la ruta se devuelve tal cual
+  (symlink incluido), que un cierre bueno sigue saliendo verde con el entorno
+  pidiendo cp1252, y que una ruta de Windows en un aviso llega entera sin
+  comerse la línea de después. Y una regla para el próximo `.py` que se añada:
+  si escribe en stdout, fija su codificación.
+
 ## [1.16.0] — 2026-09-03
 
 ### Añadido
@@ -627,6 +699,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.16.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.16.0...arnes-plan--v1.16.1
 [1.16.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.15.0...arnes-plan--v1.16.0
 [1.15.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.14.0...arnes-plan--v1.15.0
 [1.14.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.13.1...arnes-plan--v1.14.0

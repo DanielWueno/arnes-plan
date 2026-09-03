@@ -50,8 +50,13 @@
 
 set -euo pipefail
 
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'
-CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'; DIM='\033[2m'
+# Los colores son escapes DE VERDAD, no la cadena "\033[…" a la espera de que
+# alguien los expanda: así una línea que lleve datos dentro puede imprimirse con
+# `printf '%s\n'` —que no interpreta nada— y seguir saliendo en color. Con
+# `echo -e`, un `\c` dentro de un dato (`C:\Users\…\cache\…`) cortaba la salida
+# ahí mismo y se comía el resto de la línea, incluido el salto.
+GREEN=$'\033[0;32m'; YELLOW=$'\033[1;33m'; RED=$'\033[0;31m'
+CYAN=$'\033[0;36m'; NC=$'\033[0m'; BOLD=$'\033[1m'; DIM=$'\033[2m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/entorno.sh"
@@ -142,8 +147,8 @@ command -v claude >/dev/null || { echo -e "${RED}✗${NC} 'claude' no está en e
 INSTALADO="$(arnes_registro | cut -f1)"
 if [[ -n "$INSTALADO" && "$SCRIPT_DIR" != "$INSTALADO/scripts" ]]; then
   echo -e "${YELLOW}⚠${NC}  Esta NO es la copia instalada del arnés."
-  echo -e "${DIM}   corriendo:  $SCRIPT_DIR${NC}"
-  echo -e "${DIM}   instalada:  $INSTALADO/scripts${NC}"
+  printf '%s\n' "${DIM}   corriendo:  $SCRIPT_DIR${NC}"
+  printf '%s\n' "${DIM}   instalada:  $INSTALADO/scripts${NC}"
   echo -e "${DIM}   Si copiaste la ruta de una consola vieja, usa \`arnes\` en su lugar:${NC}"
   echo -e "${DIM}   resuelve la instalación en cada ejecución y no se queda atrás.${NC}"
   echo -e "${DIM}   El cuadro completo:  arnes doctor${NC}"
@@ -224,7 +229,7 @@ PY
 )"
 
 if grep -q '^ERROR' <<<"$FICHA"; then
-  echo -e "${RED}✗${NC} $(sed -n 's/^ERROR\t//p' <<<"$FICHA")"; exit 1
+  printf '%s\n' "${RED}✗${NC} $(sed -n 's/^ERROR\t//p' <<<"$FICHA")"; exit 1
 fi
 campo() { sed -n "s/^$1\t//p" <<<"$FICHA"; }
 
@@ -239,30 +244,30 @@ VERIF_CMD=$(campo verif_cmd)
 # ── Anuncio ─────────────────────────────────────────────────────────────────
 echo
 echo -e "${BOLD}────────────────────────────────────────────────────────────${NC}"
-echo -e "${BOLD}  Ola $OLA — $OLA_NOMBRE${NC}"
-echo -e "${BOLD}  $ID${NC}"
+printf '%s\n' "${BOLD}  Ola $OLA — $OLA_NOMBRE${NC}"
+printf '%s\n' "${BOLD}  $ID${NC}"
 echo -e "${BOLD}────────────────────────────────────────────────────────────${NC}"
-echo -e "  $TITULO"
+printf '%s\n' "  $TITULO"
 echo
 # Etiquetas ya alineadas a mano: printf cuenta BYTES, no caracteres, así que
 # un %-12s desalinea en cuanto la etiqueta lleva un acento.
-echo -e "  ${CYAN}modelo     ${NC} $MODELO / esfuerzo $ESFUERZO"
-echo -e "  ${CYAN}máquina    ${NC} $HORAS h"
-echo -e "  ${CYAN}multiagente${NC} $MULTI"
-echo -e "  ${CYAN}estado     ${NC} $ESTADO"
+printf '%s\n' "  ${CYAN}modelo     ${NC} $MODELO / esfuerzo $ESFUERZO"
+printf '%s\n' "  ${CYAN}máquina    ${NC} $HORAS h"
+printf '%s\n' "  ${CYAN}multiagente${NC} $MULTI"
+printf '%s\n' "  ${CYAN}estado     ${NC} $ESTADO"
 echo
-echo -e "  ${DIM}verificación:${NC} $VERIF" | fold -s -w 76 | sed '2,$s/^/               /'
+printf '%s\n' "  ${DIM}verificación:${NC} $VERIF" | fold -s -w 76 | sed '2,$s/^/               /'
 # Si la ficha trae comando, se enseña ahora: es el criterio con el que se le va
 # a medir al cerrar, y verlo antes es lo que evita discutirlo después.
-[[ -n "$VERIF_CMD" ]] && echo -e "  ${DIM}al cerrar:   ${NC} ${BOLD}$VERIF_CMD${NC}"
-[[ -n "$BLOQ_POR" ]] && { echo; echo -e "  ${RED}BLOQUEADO POR:${NC} $BLOQ_POR" | fold -s -w 76 | sed '2,$s/^/    /'; }
+[[ -n "$VERIF_CMD" ]] && printf '%s\n' "  ${DIM}al cerrar:   ${NC} ${BOLD}$VERIF_CMD${NC}"
+[[ -n "$BLOQ_POR" ]] && { echo; printf '%s\n' "  ${RED}BLOQUEADO POR:${NC} $BLOQ_POR" | fold -s -w 76 | sed '2,$s/^/    /'; }
 # El bloqueo que ya cerró se dice, en vez de callarse: el campo sigue en la
 # ficha y quien lea el ledger lo va a ver. Decir por qué NO frena es lo que
 # evita que la próxima persona lo lea como un aviso que el arnés se comió.
-[[ -n "$BLOQ_CERRADO" ]] && { echo; echo -e "  ${DIM}esperaba a $BLOQ_CERRADO, que ya está hecho: no bloquea${NC}" | fold -s -w 76 | sed '2,$s/^/    /'; }
-[[ -n "$BLOQUEA"  ]] && { echo; echo -e "  ${YELLOW}ESTE ÍTEM BLOQUEA:${NC} $BLOQUEA" | fold -s -w 76 | sed '2,$s/^/    /'; }
-[[ -n "$AVISO_O"  ]] && { echo; echo -e "  ${YELLOW}COSTE (ola):${NC} $AVISO_O" | fold -s -w 76 | sed '2,$s/^/    /'; }
-[[ -n "$AVISO_I"  ]] && { echo; echo -e "  ${YELLOW}COSTE (ítem):${NC} $AVISO_I" | fold -s -w 76 | sed '2,$s/^/    /'; }
+[[ -n "$BLOQ_CERRADO" ]] && { echo; printf '%s\n' "  ${DIM}esperaba a $BLOQ_CERRADO, que ya está hecho: no bloquea${NC}" | fold -s -w 76 | sed '2,$s/^/    /'; }
+[[ -n "$BLOQUEA"  ]] && { echo; printf '%s\n' "  ${YELLOW}ESTE ÍTEM BLOQUEA:${NC} $BLOQUEA" | fold -s -w 76 | sed '2,$s/^/    /'; }
+[[ -n "$AVISO_O"  ]] && { echo; printf '%s\n' "  ${YELLOW}COSTE (ola):${NC} $AVISO_O" | fold -s -w 76 | sed '2,$s/^/    /'; }
+[[ -n "$AVISO_I"  ]] && { echo; printf '%s\n' "  ${YELLOW}COSTE (ítem):${NC} $AVISO_I" | fold -s -w 76 | sed '2,$s/^/    /'; }
 echo
 
 [[ $SOLO_ANUNCIAR -eq 1 ]] && exit 0
@@ -275,8 +280,8 @@ echo
 # con --igual, como las demás guardas.
 if ! "$PY" "$SCRIPT_DIR/validar-ledger.py" --item "$ID" "$LEDGER"; then
   if [[ $FORZAR -eq 0 ]]; then
-    echo -e "${RED}✗${NC} No lanzo ${BOLD}$ID${NC}: la ficha está incompleta."
-    echo -e "${DIM}   Complétala en $LEDGER, o añade --igual para ejecutarlo así.${NC}"
+    printf '%s\n' "${RED}✗${NC} No lanzo ${BOLD}$ID${NC}: la ficha está incompleta."
+    printf '%s\n' "${DIM}   Complétala en $LEDGER, o añade --igual para ejecutarlo así.${NC}"
     exit 1
   fi
   echo -e "${YELLOW}⚠${NC}  Ficha incompleta, sigo por --igual."
@@ -311,7 +316,7 @@ if [[ "$MODO" == "desatendido" ]]; then
   [[ -n "$BLOQ_POR" ]]    && RAZONES+=("está bloqueado por $BLOQ_POR")
   [[ $ARBOL_SUCIO -eq 1 ]] && RAZONES+=("el árbol tiene cambios sin commitear y el ítem los arrastraría al commit")
   if [[ ${#RAZONES[@]} -gt 0 && $FORZAR -eq 0 ]]; then
-    echo -e "${RED}✗${NC} No lanzo ${BOLD}$ID${NC} desatendido:"
+    printf '%s\n' "${RED}✗${NC} No lanzo ${BOLD}$ID${NC} desatendido:"
     for r in "${RAZONES[@]}"; do echo "   · $r"; done
     echo -e "${DIM}   Córrelo interactivo (sin --desatendido) o añade --igual si sabes lo que haces.${NC}"
     exit 1
@@ -322,7 +327,7 @@ else
     [[ "$r" =~ ^[sSyY]$ ]] || { echo "Cancelado."; exit 0; }
   fi
   if [[ $CARO -eq 1 ]]; then
-    echo -e "${YELLOW}⚠${NC}  $HORAS horas de máquina. No se lanza por iniciativa propia."
+    printf '%s\n' "${YELLOW}⚠${NC}  $HORAS horas de máquina. No se lanza por iniciativa propia."
     read -r -p "   ¿Confirmas? [s/N] " r
     [[ "$r" =~ ^[sSyY]$ ]] || { echo "Cancelado."; exit 0; }
   fi
@@ -342,12 +347,12 @@ ARGS_CLAUDE=(-n "$NOMBRE" --model "$MODELO" --effort "$ESFUERZO")
 
 case "$MODO" in
   interactivo)
-    echo -e "${GREEN}▶${NC} Sesión nueva ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / interactivo"
+    printf '%s\n' "${GREEN}▶${NC} Sesión nueva ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / interactivo"
     echo -e "${DIM}   Apruebas los permisos y las confirmaciones aquí.${NC}"
     ;;
   auto)
     ARGS_CLAUDE+=(--permission-mode auto)
-    echo -e "${GREEN}▶${NC} Sesión nueva ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / ${YELLOW}auto${NC}"
+    printf '%s\n' "${GREEN}▶${NC} Sesión nueva ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / ${YELLOW}auto${NC}"
     echo -e "${DIM}   El clasificador decide los permisos rutinarios; lo destructivo sigue frenando,${NC}"
     echo -e "${DIM}   y sigues estando delante para confirmar una corrida larga.${NC}"
     echo -e "${DIM}   La primera vez, Claude Code te pedirá aceptar el modo auto.${NC}"
@@ -363,7 +368,7 @@ case "$MODO" in
     # de una hora, multiagente, `opus`, bloqueado o árbol sucio y no arranca— y
     # un techo de gasto obligatorio.
     ARGS_CLAUDE+=(-p --permission-mode bypassPermissions --max-budget-usd "$PRESUPUESTO")
-    echo -e "${GREEN}▶${NC} ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / ${YELLOW}desatendido${NC}, techo \$$PRESUPUESTO"
+    printf '%s\n' "${GREEN}▶${NC} ${BOLD}\"$NOMBRE\"${NC} — $MODELO / $ESFUERZO / ${YELLOW}desatendido${NC}, techo \$$PRESUPUESTO"
     [[ ${#RAZONES[@]} -gt 0 ]] && echo -e "   ${RED}Guardas saltadas con --igual.${NC}"
     echo -e "${DIM}   Sin sesión interactiva y SIN pedir permisos: revisa el commit al terminar,${NC}"
     echo -e "${DIM}   no durante. Las guardas de arriba son lo único que hay entre esto y tu repo.${NC}"
@@ -420,7 +425,7 @@ else
   # (a) Rastro. `hecho` lo escribió el mismo agente que hizo el trabajo; el
   #     campo `resultado` es lo único de ese cierre que otro puede comprobar.
   if SALIDA_CIERRE="$("$PY" "$SCRIPT_DIR/validar-ledger.py" --al-cerrar "$ID" "$LEDGER" 2>&1)"; then
-    echo -e "  ${GREEN}✓${NC} $(sed 's/^✓ //' <<<"$SALIDA_CIERRE" | head -1)"
+    printf '%s\n' "  ${GREEN}✓${NC} $(sed 's/^✓ //' <<<"$SALIDA_CIERRE" | head -1)"
   else
     CIERRE_ROTO=1
     echo -e "  ${RED}✗${NC} El cierre no dejó rastro:"
@@ -431,7 +436,7 @@ else
   #     ítem hecho: es la diferencia entre "el agente dice que pasa" y "pasa".
   if [[ -n "$VERIF_CMD" ]]; then
     LIMITE="${ARNES_LIMITE_VERIFICACION:-900}"
-    echo -e "  ${CYAN}▸${NC} verificando: ${BOLD}$VERIF_CMD${NC} ${DIM}(límite ${LIMITE}s)${NC}"
+    printf '%s\n' "  ${CYAN}▸${NC} verificando: ${BOLD}$VERIF_CMD${NC} ${DIM}(límite ${LIMITE}s)${NC}"
     LOG_VERIF="$(mktemp)"
     # Perro guardián en vez de `timeout`: coreutils no está en un macOS de
     # serie, y un comando colgado en --desatendido no lo destraba nadie.
@@ -449,10 +454,10 @@ else
     else
       CIERRE_ROTO=1
       if [[ $CODE_VERIF -ge 128 ]]; then
-        echo -e "  ${RED}✗${NC} La verificación no terminó en ${LIMITE}s (se cortó)."
+        printf '%s\n' "  ${RED}✗${NC} La verificación no terminó en ${LIMITE}s (se cortó)."
         echo -e "     ${DIM}Sube ARNES_LIMITE_VERIFICACION si el comando es legítimamente lento.${NC}"
       else
-        echo -e "  ${RED}✗${NC} La verificación falla (código $CODE_VERIF), pero el ítem quedó \`hecho\`."
+        printf '%s\n' "  ${RED}✗${NC} La verificación falla (código $CODE_VERIF), pero el ítem quedó \`hecho\`."
       fi
       echo -e "     ${DIM}últimas líneas:${NC}"
       tail -20 "$LOG_VERIF" | sed 's/^/     /'
@@ -463,11 +468,11 @@ fi
 
 if [[ $CIERRE_ROTO -eq 1 ]]; then
   echo
-  echo -e "${RED}✗${NC} ${BOLD}$ID${NC} está marcado \`hecho\` pero no lo demuestra."
+  printf '%s\n' "${RED}✗${NC} ${BOLD}$ID${NC} está marcado \`hecho\` pero no lo demuestra."
   echo -e "${DIM}   No se revierte nada: el commit ya existe y deshacerlo es tuyo. La ficha${NC}"
   echo -e "${DIM}   trae el \`rollback\`. Reabrir el ítem es cambiar su estado a \`en_curso\`.${NC}"
   [[ $CODE -eq 0 ]] && CODE=1
 fi
 
-echo -e "${DIM}  siguiente: bash $SCRIPT_DIR/plan-run.sh${NC}"
+printf '%s\n' "${DIM}  siguiente: bash $SCRIPT_DIR/plan-run.sh${NC}"
 exit $CODE
