@@ -198,7 +198,7 @@ sys.exit(1)' 2>/dev/null)" || true
 
 DIR="$(raiz_del_plugin)" || {
   echo "arnes: no encuentro el plugin instalado." >&2
-  echo "       Instálalo con: claude plugin install arnes-plan@arnes-plan" >&2
+  echo "       Instálalo con: claude plugin install arnes-plan@dweno-forge" >&2
   exit 127
 }
 

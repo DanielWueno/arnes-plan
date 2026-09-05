@@ -503,7 +503,7 @@ check "la página anuncia la versión real" "$V_MANIFIESTO" "$V_PAGINA"
 # la letra, la instalación falla diciendo que el plugin no existe.
 for f in docs/index.html README.md; do
   check "registra el marketplace antes de instalar: $f" "si" \
-        "$(grep -q 'plugin marketplace add DanielWueno/arnes-plan' "$ARNES/$f" && echo si || echo no)"
+        "$(grep -q 'plugin marketplace add DanielWueno/dweno-forge' "$ARNES/$f" && echo si || echo no)"
 done
 # Y el primer arranque no puede pedirse con `arnes`: ese lanzador lo escribe el
 # propio arranque, así que recién instalado el plugin todavía no existe.

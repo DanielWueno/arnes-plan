@@ -73,7 +73,7 @@ printf "\n\n"
 printf "${B}INSTALACIÓN${N}\n"
 if [[ -z "$REG_RUTA" ]]; then
   printf "  registrada  ${Y}ninguna${N} ${D}— no hay plugin instalado en este HOME${N}\n"
-  printf "              ${D}Instalar:  claude plugin install arnes-plan@arnes-plan${N}\n"
+  printf "              ${D}Instalar:  claude plugin install arnes-plan@dweno-forge${N}\n"
 else
   printf "  registrada  %-8s %s\n" "$REG_VER" "$(corto "$REG_RUTA")"
   if [[ "$SCRIPT_DIR" == "$REG_RUTA/scripts" ]]; then
@@ -139,7 +139,7 @@ if [[ -n "$CLON" && -n "$REG_VER" ]]; then
   CLON_VER="$(cut -f2 <<<"$CLON")"
   if [[ -n "$CLON_VER" && "$CLON_VER" != "$REG_VER" ]]; then
     printf "  disponible  ${Y}%-8s${N} ${D}en el clon del marketplace, sin instalar${N}\n" "$CLON_VER"
-    printf "              ${D}Instalarla:  claude plugin update arnes-plan${N}\n"
+    printf "              ${D}Instalarla:  claude plugin update arnes-plan@dweno-forge${N}\n"
   fi
 fi
 
