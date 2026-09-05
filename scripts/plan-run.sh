@@ -167,7 +167,7 @@ fi
 FICHA="$("$PY" - "$LEDGER" "$ARG" <<'PY'
 import json, sys
 ledger, arg = sys.argv[1], sys.argv[2]
-d = json.load(open(ledger))
+d = json.load(open(ledger, encoding='utf-8'))
 ola_filtro = int(arg.split(':', 1)[1]) if arg.startswith('ola:') else None
 id_pedido  = arg if arg and not arg.startswith('ola:') else None
 
