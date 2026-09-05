@@ -10,6 +10,21 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.17.2] — 2026-09-05
+
+### Corregido
+
+- **`--solo-anunciar` mostraba el título con unicode ilegible si llevaba
+  acentos.** La lectura del ledger para armar la ficha del anuncio
+  (`open(ledger)`) no fijaba `encoding='utf-8'`; en Windows, Python cae a la
+  codificación del sistema al leer un archivo sin codificación explícita, y un
+  ledger en UTF-8 con acentos salía mal decodificado. El resto de las lecturas
+  del ledger ya fijaban `encoding='utf-8'` —incluida la relectura de cierre en
+  el mismo script—; esta era la única que se había quedado atrás. La
+  regresión que ya cubría este caso (`ítem de prueba` en el anuncio de
+  `--desatendido`) estaba en rojo sin que nadie lo hubiera notado; con el
+  arreglo, pasa.
+
 ## [1.17.1] — 2026-09-05
 
 ### Cambiado
@@ -762,6 +777,8 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.17.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.1...arnes-plan--v1.17.2
+[1.17.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.0...arnes-plan--v1.17.1
 [1.17.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.16.1...arnes-plan--v1.17.0
 [1.16.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.16.0...arnes-plan--v1.16.1
 [1.16.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.15.0...arnes-plan--v1.16.0
