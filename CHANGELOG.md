@@ -10,6 +10,28 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.17.1] — 2026-09-05
+
+### Cambiado
+
+- **La instalación pasa del marketplace autoalojado de este repositorio al
+  catálogo centralizado [`dweno-forge`](https://github.com/DanielWueno/dweno-forge).**
+  Antes de esta versión, `arnes-plan` era su propio marketplace
+  (`claude plugin marketplace add DanielWueno/arnes-plan`); ahora se instala
+  vía `claude plugin marketplace add DanielWueno/dweno-forge` y
+  `claude plugin install arnes-plan@dweno-forge`. `.claude-plugin/marketplace.json`
+  se retira de este repositorio. La detección de la instalación (`arnes
+  doctor`, el lanzador `arnes`) no depende del nombre del marketplace —busca
+  por prefijo del identificador y por el manifiesto del plugin, no por la
+  clave exacta `arnes-plan@arnes-plan`— así que una instalación existente
+  sigue funcionando sin tocar nada. Lo que deja de funcionar es agregar el
+  marketplace viejo desde cero: quien no tenga ya `arnes-plan` instalado debe
+  usar `dweno-forge` a partir de aquí.
+- README, la página de presentación, `doctor.sh` y `arrancar.sh` actualizan
+  sus mensajes e instrucciones de instalación/actualización al nuevo
+  catálogo. `tests/prueba.sh` y `ci.yml` dejan de validar el
+  `marketplace.json` propio, ya inexistente.
+
 ## [1.17.0] — 2026-09-03
 
 ### Añadido

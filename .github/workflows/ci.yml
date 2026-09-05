@@ -27,7 +27,7 @@ jobs:
 
       - name: Manifiestos bien formados
         run: |
-          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json \
+          for f in .claude-plugin/plugin.json \
                    hooks/hooks.json plantillas/ledger.plantilla.json; do
             python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
           done

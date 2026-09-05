@@ -157,8 +157,8 @@ espacio de nombres. Escribiendo `/plan` el autocompletado ofrece la forma correc
 ## Instalar
 
 ```bash
-claude plugin marketplace add DanielWueno/arnes-plan
-claude plugin install arnes-plan@arnes-plan
+claude plugin marketplace add DanielWueno/dweno-forge
+claude plugin install arnes-plan@dweno-forge
 ```
 
 Reinicia la sesión para que carguen el hook y los dos comandos. A partir de ahí, en cualquier
@@ -244,7 +244,7 @@ python3 "$ARNES/validar-ledger.py"          # equivale a `arnes validar`
 
 Dos detalles que suelen confundir: `claude plugin list` a secas **no** dice la ruta —sólo nombre,
 versión y estado, hace falta `--json`— y para actualizar, el nombre tiene que ir cualificado:
-`claude plugin update arnes-plan@arnes-plan`.
+`claude plugin update arnes-plan@dweno-forge`.
 </details>
 
 ### Ejecutar
@@ -393,7 +393,7 @@ interactivos. El único que no pregunta nunca es `--desatendido`, y por eso es e
 | `El árbol tiene cambios sin commitear` | El ítem cierra con commit y se los llevaría. Commitea o guarda lo tuyo antes. |
 | `No encuentro el ledger.` | No hay ledger donde se busca. `arnes arrancar` lo siembra sin pisar nada. Con `PLAN_LEDGER`, revisa la ruta: **no cae de vuelta a la búsqueda normal**, así que una errata da este mismo mensaje aun teniendo un ledger válido en su sitio. |
 | `Esta NO es la copia instalada del arnés` | Estás corriendo una ruta con la versión dentro. Usa `arnes`, que resuelve la instalación cada vez. En Windows, antes de la 1.16.1 salía **siempre**, incluso sobre la copia correcta: actualiza. |
-| `No hay ítem que encaje con: -V` | Un arnés anterior a 1.12.0, donde `-V` se tomaba por un id. Actualiza: `claude plugin update arnes-plan@arnes-plan`. |
+| `No hay ítem que encaje con: -V` | Un arnés anterior a 1.12.0, donde `-V` se tomaba por un id. Actualiza: `claude plugin update arnes-plan@dweno-forge`. |
 | `El cierre no dejó rastro` | El ítem quedó `hecho` sin `resultado`. Escríbelo, o reábrelo poniéndolo `en_curso`. Si viene con un `UnicodeEncodeError` debajo, es un arnés de Windows anterior a la 1.16.1 y el ítem estaba bien cerrado: actualiza. |
 | `La verificación falla, pero el ítem quedó hecho` | Su criterio no pasa fuera de su sesión. Nada se ha revertido. |
 | `La verificación no terminó en N s` | Se cortó por tiempo. Sube `ARNES_LIMITE_VERIFICACION` si el comando es legítimamente lento. |
