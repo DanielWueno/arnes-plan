@@ -10,6 +10,24 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.17.3] — 2026-09-09
+
+### Corregido
+
+- **`arnes doctor` y el lanzador `arnes` podían seguir resolviendo una
+  instalación vieja aun con la correcta ya actualizada.** Desde la 1.17.1,
+  `arnes_registro` y `raiz_del_plugin` filtran el registro de Claude Code por
+  `id.startswith("arnes-plan")`, que hace match tanto en la clave retirada
+  `arnes-plan@arnes-plan` (el marketplace autoalojado) como en
+  `arnes-plan@dweno-forge`. Con las dos instalaciones a la vez —el estado
+  normal justo tras migrar de marketplace, antes de desinstalar la vieja—,
+  ganaba la que quedara primero en el registro, no la que
+  `claude plugin update` acabara de traer: el comando podía contestar "ya
+  estás en la última" mientras `arnes` seguía corriendo, en silencio, la
+  versión anterior. Ahora se filtra por familia exacta del identificador, se
+  elige la instalación más reciente y, si hay más de una candidata, se avisa
+  por stderr con el comando para desinstalar la sobrante.
+
 ## [1.17.2] — 2026-09-05
 
 ### Corregido
@@ -777,6 +795,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.17.3]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.2...arnes-plan--v1.17.3
 [1.17.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.1...arnes-plan--v1.17.2
 [1.17.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.0...arnes-plan--v1.17.1
 [1.17.0]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.16.1...arnes-plan--v1.17.0

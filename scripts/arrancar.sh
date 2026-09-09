@@ -169,10 +169,31 @@ else echo "arnes: no encuentro Python en el PATH." >&2; exit 127; fi
 raiz_del_plugin() {
   local p
   # Lo autoritativo es el CLI. `claude plugin list` a secas NO da la ruta.
+  # `id.startswith("arnes-plan")` sin el "@" hacía match tanto en
+  # "arnes-plan@arnes-plan" (el marketplace autoalojado, retirado en la 1.17.1)
+  # como en "arnes-plan@dweno-forge" a la vez, y con las dos instaladas —el
+  # estado normal justo tras migrar de marketplace, antes de desinstalar la
+  # vieja— ganaba la que quedara primero en el JSON, no la que se acabara de
+  # traer con `claude plugin update`. Se filtra por familia exacta y, si hay
+  # más de una candidata, se avisa por stderr en vez de elegir en silencio.
   p="$(claude plugin list --json 2>/dev/null \
-       | "$PY" -c 'import json,sys
-try: print(next(x["installPath"] for x in json.load(sys.stdin) if x["id"].startswith("arnes-plan")))
-except Exception: pass' 2>/dev/null)" || true
+       | "$PY" -c 'import json, sys
+try:
+    candidatas = [x for x in json.load(sys.stdin)
+                  if (x.get("id") == "arnes-plan" or str(x.get("id", "")).startswith("arnes-plan@"))
+                  and x.get("installPath")]
+    if not candidatas:
+        sys.exit(0)
+    candidatas.sort(key=lambda x: x.get("lastUpdated") or x.get("installedAt") or "")
+    elegida = candidatas[-1]
+    if len(candidatas) > 1:
+        ids = [x["id"] for x in candidatas]
+        otras = [x["id"] for x in candidatas[:-1]]
+        print("arnes: hay " + str(len(candidatas)) + " instalaciones de arnes-plan a la vez ("
+              + ", ".join(ids) + "); uso la mas reciente (" + elegida["id"] + "). Desinstala las demas: "
+              + " && ".join("claude plugin uninstall " + o for o in otras), file=sys.stderr)
+    print(elegida["installPath"])
+except Exception: pass')" || true
   [[ -n "${p:-}" && -d "$p" ]] && { printf '%s' "$p"; return 0; }
   # Respaldo, por si `claude` no está en el PATH de este shell: el registro que
   # el propio CLI escribe. NO se elige la versión más alta del cache: ahí quedan
@@ -186,12 +207,24 @@ try:
     d = json.load(open(r, encoding="utf-8"))
 except Exception:
     sys.exit(1)
+candidatas = []
 for clave, entradas in d.get("plugins", {}).items():
-    if clave.startswith("arnes-plan"):
+    if clave == "arnes-plan" or clave.startswith("arnes-plan@"):
         for e in entradas:
             if e.get("installPath"):
-                print(e["installPath"]); sys.exit(0)
-sys.exit(1)' 2>/dev/null)" || true
+                candidatas.append((clave, e))
+                break
+if not candidatas:
+    sys.exit(1)
+candidatas.sort(key=lambda ce: ce[1].get("lastUpdated") or ce[1].get("installedAt") or "")
+clave, e = candidatas[-1]
+if len(candidatas) > 1:
+    ids = [c for c, _ in candidatas]
+    otras = [c for c, _ in candidatas[:-1]]
+    print("arnes: hay " + str(len(candidatas)) + " instalaciones de arnes-plan a la vez ("
+          + ", ".join(ids) + "); uso la mas reciente (" + clave + "). Desinstala las demas: "
+          + " && ".join("claude plugin uninstall " + o for o in otras), file=sys.stderr)
+print(e["installPath"]); sys.exit(0)')" || true
   [[ -n "${p:-}" && -d "$p" ]] && { printf '%s' "$p"; return 0; }
   return 1
 }

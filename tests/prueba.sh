@@ -312,7 +312,20 @@ check "y lleva su firma"                 "si" "$(grep -q 'arnes-plan:atajo' "$CA
 # el intérprete por encima de ella —en Windows es `python`, no `python3`— y
 # extraer sólo el cuerpo dejaba esa variable sin definir. La prueba se rompió
 # al hacer el arnés agnóstico de plataforma, y tenía razón en romperse.
-RESUELVE="$(env HOME="$CASA" PATH=/usr/bin:/bin bash -c \
+#
+# El PATH restringido excluye a `claude`, pero tiene que seguir dejando pasar
+# al intérprete: se calcula con el mismo `command -v` que usa el propio arnés,
+# no con `/usr/bin:/bin` a secas —eso da por hecho dónde vive `python3`, y en
+# Windows no vive ahí. La variable se reutiliza más abajo, en el mismo caso
+# con dos marketplaces a la vez.
+PY_DIR="$(dirname "$(command -v python3 || command -v python)")"
+PATH_SIN_CLAUDE="$PY_DIR:/usr/bin:/bin"
+# El respaldo lee installed_plugins.json con `os.path.expanduser("~/...")`. Un
+# Python nativo de Windows —no el de MSYS2/Cygwin— resuelve `~` con
+# USERPROFILE, no con HOME: pisar sólo HOME deja la casa de mentira a medias
+# y la lectura cae en la de verdad. Se pisan las dos para que la sandbox
+# aísle igual sea cual sea el intérprete que resuelva `$PY`.
+RESUELVE="$(env HOME="$CASA" USERPROFILE="$CASA" PATH="$PATH_SIN_CLAUDE" bash -c \
   'source /dev/stdin <<< "$(sed -n "/^set -euo/,/^case /p" "$0" | sed "\$d")"; raiz_del_plugin' \
   "$CASA/.local/bin/arnes" 2>/dev/null)"
 check "elige la instalada, no la 2.0.0"  "$CACHE/1.0.0" "$RESUELVE"
@@ -327,6 +340,66 @@ printf '#!/bin/bash\necho MIO\n' > "$CASA/.local/bin/arnes"; chmod +x "$CASA/.lo
 SALIDA="$(HOME="$CASA" bash "$ARNES/scripts/arrancar.sh" 2>&1)"
 check "no sobrescribe un arnes ajeno"    "MIO" "$(bash "$CASA/.local/bin/arnes")"
 check "y avisa de que no lo tocó"        "si" "$(grep -q 'no es de este plugin' <<<"$SALIDA" && echo si || echo no)"
+
+
+echo '9b. Dos marketplaces con el mismo plugin: no gana el primero del JSON'
+# El caso real que rompió en producción: se migró de un marketplace autoalojado
+# a "dweno-forge" (1.17.1) pero la instalación vieja nunca se desinstaló, así
+# que quedan las dos a la vez con la MISMA familia de id ("arnes-plan@..."). Un
+# `startswith("arnes-plan")` sin el "@" hacía match en las dos y ganaba la que
+# quedara primero en el JSON, no la más reciente. Se cubren las dos rutas de
+# `raiz_del_plugin`: la del CLI y la del respaldo por archivo.
+CASA_AMBIG="$TMP/casa-ambigua"; mkdir -p "$CASA_AMBIG/.local/bin"
+CACHE_VIEJA="$CASA_AMBIG/.claude/plugins/cache/arnes-plan/arnes-plan/1.17.0"
+CACHE_NUEVA="$CASA_AMBIG/.claude/plugins/cache/dweno-forge/arnes-plan/1.17.2"
+mkdir -p "$CACHE_VIEJA/scripts" "$CACHE_NUEVA/scripts"
+cat > "$CASA_AMBIG/.claude/plugins/installed_plugins.json" <<AMBIG_FIN
+{"version":2,"plugins":{
+  "arnes-plan@arnes-plan":[
+    {"scope":"user","installPath":"$CACHE_VIEJA","version":"1.17.0","lastUpdated":"2026-09-03T19:00:28Z"}],
+  "arnes-plan@dweno-forge":[
+    {"scope":"user","installPath":"$CACHE_NUEVA","version":"1.17.2","lastUpdated":"2026-09-08T21:55:19Z"}]}}
+AMBIG_FIN
+
+cd "$PROY"
+HOME="$CASA_AMBIG" bash "$ARNES/scripts/arrancar.sh" >/dev/null 2>&1
+
+# Respaldo por archivo: sin `claude` en el PATH (mismo $PATH_SIN_CLAUDE de la
+# prueba 9, que sí deja pasar al intérprete). USERPROFILE junto a HOME, por lo
+# mismo que allí: un Python nativo de Windows resuelve `~` por USERPROFILE.
+RESUELVE_AMBIG="$(env HOME="$CASA_AMBIG" USERPROFILE="$CASA_AMBIG" PATH="$PATH_SIN_CLAUDE" bash -c \
+  'source /dev/stdin <<< "$(sed -n "/^set -euo/,/^case /p" "$0" | sed "\$d")"; raiz_del_plugin' \
+  "$CASA_AMBIG/.local/bin/arnes" 2>"$TMP/aviso-respaldo.txt")"
+check "respaldo: elige la más reciente, no la primera del JSON" \
+      "$CACHE_NUEVA" "$RESUELVE_AMBIG"
+check "respaldo: avisa de la duplicada por stderr" "si" \
+      "$(grep -q 'arnes-plan@arnes-plan' "$TMP/aviso-respaldo.txt" && echo si || echo no)"
+
+# La ruta del CLI: un `claude plugin list --json` de mentira con las dos.
+mkdir -p "$TMP/bin-ambig"
+cat > "$TMP/bin-ambig/claude" <<CLI_FIN
+#!/bin/bash
+cat <<JSON
+[{"id":"arnes-plan@arnes-plan","installPath":"$CACHE_VIEJA","lastUpdated":"2026-09-03T19:00:28Z"},
+ {"id":"arnes-plan@dweno-forge","installPath":"$CACHE_NUEVA","lastUpdated":"2026-09-08T21:55:19Z"}]
+JSON
+CLI_FIN
+chmod +x "$TMP/bin-ambig/claude"
+RESUELVE_CLI="$(env HOME="$CASA_AMBIG" USERPROFILE="$CASA_AMBIG" PATH="$TMP/bin-ambig:$PATH_SIN_CLAUDE" bash -c \
+  'source /dev/stdin <<< "$(sed -n "/^set -euo/,/^case /p" "$0" | sed "\$d")"; raiz_del_plugin' \
+  "$CASA_AMBIG/.local/bin/arnes" 2>"$TMP/aviso-cli.txt")"
+check "CLI: elige la más reciente, no la primera del array" \
+      "$CACHE_NUEVA" "$RESUELVE_CLI"
+check "CLI: avisa de la duplicada por stderr" "si" \
+      "$(grep -q 'arnes-plan@arnes-plan' "$TMP/aviso-cli.txt" && echo si || echo no)"
+
+# entorno.sh (arnes_registro) tiene su propia copia de este mismo filtro.
+REG_AMBIG="$(env HOME="$CASA_AMBIG" USERPROFILE="$CASA_AMBIG" bash -c 'source "$0"; arnes_registro' \
+  "$ARNES/scripts/entorno.sh" 2>"$TMP/aviso-entorno.txt")"
+check "entorno.sh: registra la más reciente" \
+      "$(printf '%s\t1.17.2\t' "$CACHE_NUEVA")" "$REG_AMBIG"
+check "entorno.sh: avisa de la duplicada por stderr" "si" \
+      "$(grep -q 'arnes-plan@arnes-plan' "$TMP/aviso-entorno.txt" && echo si || echo no)"
 
 
 echo '10. La puerta de cierre corre por cualquier puerta de entrada'
