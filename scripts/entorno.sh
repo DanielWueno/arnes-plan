@@ -144,20 +144,40 @@ arnes_ruta_shell() {
 # quien la compara no tiene por qué saber en qué sistema corre.
 arnes_registro() {
   local salida
-  salida="$("$PY" - <<'PY' 2>/dev/null || true
+  # `startswith("arnes-plan")` sin el "@" también hacía match en la propia
+  # clave "arnes-plan@arnes-plan" (el marketplace autoalojado, retirado en la
+  # 1.17.1) a la vez que en "arnes-plan@dweno-forge". Con las dos instaladas
+  # a la vez —el estado normal justo después de migrar de marketplace, antes
+  # de desinstalar la vieja— el orden de inserción del JSON decidía cuál
+  # ganaba, y no era necesariamente la que `claude plugin update` acababa de
+  # traer. Se filtra por familia exacta y, si hay más de una candidata, se
+  # avisa por stderr en vez de elegir en silencio.
+  salida="$("$PY" - <<'PY' || true
 import json, os, sys
 r = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
 try:
     d = json.load(open(r, encoding="utf-8"))
 except Exception:
     sys.exit(0)
+candidatas = []
 for clave, entradas in d.get("plugins", {}).items():
-    if clave.startswith("arnes-plan"):
+    if clave == "arnes-plan" or clave.startswith("arnes-plan@"):
         for e in entradas:
             if e.get("installPath"):
-                print("\t".join((e["installPath"], e.get("version") or "",
-                                 (e.get("gitCommitSha") or "")[:7])))
-                sys.exit(0)
+                candidatas.append((clave, e))
+                break
+if not candidatas:
+    sys.exit(0)
+candidatas.sort(key=lambda ce: ce[1].get("lastUpdated") or ce[1].get("installedAt") or "")
+clave, e = candidatas[-1]
+if len(candidatas) > 1:
+    ids = [c for c, _ in candidatas]
+    otras = [c for c, _ in candidatas[:-1]]
+    print("arnes: hay " + str(len(candidatas)) + " instalaciones de arnes-plan a la vez ("
+          + ", ".join(ids) + "); uso la mas reciente (" + clave + "). Desinstala las demas: "
+          + " && ".join("claude plugin uninstall " + o for o in otras), file=sys.stderr)
+print("\t".join((e["installPath"], e.get("version") or "",
+                 (e.get("gitCommitSha") or "")[:7])))
 PY
 )"
   [[ -n "$salida" ]] || return 0
