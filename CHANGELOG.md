@@ -10,6 +10,22 @@ Cada versión tiene una etiqueta `arnes-plan--vX.Y.Z` en el repositorio, y
 el número de cada entrada enlaza con lo que cambió respecto a la anterior.
 No hay 1.9.x: la serie salta de la 1.8.2 a la 1.10.0.
 
+## [1.17.4] — 2026-09-10
+
+### Corregido
+
+- **El hook `SessionStart` (y el `PostToolUse` de la puerta de cierre) podían
+  fallar al arrancar la sesión en Windows con un error de sintaxis de
+  PowerShell.** Ambos están escritos en bash. Claude Code, en Windows, cae a
+  PowerShell para ejecutar hooks cuando no encuentra Git Bash en una ruta
+  conocida (típicamente `Program Files\Git`); si Git está instalado en otro
+  sitio —por ejemplo, una instalación de usuario bajo
+  `AppData\Local\Programs\Git`, aunque `bash` esté en el PATH—, esa detección
+  no lo ve y el hook se ejecuta con PowerShell interpretando sintaxis bash,
+  reventando en el primer carácter especial. Ahora ambos hooks fijan
+  `"shell": "bash"` explícitamente en `hooks/hooks.json`, así que no dependen
+  de esa detección automática.
+
 ## [1.17.3] — 2026-09-09
 
 ### Corregido
@@ -795,6 +811,7 @@ se copiaba con un instalador; el historial de esa etapa se conserva.
   de distribución que este repo viene a sustituir. Mantener las dos vías
   reintroduce las copias divergentes.
 
+[1.17.4]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.3...arnes-plan--v1.17.4
 [1.17.3]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.2...arnes-plan--v1.17.3
 [1.17.2]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.1...arnes-plan--v1.17.2
 [1.17.1]: https://github.com/DanielWueno/arnes-plan/compare/arnes-plan--v1.17.0...arnes-plan--v1.17.1
