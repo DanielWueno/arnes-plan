@@ -8,11 +8,15 @@ deja en tu repositorio es el ledger, un JSON con tu plan. La herramienta se actu
 `claude plugin update`; tu plan no se toca.
 
 **Sistemas.** Los scripts son bash y Python 3, así que corren en macOS, Linux y en Windows sobre
-git-bash o WSL —que es lo que Claude Code usa allí—. El intérprete se resuelve solo (`python3` o
+git-bash o WSL. El intérprete se resuelve solo (`python3` o
 `python`, según el sistema), y en Windows el lanzador se instala además como `arnes.cmd` para que
 PowerShell y `cmd` sepan invocarlo — envoltorio que localiza él mismo el `bash` de Git for Windows,
 porque ese intérprete no está en el PATH de Windows. Allí `~/.local/bin` no está en el PATH y ponerla exige editar
-el registro, así que lo hace el propio arranque, en el ámbito del usuario y sólo si falta. El
+el registro, así que lo hace el propio arranque, en el ámbito del usuario y sólo si falta. Los
+hooks de `hooks/hooks.json` fijan `"shell": "bash"` explícitamente: sin eso, Claude Code cae a
+PowerShell en Windows cuando no encuentra Git Bash en una ruta conocida (p. ej. si sólo está
+instalado bajo el perfil del usuario y no en `Program Files\Git`), aunque `bash` esté en el PATH,
+y los hooks —escritos en bash— revientan con un error de sintaxis de PowerShell. El
 recorrido completo **no** está probado en Windows: no hay runner, así que la suite —que corre en
 Unix— reproduce a mano lo que allí es distinto (la ruta nativa que guarda el registro de plugins, la
 codificación que Python elige cuando su salida va capturada). Los informes de fallo son bienvenidos:
